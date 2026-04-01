@@ -1,5 +1,5 @@
 # OVID — Open Video Disc Identification Database
-## Technical Specification · v0.2 Draft
+## Technical Specification · v0.3 Draft
 
 ---
 
@@ -72,103 +72,223 @@ This is the most technically critical part of OVID. The fingerprint must be:
 - **Unique** — different disc pressings/editions should produce different fingerprints
 - **Collision-resistant** — two completely different discs should never share a fingerprint
 
-### 2.1 DVD Fingerprint Algorithm
+### 2.0 Prior Art and Patent Status
 
-DVDs store structure in `.IFO` files inside the `VIDEO_TS/` directory. The fingerprint is derived from this structure, which is identical across all copies of the same pressing.
+**The Windows dvdid algorithm (US Patent 6,871,012 B1)** was the main existing approach for DVD disc identification. It computes a 64-bit CRC from file sizes, dates, and header data in the `VIDEO_TS/` directory using an irreducible polynomial. Key facts:
 
-**Input data (read from disc):**
+- **Owner:** Microsoft Technology Licensing LLC
+- **Filed:** November 22, 2000
+- **Expired:** September 3, 2023 (fee lapse) — **now in the public domain**
+- **Implemented by:** `pydvdid` (Apache-2.0), `pydvdid-m` (GPL-3.0), `dvdid` (C, source available)
+
+**OVID deliberately does not use this algorithm**, and not because of the now-expired patent. The fundamental problem is that the Windows algorithm incorporates **file system timestamps** (creation and modification dates) in its CRC inputs. Timestamps change whenever disc files are copied, ripped to ISO, or transferred between systems. An algorithm that produces different fingerprints for different copies of the same disc is unsuitable for a lookup database. OVID needs fingerprints derived purely from the disc's logical content structure — the same approach used by MusicBrainz's `libdiscid` for audio CDs (which hashes the Table of Contents, not file dates).
+
+**`pydvdid-m` (GPL-3.0)** is referenced as the model for reading IFO files from ISOs and live disc drives using `pycdlib`. OVID will use the same disc-access layer but an independent structural hash algorithm.
+
+---
+
+### 2.1 DVD Fingerprint Algorithm (OVID-DVD-1)
+
+DVDs store structure in `.IFO` files inside the `VIDEO_TS/` directory. The fingerprint is derived entirely from the **logical structure** of these files — title sets, program counts, durations, and chapter layout — not from timestamps or file metadata.
+
+**Input data (read from disc or ISO):**
 
 ```
 VIDEO_TS/
-  VIDEO_TS.IFO      ← root info file
+  VIDEO_TS.IFO      ← root info file (VMG — Video Manager)
   VTS_01_0.IFO      ← title set 1 info
   VTS_02_0.IFO      ← title set 2 info
   ...               ← up to 99 title sets
 ```
 
-**Algorithm:**
+**Read using:** `libdvdread` (GPL-2.0+) or `pycdlib` (LGPL-2.1) for ISO/drive access. No file timestamps are read or used.
 
-1. Read `VIDEO_TS.IFO` and extract: number of title sets (VTS count), total number of titles
-2. For each title set `VTS_XX_0.IFO`, extract:
+**Algorithm — OVID-DVD-1:**
+
+1. From `VIDEO_TS.IFO`, extract:
+   - Number of title sets (`VTS_count`)
+   - Total number of titles (`title_count`)
+2. For each title set `VTS_XX_0.IFO` (in order, `01` through `VTS_count`), extract:
    - Number of programs (titles) in this set
-   - For each program: total duration in seconds (from PGC playback time), number of chapters (cells)
-3. Build a canonical string in this format:
+   - For each program in order: total duration in **whole seconds** (rounded from PGC playback time field), number of chapters (cell count)
+   - Number of audio streams, and for each: language code (ISO 639-2), codec identifier
+   - Number of subtitle streams, and for each: language code
+3. Build a canonical UTF-8 string in this exact format (pipe-delimited, no spaces):
    ```
-   DVD|{num_title_sets}|{title_count}|{ts1_titles}:{t1_dur}:{t1_chaps},{t2_dur}:{t2_chaps},...|{ts2_titles}:...
+   OVID-DVD-1|{VTS_count}|{title_count}|{vts1_pgc_count}:{t1_dur}:{t1_chaps}:{t1_audio}:{t1_subs},...|{vts2...}
    ```
-   Example:
-   ```
-   DVD|3|8|1:7287:28|5:104:3,95:2,88:2,82:2,71:1|2:134:5,112:4
-   ```
-4. SHA-256 hash the canonical string → truncate to first 40 hex characters
-5. Format: `dvd-{40_char_hex}`
+   Where `{t1_audio}` is comma-joined language codes (e.g. `en,fr,es`) and `{t1_subs}` similarly.
 
-**Why this works:** The number and duration of titles/chapters is determined at disc mastering time and is identical across all physical copies of the same pressing. Minor read errors (sub-second timing differences) are addressed by rounding durations to the nearest second.
+   Example (Fellowship of the Ring DVD):
+   ```
+   OVID-DVD-1|3|8|1:7287:28:en,fr,es:en,fr,es,pt|5:104:3:en:en,104:2:en:,88:2:en:,82:2:en:,71:1:en:|2:134:5:en,fr:en,fr,134:4:en:en
+   ```
+4. SHA-256 hash the canonical string → encode as lowercase hex
+5. Take the first 40 characters of the hex string
+6. Format: `dvd1-{40_char_hex}`
 
-**Known edge cases:**
-- Some DVDs have malformed IFO files — the library should fall back to a best-effort parse and flag the fingerprint as `low_confidence`
-- Region-locked content may present different title sets on different players — fingerprint should be based on raw IFO data, not playback behavior
+**Why this is stable:** Title counts, durations (in whole seconds), and chapter layouts are fixed at mastering time and are byte-for-byte identical across every physical copy of the same pressing. No filesystem metadata is used.
+
+**Known edge cases and handling:**
+- Malformed or truncated IFO files: fall back to best-effort parse; flag fingerprint confidence as `low`
+- Durations that differ by <2 seconds across drives (rare IFO timing inconsistencies): round to nearest second before hashing
+- Region coding does NOT affect IFO structure — fingerprint is region-agnostic by design (region is stored separately in the OVID record)
+
+**Compatible open-source reading libraries:**
+
+| Library | License | Language | Notes |
+|---|---|---|---|
+| `libdvdread` | GPL-2.0+ | C | Standard; ships with most Linux distros |
+| `pydvdid-m` | GPL-3.0 | Python | ISO + drive access via pycdlib; use for disc reading layer only |
+| `pycdlib` | LGPL-2.1 | Python | ISO image mounting without root |
 
 ---
 
-### 2.2 Blu-ray Fingerprint Algorithm
+### 2.2 Blu-ray and 4K UHD Fingerprint Algorithm
 
-Blu-ray discs store structure in the `BDMV/` directory. The relevant files are:
+**UHD Blu-ray vs standard Blu-ray:** The BDMV logical structure is **identical** between standard BD and 4K UHD. Both use the same `BDMV/PLAYLIST/*.mpls` and `BDMV/CLIPINF/*.clpi` file formats. The version header in MPLS files differs (`0200` for BD, `0300` for UHD), which OVID uses to distinguish the format. Physically, UHD discs have higher-density layers and use AACS 2 encryption, but neither affects structure-based fingerprinting.
+
+OVID uses a **two-tier approach** for Blu-ray fingerprinting, using whichever source is available:
+
+#### Tier 1 — AACS Disc ID (preferred, when available)
+
+The AACS protection system stores a file called `Unit_Keys_RO.inf` in the `AACS/` directory of every pressed Blu-ray and UHD disc. The **AACS Disc ID** is the SHA-1 hash of this file. It is:
+- A **true industry identifier** — unique per disc pressing by design, assigned during disc mastering
+- **20 bytes (160-bit SHA-1)** — effectively no collision risk
+- **Already computed** by `libaacs` (LGPL-2.1) when the disc is being decrypted for playback or ripping
+- Available to ARM users since they already need `libaacs` (or MakeMKV) for ripping
+
+```
+AACS/
+  Unit_Keys_RO.inf    ← AACS CPS unit key file; SHA-1 of this = Disc ID
+  ContentHash000.tbl  ← 8-byte content hashes per 96-sector chunk (Layer 0)
+  ContentHash001.tbl  ← (dual-layer and above)
+  MKB_RO.inf          ← Media Key Block
+```
+
+**OVID Tier 1 fingerprint format:**
+```
+bd1-aacs-{40_char_sha1_hex}    ← standard Blu-ray with AACS disc ID
+uhd1-aacs-{40_char_sha1_hex}   ← 4K UHD with AACS disc ID
+```
+
+The SHA-1 hex is the existing AACS Disc ID — OVID does not compute a new hash, just formats it. This means OVID fingerprints are directly interoperable with any tool that already knows the AACS Disc ID of a disc.
+
+**Source library:** `libaacs` (VideoLAN, LGPL-2.1). The `aacs_get_disc_id()` function returns the 20-byte disc ID. `libbluray` (LGPL-2.1) exposes this via `BLURAY_DISC_INFO.disc_id` when `libaacs` is present.
+
+#### Tier 2 — BDMV Structure Hash (fallback)
+
+When the AACS directory is unavailable or the disc is not yet decrypted, OVID falls back to hashing the BDMV playlist structure. This is a structural fingerprint only — weaker than Tier 1 but still useful for identification.
+
+**Input data:**
 
 ```
 BDMV/
-  index.bdmv        ← disc index
-  MovieObject.bdmv  ← navigation commands
   PLAYLIST/
-    00001.mpls      ← playlist files (define playback order)
+    00001.mpls    ← binary playlist file
     00002.mpls
     ...
   CLIPINF/
-    00001.clpi      ← clip info (metadata about each stream)
-    00002.clpi
+    00001.clpi    ← clip info (stream metadata)
     ...
-  STREAM/           ← actual video (not read for fingerprinting)
 ```
 
-**Algorithm:**
+**Read using:** `libbluray` (LGPL-2.1), which provides full MPLS and CLPI parsing. In Python: `pympls` (MIT) for MPLS parsing, or Python bindings to `libbluray` via `PyBluRead` (GPL-2.0+).
 
-1. Read all `.mpls` (playlist) files from `BDMV/PLAYLIST/`
-2. For each playlist, extract:
-   - Total playback duration (in seconds, from clip info)
-   - Number of PlayItems (stream segments)
-   - Number of chapters (marks)
-   - Number of audio streams and their language codes
-   - Number of subtitle streams and their language codes
-3. Sort playlists by duration descending (the main feature is almost always the longest playlist)
-4. Build canonical string:
-   ```
-   BD|{playlist_count}|{pl_id}:{dur}:{items}:{chaps}:{audio_langs}:{sub_langs}|...
-   ```
-   Example:
-   ```
-   BD|12|00001:8847:1:28:eng,fra,spa:eng,fra,spa,por|00002:8847:1:28:eng:eng|00003:312:1:0:eng:
-   ```
-5. SHA-256 hash → first 40 hex characters
-6. Format: `bd-{40_char_hex}`
+**Algorithm — OVID-BD-2 (structure hash):**
 
-**Note on 4K UHD Blu-ray:** The BDMV structure is identical to standard Blu-ray. The fingerprint prefix will be `uhd-` to distinguish these, but the algorithm is the same.
+1. Read all `.mpls` files from `BDMV/PLAYLIST/`
+2. Detect format from MPLS version header: `0200` = BD, `0300` = UHD
+3. For each playlist (sorted by filename numerically, not by duration — ordering must be deterministic):
+   - Total playback duration in whole seconds
+   - Number of PlayItems
+   - Number of chapter marks
+   - For each audio stream: language code (ISO 639-2), codec type
+   - For each subtitle stream: language code
+4. Filter out playlists shorter than 60 seconds (trailers, menus, samples) to reduce noise from obfuscation playlists
+5. Build canonical string:
+   ```
+   OVID-BD-2|{mpls_version}|{playlist_count_after_filter}|{pl_id}:{dur}:{items}:{chaps}:{audio}:{subs}|...
+   ```
+   Where `{audio}` and `{subs}` are `codec:lang` pairs, comma-joined; playlists sorted by filename.
+
+6. SHA-256 hash → first 40 hex chars
+7. Format: `bd2-{40_char_hex}` or `uhd2-{40_char_hex}`
+
+**The obfuscation playlist problem:** Modern BD and UHD discs (particularly from major US studios) include hundreds of decoy playlists to defeat ripping tools. Some discs have 800+ MPLS files where only 1–2 are the actual feature. The 60-second filter removes most noise; the structural approach (durations, chapter counts, stream counts) remains meaningful because even among hundreds of fake playlists, the real feature has a unique combination of duration, chapters, and track layout.
+
+**Compatible open-source libraries:**
+
+| Library | License | Language | Notes |
+|---|---|---|---|
+| `libbluray` | LGPL-2.1 | C | Full MPLS + CLPI parsing; the reference implementation |
+| `libaacs` | LGPL-2.1 | C | Provides AACS Disc ID (Tier 1) |
+| `pympls` | MIT | Python | Lightweight MPLS parser; last active 2021 |
+| `BDInfo` / forks | LGPL-2.1 | C# | Full BD/UHD analysis; Jellyfin fork actively maintained |
+| `bluray_info` | GPL-2.0 | C | Linux CLI tools built on libbluray |
+| `PyBluRead` | GPL-2.0+ | Python | Python bindings for libbluray |
 
 ---
 
-### 2.3 Fingerprint String Format
-
-All OVID fingerprints follow this format:
+### 2.3 Fingerprint String Format and Tier Selection
 
 ```
-{format}-{40_char_sha256_hex}
+{format}{tier}-{source}-{hash}   (Tier 1, AACS)
+{format}{tier}-{hash}            (Tier 2, structure)
 ```
 
-Examples:
+| Fingerprint prefix | Meaning |
+|---|---|
+| `dvd1-` | DVD, OVID structural algorithm v1 |
+| `bd1-aacs-` | Standard Blu-ray, AACS Disc ID (Tier 1) |
+| `bd2-` | Standard Blu-ray, BDMV structure hash (Tier 2) |
+| `uhd1-aacs-` | 4K UHD, AACS Disc ID (Tier 1) |
+| `uhd2-` | 4K UHD, BDMV structure hash (Tier 2) |
+
+**Examples:**
 ```
-dvd-a3f92c1b4e8d7f6a2c9e0b1d3f5a8c2e4f6b8d0a
-bd-9f1e3c7b2a4d6e8f0a2c4e6b8d0f2a4c6e8b0d2
-uhd-1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0
+dvd1-a3f92c1b4e8d7f6a2c9e0b1d3f5a8c2e4f6b8d0a
+bd1-aacs-9f1e3c7b2a4d6e8f0a2c4e6b8d0f2a4c6e8b0d2
+bd2-1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1
+uhd1-aacs-c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1
+uhd2-d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3
 ```
+
+**`ovid-client` tier selection logic:**
+```python
+def compute_fingerprint(disc_path):
+    disc = Disc.from_path(disc_path)
+
+    if disc.format in ("BD", "UHD"):
+        aacs_id = disc.aacs_disc_id()      # returns None if libaacs unavailable
+        if aacs_id:
+            prefix = "bd1-aacs" if disc.format == "BD" else "uhd1-aacs"
+            return f"{prefix}-{aacs_id.hex()[:40]}"
+        else:
+            # Fall back to structure hash
+            return compute_bdmv_structure_hash(disc)
+    elif disc.format == "DVD":
+        return compute_dvd_structure_hash(disc)
+```
+
+A single disc entry in the OVID database can hold **both** a Tier 1 and a Tier 2 fingerprint — whichever contributors have submitted — allowing lookup by either. When a Tier 2 fingerprint is later matched to a Tier 1, the entry is upgraded.
+
+### 2.4 Licensing Summary
+
+All libraries used to implement OVID disc fingerprinting are compatible with OVID's AGPL-3.0 license:
+
+| Library | License | Compatibility with AGPL-3.0 |
+|---|---|---|
+| `libdvdread` | GPL-2.0+ | Compatible (GPL family) |
+| `libbluray` | LGPL-2.1 | Compatible (LGPL can link into AGPL; must be dynamically linked) |
+| `libaacs` | LGPL-2.1 | Compatible (same as above) |
+| `pydvdid-m` (disc reading layer only) | GPL-3.0 | Compatible (GPL-3.0 ⊂ AGPL-3.0 family) |
+| `pympls` | MIT | Compatible (permissive) |
+| `pycdlib` | LGPL-2.1 | Compatible |
+| `BDInfo` forks | LGPL-2.1 | Compatible |
+| `bluray_info` | GPL-2.0 | Compatible |
+
+**Attribution required:** All GPL/LGPL libraries must be credited in OVID's documentation and source. The LGPL libraries (`libbluray`, `libaacs`, `pycdlib`) must be dynamically linked, not statically compiled into the `ovid-client` binary, to preserve end-user rights to swap library versions.
 
 ---
 
@@ -1102,4 +1222,4 @@ These are tiny numbers. A self-hosted node on a home NAS with even a basic inter
 
 ---
 
-*Document status: Draft v0.2 · Authors: Project founders · Last updated: 2026-03-31*
+*Document status: Draft v0.3 · Authors: Project founders · Last updated: 2026-03-31*
