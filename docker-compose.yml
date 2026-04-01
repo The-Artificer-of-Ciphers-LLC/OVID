@@ -1,0 +1,38 @@
+services:
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${OVID_DB_NAME:-ovid}
+      POSTGRES_USER:     ${OVID_DB_USER:-ovid}
+      POSTGRES_PASSWORD: ${OVID_DB_PASSWORD:-ovidlocal}
+    volumes:
+      - ovid_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${OVID_DB_USER:-ovid}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL:    postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}
+      SECRET_KEY:      ${OVID_SECRET_KEY:-dev-secret-change-in-production}
+      OVID_MODE:       ${OVID_MODE:-standalone}
+      LOG_LEVEL:       ${LOG_LEVEL:-info}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  ovid_pgdata:
