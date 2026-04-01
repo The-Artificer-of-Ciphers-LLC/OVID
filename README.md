@@ -6,7 +6,11 @@
 
 ## What Is OVID?
 
-OVID is an open-source project to build the video disc equivalent of [MusicBrainz](https://musicbrainz.org).
+The name is a quiet nod to [Publius Ovidius Naso](https://en.wikipedia.org/wiki/Ovid) — the Roman poet who spent his life cataloguing everything worth preserving. His *Metamorphoses* assembled 250 myths into a single, structured work so nothing would be lost. His *Fasti* catalogued the Roman calendar, month by month, entry by entry. Ovid believed that if something existed, it deserved to be recorded precisely and permanently.
+
+That felt like the right spirit for a project about preserving physical media.
+
+OVID (**O**pen **Vi**deo **D**isc identification database) is an open-source project to build the video disc equivalent of [MusicBrainz](https://musicbrainz.org).
 
 When you rip a music CD today, software like MusicBrainz Picard reads the disc's Table of Contents, generates a fingerprint, and looks it up in a community database — giving you the album title, track names, artwork, and release year automatically. This works because MusicBrainz spent years building an open, structured database of disc fingerprints contributed by thousands of people who own physical media.
 
