@@ -1,41 +1,65 @@
 # OVID — Open Video Disc Identification Database
-## Technical Specification · v0.1 Draft
+## Technical Specification · v0.2 Draft
 
 ---
 
 ## 1. System Overview
 
-OVID is a three-part system:
+OVID is a four-part system:
 
 1. **`ovid-client`** — A Python library (with a CLI) that reads a mounted DVD or Blu-ray disc and generates a standardized disc fingerprint string.
 2. **OVID API Server** — A REST API that accepts fingerprint lookups and disc submissions, backed by a relational database.
 3. **OVID Web UI** — A browser-based interface for searching, browsing, and submitting disc entries. Also serves as the human review and moderation layer.
+4. **Self-Hosted Node (optional)** — A full OVID stack that anyone can run locally or on a home server. Self-hosted nodes sync their database from the canonical server via a diff/patch feed, so they stay up to date without internet lookups on every disc rip.
+
+### Deployment Topologies
+
+**Topology A — Cloud lookup (default)**
+Every disc lookup goes out to `api.oviddb.org`. Simple, no local setup required.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         User's Computer                              │
 │                                                                      │
-│   ┌──────────────┐     disc fingerprint      ┌──────────────────┐   │
-│   │  ARM / other │ ─────────────────────────▶│   ovid-client    │   │
-│   │  rip tool    │◀─ metadata JSON ─────────  │   (Python lib)   │   │
-│   └──────────────┘                            └────────┬─────────┘   │
-│                                                        │             │
+│   ┌──────────────┐                            ┌──────────────────┐  │
+│   │  ARM / other │◀──── metadata JSON ────────│   ovid-client    │  │
+│   │  rip tool    │                            │   (Python lib)   │  │
+│   └──────────────┘                            └────────┬─────────┘  │
+│                                                        │            │
 └────────────────────────────────────────────────────────┼────────────┘
                                                          │ HTTPS REST
                                               ┌──────────▼──────────┐
-                                              │    OVID API Server   │
-                                              │   (Python / Flask    │
-                                              │    or FastAPI)       │
-                                              └──────────┬──────────┘
-                                                         │
-                                              ┌──────────▼──────────┐
-                                              │  PostgreSQL Database │
+                                              │  CANONICAL SERVER    │
+                                              │  api.oviddb.org      │
+                                              │  (FastAPI + PG)      │
                                               └─────────────────────┘
-                                              ┌─────────────────────┐
-                                              │   OVID Web UI        │
-                                              │   (React or plain    │
-                                              │    HTML/JS)          │
-                                              └─────────────────────┘
+```
+
+**Topology B — Self-hosted node (offline-capable)**
+A full OVID stack runs on the user's home network (e.g., a NAS or Raspberry Pi). It syncs from the canonical server on a schedule and serves all lookups locally — no internet required during ripping.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     User's Home Network                              │
+│                                                                      │
+│  ┌──────────────┐                           ┌──────────────────┐    │
+│  │  ARM / other │◀─── metadata JSON ────────│   ovid-client    │    │
+│  │  rip tool    │                           │  (local API URL) │    │
+│  └──────────────┘                           └────────┬─────────┘    │
+│                                                      │              │
+│                                           ┌──────────▼──────────┐   │
+│                                           │  SELF-HOSTED NODE    │   │
+│                                           │  (Docker: FastAPI    │   │
+│                                           │   + PostgreSQL)      │   │
+│                                           └──────────┬──────────┘   │
+│                                                      │ periodic     │
+└──────────────────────────────────────────────────────┼──────────────┘
+                                                       │ diff sync
+                                             ┌─────────▼───────────┐
+                                             │  CANONICAL SERVER    │
+                                             │  api.oviddb.org      │
+                                             │  (sync feed endpoint)│
+                                             └─────────────────────┘
 ```
 
 ---
@@ -631,15 +655,424 @@ At this scale, a single server (2 vCPU, 4GB RAM) running FastAPI + PostgreSQL ha
 
 ---
 
-## 11. Phased Delivery Plan
+## 11. Docker Development Environment
+
+Every contributor and self-hoster runs the identical stack via Docker Compose. There is no "works on my machine" problem — if Docker is installed, the full OVID server is one command away.
+
+### 11.1 Repository Layout
+
+```
+ovid/
+├── docker-compose.yml          ← full local stack
+├── docker-compose.prod.yml     ← production overrides (no dev volumes, etc.)
+├── .env.example                ← copy to .env and fill in secrets
+├── api/
+│   ├── Dockerfile
+│   ├── main.py                 ← FastAPI app entry point
+│   ├── requirements.txt
+│   └── alembic/                ← database migrations
+├── web/
+│   ├── Dockerfile
+│   └── ...                     ← web UI source
+└── scripts/
+    ├── seed.py                 ← load test disc data into local DB
+    └── sync.py                 ← pull diff from canonical server
+```
+
+### 11.2 `docker-compose.yml`
+
+```yaml
+version: "3.9"
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${OVID_DB_NAME:-ovid}
+      POSTGRES_USER:     ${OVID_DB_USER:-ovid}
+      POSTGRES_PASSWORD: ${OVID_DB_PASSWORD:-ovidlocal}
+    volumes:
+      - ovid_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${OVID_DB_USER:-ovid}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"   # expose for local DB tools (TablePlus, DBeaver, etc.)
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL:    postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}
+      SECRET_KEY:      ${OVID_SECRET_KEY:-dev-secret-change-in-production}
+      OVID_MODE:       ${OVID_MODE:-standalone}   # 'standalone' | 'mirror' | 'canonical'
+      SYNC_SOURCE_URL: ${SYNC_SOURCE_URL:-https://api.oviddb.org}
+      LOG_LEVEL:       ${LOG_LEVEL:-info}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app   # hot-reload in development
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./web:/app   # hot-reload in development
+
+  sync:
+    build: ./api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL:    postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}
+      SYNC_SOURCE_URL: ${SYNC_SOURCE_URL:-https://api.oviddb.org}
+      SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-60}
+    command: python scripts/sync.py --daemon
+    profiles:
+      - mirror   # only runs when: docker compose --profile mirror up
+
+volumes:
+  ovid_pgdata:
+```
+
+**Key design choices:**
+- The `sync` service is in a Docker Compose **profile** called `mirror`. It only starts when you explicitly run `docker compose --profile mirror up`. A plain `docker compose up` starts a standalone local instance with no sync.
+- The `api` container mounts `./api` as a volume so code changes reload instantly during development — no rebuild needed.
+- The database port is exposed locally so developers can connect with standard DB tools.
+
+### 11.3 `.env.example`
+
+```bash
+# Copy this file to .env and fill in values before running docker compose up
+
+# Database
+OVID_DB_NAME=ovid
+OVID_DB_USER=ovid
+OVID_DB_PASSWORD=change_me_in_production
+
+# API
+OVID_SECRET_KEY=change_me_to_a_long_random_string
+LOG_LEVEL=info
+
+# Node mode: standalone | mirror | canonical
+# standalone = local-only, no sync (good for dev)
+# mirror     = syncs from canonical server periodically (good for home NAS)
+# canonical  = the main oviddb.org server (only used by project maintainers)
+OVID_MODE=standalone
+
+# Sync source (only used in mirror mode)
+SYNC_SOURCE_URL=https://api.oviddb.org
+
+# How often to pull diffs from canonical (minutes)
+SYNC_INTERVAL_MINUTES=60
+```
+
+### 11.4 Getting Started (Developer)
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/The-Artificer-of-Ciphers-LLC/OVID.git
+cd OVID
+
+# 2. Configure environment
+cp .env.example .env
+# (edit .env if needed — defaults work for local dev)
+
+# 3. Start the full stack
+docker compose up
+
+# 4. Run database migrations
+docker compose exec api alembic upgrade head
+
+# 5. Seed with test data (optional)
+docker compose exec api python scripts/seed.py
+
+# API is now running at http://localhost:8000
+# Web UI is at http://localhost:3000
+# API docs (auto-generated) at http://localhost:8000/docs
+```
+
+### 11.5 Getting Started (Self-Hosted Mirror)
+
+```bash
+# Same as above, but start with mirror profile to enable background sync
+docker compose --profile mirror up -d
+
+# Run migrations
+docker compose exec api alembic upgrade head
+
+# Trigger an immediate sync from canonical server
+docker compose exec sync python scripts/sync.py --once
+
+# Point ovid-client at your local server
+export OVID_API_URL=http://localhost:8000
+ovid lookup /dev/sr0
+```
+
+### 11.6 Production Deployment (`docker-compose.prod.yml`)
+
+The production override file removes volume mounts (no live code reload), sets `--workers 4` on uvicorn, and expects secrets to come from environment variables rather than an `.env` file:
+
+```yaml
+# docker-compose.prod.yml — apply with:
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  api:
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+    volumes: []   # no source mount in production
+    restart: always
+
+  web:
+    volumes: []
+    restart: always
+
+  db:
+    ports: []     # don't expose DB port externally in production
+    restart: always
+```
+
+---
+
+## 12. Self-Hosted and Distributed Sync Architecture
+
+Self-hosted OVID nodes stay current by pulling **diffs** from the canonical server on a schedule. This is the same model used by Linux package mirrors, DNS zone transfers, and podcast feeds — it is battle-tested, simple to implement, and requires no persistent connection or special protocol.
+
+### 12.1 Core Concept: The Sequence Number
+
+Every write to the OVID database increments a global, monotonically increasing `sequence_number`. This number is stored on each record and never reused or decremented.
+
+```sql
+-- Added to the discs, releases, disc_titles, and disc_tracks tables:
+ALTER TABLE discs      ADD COLUMN seq BIGSERIAL;
+ALTER TABLE releases   ADD COLUMN seq BIGSERIAL;
+ALTER TABLE disc_titles ADD COLUMN seq BIGSERIAL;
+ALTER TABLE disc_tracks ADD COLUMN seq BIGSERIAL;
+
+-- Global sequence counter (single source of truth)
+CREATE SEQUENCE ovid_global_seq START 1;
+```
+
+Each self-hosted node stores one value in its local config: `last_synced_seq`. On each sync cycle it requests everything that has changed since that number, applies it locally, and advances its cursor.
+
+### 12.2 Sync Feed API Endpoints
+
+These endpoints are added to the canonical server specifically to support self-hosted nodes. They are read-only and unauthenticated (data is CC0 anyway).
+
+#### Get the Current Sequence Number
+
+```
+GET /v1/sync/head
+```
+
+```json
+{ "seq": 48291, "timestamp": "2026-03-31T21:00:00Z" }
+```
+
+Self-hosted nodes call this first to check whether they are behind before doing a full diff request.
+
+#### Pull a Diff
+
+```
+GET /v1/sync/diff?since={seq}&limit={n}
+```
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `since` | required | Return all records with `seq > since` |
+| `limit` | 1000 | Max records per response. Paginate using `next_seq` cursor. |
+
+**Response:**
+
+```json
+{
+  "since_seq": 47000,
+  "latest_seq": 48291,
+  "next_seq": 48001,
+  "has_more": true,
+  "records": [
+    {
+      "type": "disc",
+      "op": "upsert",
+      "seq": 47001,
+      "data": { ...full disc object... }
+    },
+    {
+      "type": "release",
+      "op": "upsert",
+      "seq": 47002,
+      "data": { ...full release object... }
+    },
+    {
+      "type": "disc",
+      "op": "delete",
+      "seq": 47050,
+      "data": { "fingerprint": "dvd-abc123..." }
+    }
+  ]
+}
+```
+
+The `op` field is always `upsert` (create or update — the node doesn't need to know which) or `delete` (the record was removed, e.g., a spam submission). Self-hosted nodes apply each record using an `INSERT ... ON CONFLICT DO UPDATE` (PostgreSQL upsert), making the operation idempotent — safe to replay if a sync is interrupted.
+
+#### Download a Full Snapshot (for initial setup)
+
+```
+GET /v1/sync/snapshot
+```
+
+Returns a URL to a compressed `.ndjson.gz` file (newline-delimited JSON, one record per line) containing the full database. Updated daily by the canonical server and hosted on a CDN. Used to initialize a fresh self-hosted node without having to replay thousands of individual diff records.
+
+```json
+{
+  "snapshot_seq": 48200,
+  "url": "https://snapshots.oviddb.org/ovid-snapshot-20260331.ndjson.gz",
+  "size_bytes": 2400000,
+  "record_count": 12400,
+  "sha256": "a1b2c3..."
+}
+```
+
+Initial setup workflow:
+1. Download snapshot → import into local PostgreSQL
+2. Set `last_synced_seq` to `snapshot_seq`
+3. Pull diff from `snapshot_seq` to current head
+4. Begin normal scheduled sync
+
+### 12.3 Node Modes
+
+| Mode | Accepts local writes? | Syncs from canonical? | Submits to canonical? |
+|---|---|---|---|
+| `standalone` | Yes | No | No |
+| `mirror` | No | Yes (scheduled) | No |
+| `federated` *(v2)* | Yes | Yes | Yes (upstream submissions) |
+
+**Standalone** is for development and experimentation — a fully private OVID instance with no connection to the community.
+
+**Mirror** is the primary self-hosted use case: a NAS or home server that keeps a local read-only copy of the community database and serves lookups to ARM without any outbound internet calls during ripping. Syncs on a configurable interval (default: every 60 minutes).
+
+**Federated** (planned for Phase 2) allows a self-hosted node to both receive diffs from canonical *and* submit new disc entries upstream. This enables organizations (e.g., a library or film archive) to run their own OVID node, contribute their holdings to the community database, and stay in sync — while maintaining local control.
+
+### 12.4 `sync.py` — The Sync Worker
+
+The `sync` Docker service runs this script as a daemon:
+
+```python
+# scripts/sync.py (simplified pseudocode)
+import time, requests, psycopg2, os
+
+SYNC_URL  = os.environ["SYNC_SOURCE_URL"]
+DB_URL    = os.environ["DATABASE_URL"]
+INTERVAL  = int(os.environ.get("SYNC_INTERVAL_MINUTES", 60)) * 60
+
+def get_last_seq(conn):
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM sync_state WHERE key = 'last_seq'")
+    row = cur.fetchone()
+    return int(row[0]) if row else 0
+
+def set_last_seq(conn, seq):
+    conn.cursor().execute(
+        "INSERT INTO sync_state (key, value) VALUES ('last_seq', %s) "
+        "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+        (str(seq),)
+    )
+    conn.commit()
+
+def apply_diff(conn, records):
+    cur = conn.cursor()
+    for rec in records:
+        if rec["type"] == "disc" and rec["op"] == "upsert":
+            cur.execute(
+                "INSERT INTO discs (...) VALUES (...) "
+                "ON CONFLICT (fingerprint) DO UPDATE SET ...",
+                (rec["data"],)
+            )
+        elif rec["type"] == "disc" and rec["op"] == "delete":
+            cur.execute(
+                "DELETE FROM discs WHERE fingerprint = %s",
+                (rec["data"]["fingerprint"],)
+            )
+        # ... handle releases, disc_titles, disc_tracks similarly
+    conn.commit()
+
+def sync_once(conn):
+    last_seq = get_last_seq(conn)
+    head = requests.get(f"{SYNC_URL}/v1/sync/head").json()
+    if head["seq"] <= last_seq:
+        print(f"Already up to date at seq {last_seq}")
+        return
+
+    next_seq = last_seq
+    while True:
+        resp = requests.get(f"{SYNC_URL}/v1/sync/diff",
+                            params={"since": next_seq, "limit": 1000}).json()
+        apply_diff(conn, resp["records"])
+        next_seq = resp["latest_seq"]
+        set_last_seq(conn, next_seq)
+        if not resp["has_more"]:
+            break
+    print(f"Synced to seq {next_seq} ({head['seq'] - last_seq} new records)")
+
+def run_daemon(conn):
+    while True:
+        try:
+            sync_once(conn)
+        except Exception as e:
+            print(f"Sync error: {e}")
+        time.sleep(INTERVAL)
+```
+
+### 12.5 Conflict and Consistency Model
+
+OVID uses **last-write-wins** at the canonical server — the canonical database is the authoritative source of truth. Self-hosted mirror nodes are strictly read-only replicas and never introduce conflicts.
+
+For the future **federated** mode, where local nodes can also accept submissions, the conflict model is:
+- Local submissions are assigned a `local_` prefixed `source_node_id`
+- When submitted upstream, the canonical server validates and may reject (e.g., if a verified entry for that fingerprint already exists with conflicting data)
+- Rejected submissions are flagged locally for human review
+- The canonical server's version always wins on the next sync — local overrides are not possible without re-submitting
+
+This intentionally keeps the conflict resolution simple at the cost of some flexibility. It matches the way MusicBrainz handles edit conflicts: the community database is authoritative, and disagreements go through a moderation workflow rather than being resolved automatically.
+
+### 12.6 Bandwidth and Storage Estimates
+
+| Scenario | Data Volume |
+|---|---|
+| Initial snapshot at launch (~500 discs) | ~5MB compressed |
+| Initial snapshot at 1 year (~50,000 discs) | ~250MB compressed |
+| Daily diff at steady state (est. 200 new/updated records/day) | ~500KB/day |
+| Monthly diff for a mirror that syncs infrequently | ~15MB/month |
+
+These are tiny numbers. A self-hosted node on a home NAS with even a basic internet connection can stay fully in sync with negligible bandwidth cost.
+
+---
+
+## 13. Phased Delivery Plan
 
 ### Phase 0 — Spec and Scaffolding (Weeks 1–6)
 
 - [ ] Finalize and publish disc fingerprinting algorithm spec as a standalone document
 - [ ] Prototype `ovid-client` that reads DVD IFO files and generates fingerprints
 - [ ] Validate fingerprint stability: test same disc on 3+ different drives
-- [ ] Stand up PostgreSQL schema (migrations via Alembic)
+- [ ] Stand up PostgreSQL schema with sequence numbers (migrations via Alembic)
 - [ ] Basic FastAPI server with `/v1/disc/{fingerprint}` GET and POST endpoints
+- [ ] **Docker Compose dev environment** (`docker compose up` → working local stack)
+- [ ] `.env.example` and developer getting-started documentation
 - [ ] Seed with 20 test discs from contributor's own collection
 
 ### Phase 1 — MVP (Weeks 7–14)
@@ -652,16 +1085,21 @@ At this scale, a single server (2 vCPU, 4GB RAM) running FastAPI + PostgreSQL ha
 - [ ] ARM pull request: add OVID as optional metadata provider
 - [ ] Deploy to cloud hosting (Railway or Fly.io)
 - [ ] Seed database to ~500 discs
+- [ ] **Sync feed endpoints** (`/v1/sync/head`, `/v1/sync/diff`) on canonical server
+- [ ] **Mirror mode**: `sync.py` daemon + `docker compose --profile mirror up` workflow
+- [ ] Daily snapshot generation and hosting (for fresh mirror installs)
 
 ### Phase 2 — Community Features (Weeks 15–26)
 
 - [ ] Edit history and audit log
 - [ ] UPC barcode lookup endpoint
 - [ ] Community dispute flagging
-- [ ] Monthly public database dump
+- [ ] Monthly public database dump (replaces/supplements snapshot)
 - [ ] Rate limiting and abuse prevention
 - [ ] Documentation site
+- [ ] **Federated mode** design and implementation (local writes + upstream submission)
+- [ ] Self-hosted installer script (single-command deploy to a Raspberry Pi or NAS)
 
 ---
 
-*Document status: Draft v0.1 · Authors: Project founders · Last updated: 2026-03-31*
+*Document status: Draft v0.2 · Authors: Project founders · Last updated: 2026-03-31*
