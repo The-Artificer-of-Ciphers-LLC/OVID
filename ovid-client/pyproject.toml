@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ovid-client"
+version = "0.1.0"
+description = "OVID disc fingerprinting client — generates stable identifiers for DVD and Blu-ray discs"
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+requires-python = ">=3.9"
+authors = [
+    { name = "OVID Contributors" },
+]
+dependencies = [
+    "pycdlib>=1.14",
+    "click>=8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+ovid = "ovid.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

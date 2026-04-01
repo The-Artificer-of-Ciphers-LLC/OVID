@@ -1,0 +1,5 @@
+pycdlib>=1.14
+click>=8.0
+
+[dev]
+pytest>=7.0

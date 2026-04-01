@@ -1,0 +1,11 @@
+pyproject.toml
+src/ovid/__init__.py
+src/ovid/cli.py
+src/ovid/ifo_parser.py
+src/ovid_client.egg-info/PKG-INFO
+src/ovid_client.egg-info/SOURCES.txt
+src/ovid_client.egg-info/dependency_links.txt
+src/ovid_client.egg-info/entry_points.txt
+src/ovid_client.egg-info/requires.txt
+src/ovid_client.egg-info/top_level.txt
+tests/test_ifo_parser.py
