@@ -179,3 +179,9 @@ def seed_test_disc(db: Session) -> dict[str, uuid.UUID]:
         "audio_track_id": audio.id,
         "subtitle_track_id": subtitle.id,
     }
+
+
+@pytest.fixture()
+def seeded_disc(db_session: Session) -> dict[str, uuid.UUID]:
+    """Fixture wrapper around seed_test_disc for easy injection."""
+    return seed_test_disc(db_session)
