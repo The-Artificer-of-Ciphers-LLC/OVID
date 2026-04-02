@@ -1,5 +1,10 @@
 # OVID — Open Video Disc Identification Database
 
+[![CI](https://github.com/The-Artificer-of-Ciphers-LLC/OVID/actions/workflows/ci.yml/badge.svg)](https://github.com/The-Artificer-of-Ciphers-LLC/OVID/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/The-Artificer-of-Ciphers-LLC/OVID?include_prereleases)](https://github.com/The-Artificer-of-Ciphers-LLC/OVID/releases)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![Data: CC0](https://img.shields.io/badge/data-CC0--1.0-green.svg)](https://creativecommons.org/publicdomain/zero/1.0/)
+
 > *A community-driven, open standard for fingerprinting physical video discs — DVD, Blu-ray, and 4K UHD — to enable accurate, automated cataloging of home media libraries.*
 
 ---
@@ -100,36 +105,62 @@ OVID does **not** copy or mirror TMDB or TVDB content. It only stores cross-refe
 
 ## Project Status
 
-OVID is in the **specification and early development phase**. The fingerprinting algorithm spec, database schema, and API design are being finalized before any code is written.
+**Current version: v0.1.0** — Foundation & Core Pipeline complete.
 
-Current documents in this repository:
+OVID v0.1.0 delivers the end-to-end pipeline: fingerprint a DVD from any source, submit it to the API with TMDB-linked metadata via an interactive CLI wizard, and retrieve full disc structure (titles, tracks, chapters, confidence). OAuth authentication gates write access.
+
+### What's Working
+
+| Component | Status |
+|-----------|--------|
+| DVD fingerprinting (OVID-DVD-1) | ✅ Stable — 113 tests, 100× determinism verified |
+| REST API (lookup, submit, verify, search) | ✅ Complete — 124 tests |
+| OAuth (GitHub, Apple, IndieAuth) | ✅ Complete — 69 auth tests |
+| CLI (`ovid fingerprint`, `ovid lookup`, `ovid submit`) | ✅ Complete |
+| Docker Compose dev stack | ✅ Operational |
+| PostgreSQL schema (9 tables, Alembic) | ✅ Deployed |
+| Blu-ray fingerprinting | 🔜 Planned for v0.2.0 |
+| Web UI | 🔜 Planned for v0.2.0 |
+| PyPI publishing | 🔜 Planned for v0.2.0 |
+
+### Quick Start
+
+```bash
+# Fingerprint a DVD
+pip install -e ovid-client/
+ovid fingerprint /path/to/VIDEO_TS
+
+# Start the API
+docker compose up -d
+docker compose exec api alembic upgrade head
+
+# Submit a disc
+ovid submit /path/to/VIDEO_TS --api-url http://localhost:8000 --token YOUR_JWT
+```
+
+### Documentation
 
 | Document | Description |
 |---|---|
-| [`docs/OVID-product-spec.md`](docs/OVID-product-spec.md) | Product Requirements Document — goals, user stories, requirements, success metrics |
-| [`docs/OVID-technical-spec.md`](docs/OVID-technical-spec.md) | Technical Specification — fingerprint algorithms, database schema, API design, client library |
+| [`docs/fingerprint-spec.md`](docs/fingerprint-spec.md) | OVID-DVD-1 fingerprint algorithm specification |
+| [`docs/api-reference.md`](docs/api-reference.md) | REST API endpoint reference |
+| [`docs/cli-reference.md`](docs/cli-reference.md) | CLI command reference |
+| [`docs/getting-started-dev.md`](docs/getting-started-dev.md) | Developer setup guide |
+| [`docs/docker-quickstart.md`](docs/docker-quickstart.md) | Docker Compose quick-start |
+| [`docs/OVID-product-spec.md`](docs/OVID-product-spec.md) | Product requirements |
+| [`docs/OVID-technical-spec.md`](docs/OVID-technical-spec.md) | Technical specification |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release history |
 
 ---
 
-## Roadmap (High Level)
+## Roadmap
 
-**Phase 0 — Foundation**
-- Finalize and publish the DVD and Blu-ray disc fingerprinting algorithm specification
-- Validate fingerprint stability across multiple drives and operating systems
-- Build `ovid-client` Python library (fingerprint generation + API calls)
-
-**Phase 1 — MVP**
-- REST API: disc lookup and submission endpoints
-- Web UI: search, browse, and submit disc entries
-- User accounts and two-contributor verification workflow
-- Seed database with community-contributed disc entries
-- ARM integration pull request
-
-**Phase 2 — Community**
-- UPC barcode lookup as a secondary identification method
-- Edit history and community moderation tools
-- Monthly CC0 public database dumps
-- TV series and multi-disc set support
+| Version | Milestone | Status |
+|---------|-----------|--------|
+| **v0.1.0** | Foundation & Core Pipeline — DVD fingerprinting, REST API, OAuth, CLI wizard | ✅ Released |
+| v0.2.0 | Full Format Support & Web UI — Blu-ray fingerprinting, Next.js web UI, PyPI, cloud deployment | 🔜 Next |
+| v0.3.0 | Distribution & Community — Sync feeds, self-hosted mirrors, moderation, data dumps | Planned |
+| v1.0.0 | Stable — Public API contract, ≥10k disc entries, foundation formed | Future |
 
 ---
 
