@@ -156,6 +156,7 @@ jobs:
       - name: Download all CLI artifacts
         uses: actions/download-artifact@v6
         with:
+          pattern: ovid-*
           path: artifacts
 
       - name: Prepare release assets
