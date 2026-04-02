@@ -60,23 +60,23 @@ VALID_PAYLOAD = {
 # Happy-path
 # ---------------------------------------------------------------------------
 class TestDiscSubmit:
-    def test_submit_new_disc(self, client):
-        """POST valid payload → 201, disc retrievable via GET."""
-        resp = client.post("/v1/disc", json=VALID_PAYLOAD)
+    def test_submit_new_disc(self, client, auth_header):
+        """POST valid payload with auth → 201, disc retrievable via GET."""
+        resp = client.post("/v1/disc", json=VALID_PAYLOAD, headers=auth_header)
         assert resp.status_code == 201
         data = resp.json()
         assert data["fingerprint"] == "bd-NEW001-main"
         assert data["status"] == "unverified"
         assert "request_id" in data
 
-        # Verify round-trip via GET
+        # Verify round-trip via GET (no auth required for reads)
         get_resp = client.get("/v1/disc/bd-NEW001-main")
         assert get_resp.status_code == 200
         assert get_resp.json()["fingerprint"] == "bd-NEW001-main"
 
-    def test_submit_with_titles_and_tracks(self, client):
+    def test_submit_with_titles_and_tracks(self, client, auth_header):
         """POST with titles+tracks → GET returns nested structure."""
-        client.post("/v1/disc", json=VALID_PAYLOAD)
+        client.post("/v1/disc", json=VALID_PAYLOAD, headers=auth_header)
         resp = client.get("/v1/disc/bd-NEW001-main")
         data = resp.json()
         assert len(data["titles"]) == 1
@@ -86,9 +86,9 @@ class TestDiscSubmit:
         assert t["audio_tracks"][0]["codec"] == "dts-hd"
         assert len(t["subtitle_tracks"]) == 2
 
-    def test_submit_has_request_id(self, client):
+    def test_submit_has_request_id(self, client, auth_header):
         """Submit response includes request_id in body and header."""
-        resp = client.post("/v1/disc", json=VALID_PAYLOAD)
+        resp = client.post("/v1/disc", json=VALID_PAYLOAD, headers=auth_header)
         data = resp.json()
         assert "request_id" in data
         assert len(data["request_id"]) > 0
@@ -99,30 +99,36 @@ class TestDiscSubmit:
 # Error paths
 # ---------------------------------------------------------------------------
 class TestDiscSubmitErrors:
-    def test_submit_duplicate_fingerprint(self, client, seeded_disc):
+    def test_submit_duplicate_fingerprint(self, client, seeded_disc, auth_header):
         """POST same fingerprint twice → 409 Conflict."""
         payload = {**VALID_PAYLOAD, "fingerprint": "dvd-ABC123-main"}
-        resp = client.post("/v1/disc", json=payload)
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
         assert resp.status_code == 409
         data = resp.json()
         assert data["error"] == "conflict"
         assert "request_id" in data
 
-    def test_submit_missing_required_fields(self, client):
+    def test_submit_missing_required_fields(self, client, auth_header):
         """POST incomplete payload → 422 from Pydantic validation."""
-        resp = client.post("/v1/disc", json={"fingerprint": "x"})
+        resp = client.post("/v1/disc", json={"fingerprint": "x"}, headers=auth_header)
         assert resp.status_code == 422
 
-    def test_submit_empty_fingerprint(self, client):
+    def test_submit_empty_fingerprint(self, client, auth_header):
         """Fingerprint with min_length=1 rejects empty string."""
         payload = {**VALID_PAYLOAD, "fingerprint": ""}
-        resp = client.post("/v1/disc", json=payload)
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
         assert resp.status_code == 422
 
-    def test_submit_without_titles(self, client):
+    def test_submit_without_titles(self, client, auth_header):
         """Submit with no titles succeeds — titles are optional."""
         payload = {**VALID_PAYLOAD, "fingerprint": "no-titles-disc", "titles": []}
-        resp = client.post("/v1/disc", json=payload)
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
         assert resp.status_code == 201
         get_resp = client.get("/v1/disc/no-titles-disc")
         assert get_resp.json()["titles"] == []
+
+    def test_submit_without_auth_returns_401(self, client):
+        """POST without Authorization header → 401."""
+        resp = client.post("/v1/disc", json=VALID_PAYLOAD)
+        assert resp.status_code == 401
+        assert resp.json()["detail"]["error"] == "missing_token"

@@ -9,8 +9,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload, selectinload
 
+from app.auth.deps import get_current_user
 from app.deps import get_db
-from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, Release
+from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, Release, User
 from app.schemas import (
     STATUS_CONFIDENCE,
     DiscLookupResponse,
@@ -138,6 +139,7 @@ def lookup_disc(
 def submit_disc(
     body: DiscSubmitRequest,
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
     """Submit a new disc with release, titles, and tracks."""
@@ -250,6 +252,7 @@ def submit_disc(
 def verify_disc(
     fingerprint: str,
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
     """Promote a disc from unverified → verified (idempotent)."""

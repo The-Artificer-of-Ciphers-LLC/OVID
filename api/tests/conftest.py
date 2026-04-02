@@ -13,6 +13,9 @@ import os
 # Patch DATABASE_URL before any app module touches it.
 os.environ["DATABASE_URL"] = "sqlite://"
 
+# Auth config reads OVID_SECRET_KEY at import time — set a test value.
+os.environ.setdefault("OVID_SECRET_KEY", "test-secret-key-for-unit-tests-32b")
+
 import uuid  # noqa: E402
 
 from sqlalchemy import create_engine, event  # noqa: E402
@@ -24,7 +27,8 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import Base  # noqa: E402
 from app.deps import get_db  # noqa: E402
-from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, Release  # noqa: E402
+from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, Release, User  # noqa: E402
+from app.auth.jwt import create_access_token  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -185,3 +189,34 @@ def seed_test_disc(db: Session) -> dict[str, uuid.UUID]:
 def seeded_disc(db_session: Session) -> dict[str, uuid.UUID]:
     """Fixture wrapper around seed_test_disc for easy injection."""
     return seed_test_disc(db_session)
+
+
+# ---------------------------------------------------------------------------
+# Auth helpers
+# ---------------------------------------------------------------------------
+def seed_test_user(db: Session) -> User:
+    """Create a test user and return the ORM object."""
+    user = User(
+        id=uuid.uuid4(),
+        username="testuser",
+        email="test@example.com",
+        display_name="Test User",
+        role="contributor",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture()
+def test_user(db_session: Session) -> User:
+    """Fixture that creates and returns a test user."""
+    return seed_test_user(db_session)
+
+
+@pytest.fixture()
+def auth_header(test_user: User) -> dict[str, str]:
+    """Return an Authorization header dict with a valid JWT for the test user."""
+    token = create_access_token(test_user.id)
+    return {"Authorization": f"Bearer {token}"}
