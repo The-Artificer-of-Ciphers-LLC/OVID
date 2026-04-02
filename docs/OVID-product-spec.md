@@ -83,6 +83,15 @@ A person who has contributed metadata to MusicBrainz, TMDB, or similar community
 - **As a contributor**, I want to bulk-import a set of discs I own so that I can contribute my whole collection at once rather than one at a time.
 - **As a contributor**, I want the database schema to track which edition/pressing I own separately from the movie itself so that regional differences are captured accurately.
 
+### All Authenticated Users (Account & Identity)
+
+- **As a user**, I want to sign in with my GitHub account so that I don't have to create and remember a new password for yet another service.
+- **As a user**, I want to sign in with my Google or Apple account so that I have familiar, trusted login options.
+- **As a Mastodon user**, I want to log in with my Mastodon account (on any instance, e.g. `fosstodon.org` or `mastodon.social`) so that I can participate without creating a corporate account.
+- **As a user who signed up with email**, I want to later link my GitHub account so that I can use either method to log in.
+- **As a user with multiple linked providers**, I want to see all of them in my account settings and be able to remove any one that I no longer want, as long as at least one remains.
+- **As a user**, if I try to sign in with a new provider that has the same verified email as an existing account, I want OVID to offer to link them rather than creating a duplicate account.
+
 ---
 
 ## Requirements
@@ -122,7 +131,12 @@ A person who has contributed metadata to MusicBrainz, TMDB, or similar community
 - [ ] Search by movie title to find known disc releases
 - [ ] View a disc entry's full structure
 - [ ] Submit a new disc entry via a web form
-- [ ] User account creation (email + password minimum)
+- [ ] User account creation via email + password **or** any supported OAuth provider
+- [ ] OAuth login at launch: **GitHub**, **Google**, **Apple**
+- [ ] Federated login via **Mastodon / ActivityPub** — user provides their instance URL (e.g. `fosstodon.org`); OVID performs OAuth2 against that instance
+- [ ] Multiple providers linkable to a single OVID account — any linked provider can be used to log in
+- [ ] Account settings page shows all linked providers; any can be added or removed (minimum one must remain)
+- [ ] Email-match merge: if a new OAuth login carries a verified email matching an existing account, OVID offers to link rather than create a duplicate
 
 ---
 
@@ -226,4 +240,4 @@ This is a greenfield open-source project. There are no contractual deadlines, bu
 
 ---
 
-*Document status: Draft v0.1 · Authors: Project founders · Last updated: 2026-03-31*
+*Document status: Draft v0.2 · Authors: Project founders · Last updated: 2026-04-01*

@@ -360,17 +360,38 @@ CREATE TABLE disc_tracks (
     description     VARCHAR(200)           -- e.g. "English 5.1 DTS-HD Master Audio"
 );
 
--- User accounts
+-- User accounts (canonical identity — one row per person)
 CREATE TABLE users (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username        VARCHAR(50) UNIQUE NOT NULL,
-    email           VARCHAR(255) UNIQUE NOT NULL,
-    email_verified  BOOLEAN DEFAULT FALSE,
-    password_hash   VARCHAR(255) NOT NULL,
-    role            VARCHAR(20) DEFAULT 'contributor',  -- 'contributor', 'editor', 'admin'
-    created_at      TIMESTAMPTZ DEFAULT NOW(),
-    submission_count INTEGER DEFAULT 0,
-    verification_count INTEGER DEFAULT 0
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username            VARCHAR(50) UNIQUE NOT NULL,
+    email               VARCHAR(255) UNIQUE,           -- nullable: not required if OAuth-only
+    email_verified      BOOLEAN DEFAULT FALSE,
+    password_hash       VARCHAR(255),                  -- nullable: not required if OAuth-only
+    role                VARCHAR(20) DEFAULT 'contributor',  -- 'contributor', 'editor', 'admin'
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    submission_count    INTEGER DEFAULT 0,
+    verification_count  INTEGER DEFAULT 0,
+    CONSTRAINT must_have_auth CHECK (
+        password_hash IS NOT NULL OR
+        EXISTS (SELECT 1 FROM user_identities WHERE user_id = id)
+    )
+);
+
+-- Linked OAuth / federated identities (many per user)
+-- One row per provider linked to an account
+CREATE TABLE user_identities (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider         VARCHAR(30) NOT NULL,   -- 'github' | 'google' | 'apple' | 'mastodon' | 'email'
+    provider_uid     VARCHAR(255) NOT NULL,  -- provider's stable user ID (e.g. GitHub numeric ID)
+    provider_handle  VARCHAR(255),           -- display handle (e.g. '@user@fosstodon.org', 'user@gmail.com')
+    instance_url     VARCHAR(255),           -- Mastodon only: e.g. 'https://fosstodon.org'
+    access_token     TEXT,                   -- encrypted at rest (AES-256)
+    refresh_token    TEXT,                   -- encrypted at rest
+    token_expires_at TIMESTAMPTZ,
+    created_at       TIMESTAMPTZ DEFAULT NOW(),
+    last_used_at     TIMESTAMPTZ,
+    UNIQUE (provider, provider_uid)          -- one account per provider UID globally
 );
 
 -- Edit history (all changes are logged)
@@ -390,6 +411,10 @@ CREATE TABLE disc_edits (
 ### 3.2 Indexes
 
 ```sql
+CREATE INDEX idx_user_identities_user     ON user_identities(user_id);
+CREATE INDEX idx_user_identities_provider ON user_identities(provider, provider_uid);
+CREATE INDEX idx_users_email              ON users(email) WHERE email IS NOT NULL;
+
 CREATE INDEX idx_discs_fingerprint    ON discs(fingerprint);
 CREATE INDEX idx_discs_upc            ON discs(upc) WHERE upc IS NOT NULL;
 CREATE INDEX idx_discs_label          ON discs(disc_label) WHERE disc_label IS NOT NULL;
@@ -415,9 +440,68 @@ All endpoints return JSON. All responses include a `request_id` for debugging.
 
 ### 4.2 Authentication
 
-- Read endpoints (GET) are **unauthenticated** — no API key needed for lookups
-- Write endpoints (POST, PATCH) require a **Bearer token** (JWT issued at login)
-- Rate limiting: 100 requests/minute unauthenticated, 500/minute authenticated
+**Read endpoints (GET) are unauthenticated** — no API key needed for lookups.
+
+**Write endpoints (POST, PATCH) require a Bearer token** (JWT) issued after login via any supported provider.
+
+**Supported identity providers at launch:**
+
+| Provider | Protocol | Notes |
+|---|---|---|
+| Email + password | Credential | Bcrypt hashed; optional if OAuth provider is linked |
+| GitHub | OAuth 2.0 | Ideal for the developer/enthusiast audience |
+| Google | OAuth 2.0 | Broad coverage |
+| Apple | OAuth 2.0 (Sign in with Apple) | Required by App Store rules if ever shipping an iOS client |
+| Mastodon / ActivityPub instances | OAuth 2.0 (per-instance) | On-brand for an open-source community project; see below |
+
+**Rate limiting:** 100 requests/minute unauthenticated, 500/minute authenticated.
+
+#### Linked Accounts Flow
+
+Multiple providers can be linked to a single OVID account. Logging in with any linked provider issues a JWT for the same underlying account.
+
+```
+User signs up with GitHub
+        ↓
+OVID creates users row + user_identities row (provider='github')
+        ↓
+User later clicks "Link Google account" in settings
+        ↓
+OVID adds second user_identities row (provider='google') → same user_id
+        ↓
+Either GitHub or Google login now reaches the same account
+```
+
+**Email-match merge:** When a new OAuth login presents a verified email that already exists on another account, OVID presents a merge prompt rather than creating a duplicate:
+
+```
+"An account with email user@example.com already exists.
+ Link this GitHub login to that account? [Link] [Create new account]"
+```
+
+Merging requires the user to authenticate the existing account (prove they own it) before linking completes.
+
+**Minimum identity rule:** A user must always retain at least one linked provider or an active password. The UI prevents removing the last auth method. The database enforces this via a `CHECK` constraint on the `users` table.
+
+#### Mastodon / ActivityPub Federation
+
+Mastodon uses standard OAuth 2.0 but each instance is its own authorization server. The login flow differs slightly from fixed-endpoint providers:
+
+```
+1. User enters their instance URL (e.g. "fosstodon.org")
+2. OVID fetches https://fosstodon.org/.well-known/oauth-authorization-server
+   to discover the token and authorization endpoints
+3. OVID redirects user to that instance's OAuth authorize URL
+4. Instance redirects back with auth code → OVID exchanges for access token
+5. OVID fetches the user's profile from the instance API (username, display name)
+6. provider_uid stored as "{username}@{instance_host}" (e.g. "alice@fosstodon.org")
+   provider_handle stored identically for display
+   instance_url stored as "https://fosstodon.org"
+```
+
+This makes OVID compatible with any Mastodon-compatible software (Mastodon, Pleroma, Akkoma, Pixelfed, etc.) without needing to whitelist specific instances.
+
+**Note on Mastodon token longevity:** Mastodon access tokens do not expire by default. OVID stores them encrypted but does not rely on them for ongoing access — they are only used at login time to verify identity. The OVID JWT is what governs session duration.
 
 ---
 
@@ -696,7 +780,10 @@ def identify_disc(drive_path, settings):
 | API Server | Python + FastAPI | Familiar to existing ARM contributors; excellent async performance; automatic OpenAPI docs |
 | Database | PostgreSQL 16 | Relational data fits this schema well; excellent indexing; widely hosted |
 | Database Migrations | Alembic | Standard Python migration tool |
-| Auth | JWT (PyJWT) + bcrypt | Simple, stateless, no external service dependency |
+| Auth — sessions | JWT (PyJWT) | Short-lived access tokens (1 hour) + refresh tokens (30 days); stateless |
+| Auth — passwords | bcrypt | For email+password accounts; intentionally slow hashing |
+| Auth — OAuth | Authlib (Python) | Handles OAuth 2.0 flows for GitHub, Google, Apple, and dynamic Mastodon instances |
+| Auth — tokens at rest | AES-256-GCM (cryptography lib) | OAuth access/refresh tokens encrypted before storing in DB |
 | Web UI | Plain HTML + HTMX or React | HTMX: simpler to maintain for a small team; React: better for interactive editor UIs |
 | Hosting (initial) | Railway, Fly.io, or Render | Low-ops, cheap for early traffic; migrate to VPS or cloud as traffic grows |
 | CDN / Rate Limiting | Cloudflare (free tier) | Rate limiting, DDoS protection, caching for read-heavy API |
@@ -748,7 +835,10 @@ At this scale, a single server (2 vCPU, 4GB RAM) running FastAPI + PostgreSQL ha
 | Spam / garbage submissions | Email verification required; new accounts limited to 10 submissions/day; flagging system for community moderation |
 | Fingerprint collision attacks | Fingerprints are read-only computed values, not user-supplied; SHA-256 hash space makes collisions negligible |
 | SQL injection | All queries use parameterized statements (SQLAlchemy ORM) |
-| Auth token leakage | Tokens expire after 30 days; refresh token rotation |
+| Auth token leakage | OVID JWTs expire after 1 hour; refresh tokens expire after 30 days with rotation on each use; OAuth provider tokens encrypted at rest with AES-256-GCM |
+| OAuth account takeover | Email-match merge requires re-authentication of the existing account before linking; provider_uid (not email) is the stable identity key — email is only used as a merge hint |
+| Malicious OAuth provider (Mastodon) | Instance URL validated against `/.well-known/oauth-authorization-server` before redirect; redirect URIs strictly allowlisted; instance_url stored and checked on token exchange |
+| Account lockout (last auth method removed) | DB CHECK constraint + UI guard both prevent removing the last linked provider or password |
 | DRM-related legal risk | API and schema explicitly do NOT store encryption keys, CSS keys, AACS keys, or any data that constitutes circumvention under DMCA/similar laws. ToS must be explicit about this. |
 | Data poisoning (malicious disc entries) | Two-contributor verification model; edit history; admin override |
 
@@ -1200,7 +1290,11 @@ These are tiny numbers. A self-hosted node on a home NAS with even a basic inter
 - [ ] Complete `ovid-client` with Blu-ray BDMV support
 - [ ] Publish `ovid-client` to PyPI
 - [ ] Web UI: search, browse disc entry, submit form
-- [ ] User accounts, JWT auth, email verification
+- [ ] User accounts: email+password, GitHub OAuth, Google OAuth, Apple OAuth
+- [ ] Mastodon / ActivityPub federated login (dynamic instance discovery)
+- [ ] Linked accounts: connect multiple providers to one account
+- [ ] Email-match merge flow for duplicate account prevention
+- [ ] OAuth tokens encrypted at rest; JWT access + refresh token rotation
 - [ ] Two-contributor verification workflow
 - [ ] ARM pull request: add OVID as optional metadata provider
 - [ ] Deploy to cloud hosting (Railway or Fly.io)
@@ -1222,4 +1316,4 @@ These are tiny numbers. A self-hosted node on a home NAS with even a basic inter
 
 ---
 
-*Document status: Draft v0.3 · Authors: Project founders · Last updated: 2026-03-31*
+*Document status: Draft v0.4 · Authors: Project founders · Last updated: 2026-04-01*
