@@ -10,5 +10,6 @@ Requires-Dist: pycdlib>=1.14
 Requires-Dist: click>=8.0
 Requires-Dist: requests>=2.28
 Requires-Dist: rich>=13.0
+Requires-Dist: tmdbv3api>=1.9
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0; extra == "dev"

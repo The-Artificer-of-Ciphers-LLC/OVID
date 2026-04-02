@@ -55,6 +55,240 @@ def lookup(fingerprint: str, api_url: str | None, token: str | None) -> None:
     _render_lookup(data)
 
 
+@main.command()
+@click.argument("path")
+@click.option("--api-url", default=None, help="OVID API base URL.")
+@click.option("--token", default=None, help="Bearer token for API auth.")
+def submit(path: str, api_url: str | None, token: str | None) -> None:
+    """Submit disc metadata to the OVID database via an interactive wizard.
+
+    PATH may be a VIDEO_TS folder, an ISO image, or a block device.
+    Steps: fingerprint → TMDB search → pick release → edition/disc# → submit.
+    """
+    from rich.console import Console
+    from rich.prompt import IntPrompt, Prompt
+    from rich.table import Table
+
+    from ovid.client import OVIDClient
+    from ovid.tmdb import get_movie, search_movies
+
+    console = Console()
+
+    # ── Step 1: Parse disc ──────────────────────────────────────────
+    try:
+        disc = Disc.from_path(path)
+    except (FileNotFoundError, ValueError, OSError) as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    console.print(f"\n[bold]Disc fingerprint:[/bold] {disc.fingerprint}")
+    console.print(
+        f"  VTS count: {disc.vts_count}  ·  "
+        f"Title count: {disc.title_count}"
+    )
+
+    # ── Step 2: TMDB search (or manual fallback) ────────────────────
+    tmdb_id: int | None = None
+    imdb_id: str = ""
+    title: str = ""
+    year: str = ""
+
+    results = _tmdb_search_flow(console, search_movies)
+
+    if results is not None:
+        # User picked a TMDB result
+        tmdb_id = results["id"]
+        title = results["title"]
+        year = results["year"]
+
+        # Fetch full details for imdb_id
+        details = get_movie(tmdb_id)
+        if details:
+            imdb_id = details.get("imdb_id", "")
+    else:
+        # Manual entry fallback
+        title = Prompt.ask("\nMovie title")
+        year = Prompt.ask("Release year")
+
+    # ── Step 3: Edition / disc numbering ────────────────────────────
+    edition_name = Prompt.ask(
+        "Edition name (blank for standard)", default=""
+    )
+    disc_number = IntPrompt.ask("Disc number", default=1)
+    total_discs = IntPrompt.ask("Total discs", default=1)
+
+    # ── Step 4: Build payload from Disc structure ───────────────────
+    year_int: int | None = None
+    if year:
+        try:
+            year_int = int(year)
+        except ValueError:
+            year_int = None
+
+    payload = _build_submit_payload(
+        disc=disc,
+        title=title,
+        year=year_int,
+        tmdb_id=tmdb_id,
+        imdb_id=imdb_id,
+        edition_name=edition_name or None,
+        disc_number=disc_number,
+        total_discs=total_discs,
+    )
+
+    # ── Step 5: Submit ──────────────────────────────────────────────
+    try:
+        client = OVIDClient(base_url=api_url, token=token)
+        result = client.submit(payload)
+        console.print(
+            f"\n[green]✓[/green] Disc submitted — "
+            f"status: {result.get('status', 'unknown')}"
+        )
+    except click.ClickException:
+        raise
+    except Exception as exc:
+        click.echo(f"Error submitting disc: {exc}", err=True)
+        sys.exit(1)
+
+
+# ------------------------------------------------------------------
+# Submit helpers
+# ------------------------------------------------------------------
+
+def _tmdb_search_flow(
+    console: "rich.console.Console",  # noqa: F821
+    search_fn,
+) -> dict | None:
+    """Run the TMDB search → pick loop.
+
+    Returns the chosen ``{id, title, year, overview}`` dict, or ``None``
+    if the user should fall back to manual entry (no API key, empty results,
+    or user opts out).
+    """
+    import os
+
+    from rich.prompt import IntPrompt, Prompt
+    from rich.table import Table
+
+    if not os.environ.get("TMDB_API_KEY"):
+        console.print(
+            "\n[yellow]TMDB_API_KEY not set — entering title manually.[/yellow]"
+        )
+        return None
+
+    while True:
+        query = Prompt.ask("\nSearch TMDB for movie title")
+        results = search_fn(query)
+
+        if not results:
+            console.print("[yellow]No results found.[/yellow]")
+            retry = Prompt.ask(
+                "Try another search? (y/n)", choices=["y", "n"], default="y"
+            )
+            if retry == "n":
+                return None
+            continue
+
+        table = Table(title="TMDB Results")
+        table.add_column("#", style="dim", width=4, justify="right")
+        table.add_column("Title", min_width=20)
+        table.add_column("Year", width=6)
+        table.add_column("Overview", max_width=50)
+
+        for i, r in enumerate(results[:10], start=1):
+            overview = (r.get("overview") or "")[:80]
+            if len(r.get("overview", "")) > 80:
+                overview += "…"
+            table.add_row(
+                str(i),
+                r["title"],
+                r.get("year", ""),
+                overview,
+            )
+
+        console.print(table)
+        console.print("[dim]Enter 0 to search again, or -1 for manual entry.[/dim]")
+
+        pick = IntPrompt.ask("Pick a result", default=1)
+        if pick == -1:
+            return None
+        if pick == 0:
+            continue
+        if 1 <= pick <= len(results[:10]):
+            return results[pick - 1]
+
+        console.print("[red]Invalid selection.[/red]")
+
+
+def _build_submit_payload(
+    *,
+    disc: "Disc",
+    title: str,
+    year: int | None,
+    tmdb_id: int | None,
+    imdb_id: str,
+    edition_name: str | None,
+    disc_number: int,
+    total_discs: int,
+) -> dict:
+    """Build the POST /v1/disc JSON payload from Disc structure."""
+    titles: list[dict] = []
+    title_index = 0
+    first_title = True
+
+    for vts in disc._vts_list:
+        audio_tracks = []
+        for ai, stream in enumerate(vts.audio_streams):
+            audio_tracks.append({
+                "track_index": ai,
+                "language_code": stream.language,
+                "codec": stream.codec,
+                "channels": stream.channels,
+            })
+
+        subtitle_tracks = []
+        for si, stream in enumerate(vts.subtitle_streams):
+            subtitle_tracks.append({
+                "track_index": si,
+                "language_code": stream.language,
+            })
+
+        for pgc in vts.pgc_list:
+            titles.append({
+                "title_index": title_index,
+                "is_main_feature": first_title,
+                "duration_secs": pgc.duration_seconds,
+                "chapter_count": pgc.chapter_count,
+                "audio_tracks": audio_tracks,
+                "subtitle_tracks": subtitle_tracks,
+            })
+            title_index += 1
+            first_title = False
+
+    release: dict = {
+        "title": title,
+        "year": year,
+        "content_type": "movie",
+    }
+    if tmdb_id is not None:
+        release["tmdb_id"] = tmdb_id
+    if imdb_id:
+        release["imdb_id"] = imdb_id
+
+    payload: dict = {
+        "fingerprint": disc.fingerprint,
+        "format": "DVD",
+        "release": release,
+        "titles": titles,
+        "disc_number": disc_number,
+        "total_discs": total_discs,
+    }
+    if edition_name:
+        payload["edition_name"] = edition_name
+
+    return payload
+
+
 def _render_lookup(data: dict) -> None:
     """Render disc lookup response as Rich-formatted output."""
     from rich.console import Console

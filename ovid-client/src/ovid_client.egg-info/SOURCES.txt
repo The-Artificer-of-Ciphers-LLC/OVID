@@ -1,6 +1,7 @@
 pyproject.toml
 src/ovid/__init__.py
 src/ovid/cli.py
+src/ovid/client.py
 src/ovid/disc.py
 src/ovid/fingerprint.py
 src/ovid/ifo_parser.py
@@ -15,6 +16,8 @@ src/ovid_client.egg-info/dependency_links.txt
 src/ovid_client.egg-info/entry_points.txt
 src/ovid_client.egg-info/requires.txt
 src/ovid_client.egg-info/top_level.txt
+tests/test_cli_lookup.py
+tests/test_client.py
 tests/test_disc.py
 tests/test_fingerprint.py
 tests/test_ifo_parser.py
