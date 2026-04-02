@@ -227,6 +227,280 @@ This is a greenfield open-source project. There are no contractual deadlines, bu
 
 ---
 
+## Git Strategy
+
+OVID follows a simplified **Gitflow** model. All development happens on branches; nothing is committed directly to `main`.
+
+### Branch Types
+
+```
+main                        ← production-ready only; tagged releases live here
+├── develop                 ← integration branch; all feature work merges here first
+│   ├── feature/fingerprint-dvd-algo
+│   ├── feature/oauth-mastodon
+│   ├── feature/sync-diff-endpoint
+│   └── ...
+├── release/0.1.0           ← cut from develop when a milestone is ready for testing
+│   └── (only bug fixes committed here; no new features)
+└── hotfix/0.0.1            ← cut from main to patch a live production issue
+```
+
+### Branch Rules
+
+| Branch | Who can push | Merge target | Notes |
+|---|---|---|---|
+| `main` | Maintainers only (via PR) | — | Protected; requires passing CI + one review |
+| `develop` | Maintainers via PR | `main` (via release branch) | Integration branch; always deployable to staging |
+| `feature/*` | Any contributor | `develop` | Named `feature/{short-description}`; squash merge preferred |
+| `release/*` | Maintainers | `main` + back-merge to `develop` | Named `release/{version}`; bug fixes only; triggers beta deploy |
+| `hotfix/*` | Maintainers | `main` + back-merge to `develop` | Named `hotfix/{version}`; emergency production patches |
+
+### Workflow: Normal Feature
+
+```
+1. Branch from develop:       git checkout -b feature/oauth-github develop
+2. Work and commit locally
+3. Open PR → develop
+4. CI runs (tests, lint, fingerprint stability check)
+5. One maintainer review → squash merge into develop
+6. Branch deleted after merge
+```
+
+### Workflow: Cutting a Release
+
+```
+1. Branch from develop:       git checkout -b release/0.2.0 develop
+2. Update version strings and CHANGELOG
+3. Deploy to staging; run integration tests against real disc images
+4. Bug fixes committed directly to release/0.2.0
+5. Back-merge any fixes to develop:  git merge release/0.2.0 → develop
+6. When stable, PR release/0.2.0 → main
+7. Merge + tag:               git tag -a v0.2.0 -m "Release 0.2.0"
+8. Deploy to production; delete release branch
+```
+
+### Workflow: Hotfix
+
+```
+1. Branch from main:          git checkout -b hotfix/0.1.1 main
+2. Fix the issue; bump patch version; update CHANGELOG
+3. PR → main (expedited review)
+4. Merge + tag:               git tag -a v0.1.1
+5. Back-merge to develop:     git merge hotfix/0.1.1 → develop
+```
+
+### Commit Message Convention
+
+OVID follows [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope>): <short description>
+
+[optional body]
+
+[optional footer: Co-Authored-By, Closes #issue]
+```
+
+| Type | When to use |
+|---|---|
+| `feat` | New feature or capability |
+| `fix` | Bug fix |
+| `spec` | Changes to specification documents only |
+| `docs` | README, guides, in-code documentation |
+| `refactor` | Code change with no behavior change |
+| `test` | Adding or updating tests |
+| `chore` | Build system, CI, dependency updates |
+| `release` | Version bump + changelog update commits |
+
+Examples:
+```
+feat(fingerprint): implement OVID-DVD-1 structural hash algorithm
+fix(sync): handle empty diff response when node is already at head
+spec(auth): add Mastodon OAuth instance discovery flow
+release: bump version to 0.2.0
+```
+
+---
+
+## Version Scheme and Development Milestones
+
+OVID uses **semantic versioning** in the form `0.MILESTONE.PATCH` during pre-release development:
+
+- **0** — major version fixed at zero until the project reaches a stable public API and ≥10,000 disc entries (signals pre-release / active development)
+- **MILESTONE** — increments with each named phase completion (Phase 0 → 0.1, Phase 1 → 0.2, etc.)
+- **PATCH** — increments for bug fixes, security patches, and documentation corrections within a milestone; resets to 0 on each new milestone
+
+```
+0.1.0   Phase 0 complete — fingerprint spec + ovid-client published
+0.1.1   Bug fix (e.g. IFO parser edge case on malformed disc)
+0.1.2   Bug fix (e.g. pycdlib ISO mount failure on macOS)
+0.2.0   Phase 1 complete — MVP API + Web UI + ARM integration
+0.2.1   Bug fix
+...
+0.3.0   Phase 2 complete — sync / self-hosted / community moderation
+1.0.0   Stable public API declared; ≥10,000 disc entries; foundation formed
+```
+
+No features are added in patch releases — only fixes to the preceding milestone's scope. If a fix requires a new behaviour, it targets the next milestone instead.
+
+### Milestone 0.1 — Foundation
+
+**Goal:** A working disc fingerprint algorithm and client library. No server required.
+
+**Exit criteria (all must be true to tag `v0.1.0`):**
+- [ ] `OVID-DVD-1` fingerprint algorithm spec published as a standalone document in `docs/`
+- [ ] `ovid-client` generates DVD fingerprints from a live drive and from an ISO
+- [ ] Fingerprint stability validated: same disc produces identical fingerprint across ≥3 different drives on Linux and macOS
+- [ ] `ovid-client` published to PyPI under the name `ovid-client`
+- [ ] Basic PostgreSQL schema deployed (migrations passing via Alembic)
+- [ ] `GET /v1/disc/{fingerprint}` and `POST /v1/disc` endpoints live on `api.oviddb.org`
+- [ ] Docker Compose dev stack documented and tested (`docker compose up` → working local API)
+- [ ] Database seeded with ≥20 real disc entries contributed by founders
+- [ ] CI pipeline running on GitHub Actions: lint, unit tests, fingerprint regression tests
+
+**Patch window:** `0.1.1` – `0.1.x` addresses bugs in the above before Phase 1 begins.
+
+---
+
+### Milestone 0.2 — MVP
+
+**Goal:** A usable product for the home archivist community. Publicly announced.
+
+**Exit criteria (all must be true to tag `v0.2.0`):**
+- [ ] Web UI live at `oviddb.org`: search, disc detail view, submit form
+- [ ] All four OAuth providers working: GitHub, Google, Apple, Mastodon
+- [ ] Linked accounts: multiple providers connectable to one account
+- [ ] Two-contributor verification workflow live (unverified → verified)
+- [ ] `ovid-client` Blu-ray Tier 1 (AACS Disc ID) and Tier 2 (BDMV structure) both working
+- [ ] ARM integration PR merged or under active review
+- [ ] Database seeded to ≥500 disc entries
+- [ ] API response time ≤500ms at p95 under load
+- [ ] Rate limiting and basic abuse prevention live
+- [ ] `oviddb.com` and `oviddb.net` redirecting to `oviddb.org`
+- [ ] Public announcement posted (GitHub, ARM forums, r/DataHoarder, Doom9)
+
+**Patch window:** `0.2.1` – `0.2.x` addresses issues found after public launch.
+
+---
+
+### Milestone 0.3 — Self-Hosted and Community
+
+**Goal:** Anyone can run their own OVID node. Community governance tooling in place.
+
+**Exit criteria (all must be true to tag `v0.3.0`):**
+- [ ] Sync feed endpoints live: `/v1/sync/head`, `/v1/sync/diff`, `/v1/sync/snapshot`
+- [ ] `docker compose --profile mirror up` launches a self-hosted mirror node
+- [ ] Daily snapshot generation and hosting at `snapshots.oviddb.org`
+- [ ] Self-hosted getting-started guide published
+- [ ] Edit history and audit log visible in Web UI
+- [ ] UPC barcode lookup endpoint live
+- [ ] Community dispute flagging live
+- [ ] Monthly CC0 database dump published
+- [ ] Database at ≥5,000 disc entries
+
+**Patch window:** `0.3.1` – `0.3.x`.
+
+---
+
+### Milestone 0.4 — TV Series and Scale
+
+**Goal:** TV series multi-disc sets fully supported. Database meaningfully large.
+
+**Exit criteria (all must be true to tag `v0.4.0`):**
+- [ ] TV series disc entries with episode-to-title mapping
+- [ ] Community voting on conflicting disc entries (MusicBrainz edit-voting model)
+- [ ] `ovid-client` JavaScript/Node library published to npm
+- [ ] Database at ≥10,000 disc entries
+- [ ] Federated node mode (local writes + upstream submission) — design complete and v1 shipped
+
+**Patch window:** `0.4.1` – `0.4.x`.
+
+---
+
+### Milestone 1.0 — Stable
+
+**Goal:** Stable public API contract declared. No breaking changes without a major version bump.
+
+**Exit criteria:**
+- [ ] All Open Questions from the product spec resolved or explicitly deferred with rationale
+- [ ] API versioning policy documented (`/v1/` frozen; new features go to `/v2/`)
+- [ ] Non-profit foundation or fiscal sponsorship in place
+- [ ] Database at ≥10,000 disc entries
+- [ ] `ovid-client` at 1.0 on PyPI with stable API
+
+---
+
+## Documentation Release Plan
+
+Each milestone ships documentation alongside the software. Documentation is never a trailing deliverable — it ships with the code that enables it, as a condition of the milestone exit criteria.
+
+### Phase 0 → v0.1.0
+
+| Document | Location | Audience | Status at release |
+|---|---|---|---|
+| Fingerprint Algorithm Spec (OVID-DVD-1) | `docs/fingerprint-spec.md` | Developers, implementers | Final |
+| `ovid-client` API reference | PyPI / README | Developers | Final |
+| Getting Started (developer) | `docs/getting-started-dev.md` | Contributors | Final |
+| Docker Compose quick-start | `docs/docker-quickstart.md` | Contributors | Final |
+| CHANGELOG | `CHANGELOG.md` | All | Initiated |
+| GitHub issue templates | `.github/ISSUE_TEMPLATE/` | Contributors | Final |
+| GitHub PR template | `.github/PULL_REQUEST_TEMPLATE.md` | Contributors | Final |
+
+---
+
+### Phase 1 → v0.2.0
+
+| Document | Location | Audience | Status at release |
+|---|---|---|---|
+| Fingerprint Algorithm Spec (OVID-BD-2, Tier 1 & 2) | `docs/fingerprint-spec.md` (update) | Developers | Final |
+| Web UI user guide | `oviddb.org/docs/guide` | Home archivists | Final |
+| Disc submission guide | `oviddb.org/docs/submit` | Community contributors | Final |
+| ARM integration guide | `docs/arm-integration.md` + ARM wiki | ARM users | Final |
+| OAuth setup guide (for self-deployed instances) | `docs/auth-setup.md` | Operators | Final |
+| Community Code of Conduct | `CODE_OF_CONDUCT.md` | All | Final |
+| Contributing guide | `CONTRIBUTING.md` | Contributors | Final |
+| Data licensing explainer (CC0 FAQ) | `docs/data-license.md` | All | Final |
+| Press / announcement post | `oviddb.org/blog/announcing-ovid` | Public | Publish at launch |
+| CHANGELOG | `CHANGELOG.md` | All | Updated |
+
+---
+
+### Phase 2 → v0.3.0
+
+| Document | Location | Audience | Status at release |
+|---|---|---|---|
+| Self-hosted getting-started guide | `docs/self-hosting.md` | Home server operators | Final |
+| Sync protocol specification | `docs/sync-spec.md` | Developers, implementers | Final |
+| Moderation guide | `docs/moderation.md` | Editors, admins | Final |
+| Data dump format reference | `docs/dump-format.md` | Developers | Final |
+| Governance model | `docs/governance.md` | Community | Final |
+| CHANGELOG | `CHANGELOG.md` | All | Updated |
+
+---
+
+### Phase 3 → v0.4.0
+
+| Document | Location | Audience | Status at release |
+|---|---|---|---|
+| TV series disc entry guide | `docs/tv-series.md` | Contributors | Final |
+| `ovid-client` Node.js API reference | npm / README | Developers | Final |
+| Federated node operator guide | `docs/federation.md` | Node operators | Final |
+| CHANGELOG | `CHANGELOG.md` | All | Updated |
+
+---
+
+### Stable → v1.0.0
+
+| Document | Location | Audience | Status at release |
+|---|---|---|---|
+| API stability and versioning policy | `docs/api-versioning.md` | Developers | Final |
+| Foundation / governance announcement | `oviddb.org/blog/` | Public | Publish at launch |
+| Full API reference (OpenAPI / Swagger) | `api.oviddb.org/docs` | Developers | Final (auto-generated) |
+| Migration guide: pre-1.0 → 1.0 | `docs/migration-1.0.md` | All existing users | Final |
+| CHANGELOG | `CHANGELOG.md` | All | Updated |
+
+---
+
 ## Competitive Landscape
 
 | Service | Open? | Disc Fingerprint? | Layout Data? | Status |
@@ -240,4 +514,4 @@ This is a greenfield open-source project. There are no contractual deadlines, bu
 
 ---
 
-*Document status: Draft v0.2 · Authors: Project founders · Last updated: 2026-04-01*
+*Document status: Draft v0.3 · Authors: Project founders · Last updated: 2026-04-01*

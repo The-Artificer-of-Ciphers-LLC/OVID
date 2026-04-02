@@ -1272,48 +1272,146 @@ These are tiny numbers. A self-hosted node on a home NAS with even a basic inter
 
 ---
 
-## 13. Phased Delivery Plan
+## 13. CI/CD Pipeline
 
-### Phase 0 — Spec and Scaffolding (Weeks 1–6)
+Every push to any branch triggers the CI pipeline. No code reaches `develop` or `main` without passing all checks.
 
-- [ ] Finalize and publish disc fingerprinting algorithm spec as a standalone document
-- [ ] Prototype `ovid-client` that reads DVD IFO files and generates fingerprints
-- [ ] Validate fingerprint stability: test same disc on 3+ different drives
-- [ ] Stand up PostgreSQL schema with sequence numbers (migrations via Alembic)
-- [ ] Basic FastAPI server with `/v1/disc/{fingerprint}` GET and POST endpoints
-- [ ] **Docker Compose dev environment** (`docker compose up` → working local stack)
-- [ ] `.env.example` and developer getting-started documentation
-- [ ] Seed with 20 test discs from contributor's own collection
+### Pipeline Stages
 
-### Phase 1 — MVP (Weeks 7–14)
+```
+Push / PR opened
+      │
+      ▼
+┌─────────────┐   fail → block merge
+│  Lint        │   ruff (Python), markdownlint (docs)
+└──────┬──────┘
+       │ pass
+       ▼
+┌─────────────┐   fail → block merge
+│  Unit Tests  │   pytest; fingerprint algorithm unit tests
+└──────┬──────┘
+       │ pass
+       ▼
+┌──────────────────────┐   fail → block merge
+│  Fingerprint          │   Regression suite: pre-computed fingerprints
+│  Regression Tests     │   for 20 known disc ISOs; any change = fail
+└──────┬───────────────┘
+       │ pass
+       ▼
+┌─────────────┐   fail → block merge (main only)
+│  DB Migration│   alembic upgrade head on clean test DB
+│  Check       │
+└──────┬──────┘
+       │ pass
+       ▼
+┌─────────────┐   runs on develop / release / main only
+│  Integration │   docker compose up; seed 5 test discs;
+│  Tests       │   run API smoke tests against live containers
+└──────┬──────┘
+       │ pass
+       ▼
+┌─────────────┐   main branch + tagged release only
+│  Deploy      │   tag v0.x.y → deploy to production
+└─────────────┘
+```
 
-- [ ] Complete `ovid-client` with Blu-ray BDMV support
-- [ ] Publish `ovid-client` to PyPI
-- [ ] Web UI: search, browse disc entry, submit form
-- [ ] User accounts: email+password, GitHub OAuth, Google OAuth, Apple OAuth
-- [ ] Mastodon / ActivityPub federated login (dynamic instance discovery)
-- [ ] Linked accounts: connect multiple providers to one account
-- [ ] Email-match merge flow for duplicate account prevention
-- [ ] OAuth tokens encrypted at rest; JWT access + refresh token rotation
-- [ ] Two-contributor verification workflow
-- [ ] ARM pull request: add OVID as optional metadata provider
-- [ ] Deploy to cloud hosting (Railway or Fly.io)
-- [ ] Seed database to ~500 discs
-- [ ] **Sync feed endpoints** (`/v1/sync/head`, `/v1/sync/diff`) on canonical server
-- [ ] **Mirror mode**: `sync.py` daemon + `docker compose --profile mirror up` workflow
-- [ ] Daily snapshot generation and hosting (for fresh mirror installs)
+### GitHub Actions Triggers
 
-### Phase 2 — Community Features (Weeks 15–26)
+| Trigger | Pipeline stages run |
+|---|---|
+| PR → `develop` | Lint, Unit, Fingerprint regression |
+| Push to `develop` | All stages except Deploy |
+| PR → `main` (release branch) | All stages except Deploy |
+| Push to `main` | All stages + Deploy to production |
+| Tag `v*` | Publish `ovid-client` to PyPI + Docker Hub |
 
-- [ ] Edit history and audit log
-- [ ] UPC barcode lookup endpoint
-- [ ] Community dispute flagging
-- [ ] Monthly public database dump (replaces/supplements snapshot)
-- [ ] Rate limiting and abuse prevention
-- [ ] Documentation site
-- [ ] **Federated mode** design and implementation (local writes + upstream submission)
-- [ ] Self-hosted installer script (single-command deploy to a Raspberry Pi or NAS)
+### Fingerprint Regression Test Suite
+
+This is the most critical CI check. A corpus of 20 disc ISOs (stored in a private S3 bucket, not the public repo) has pre-computed expected fingerprints for each. Any change to the fingerprinting code that alters even one expected output **fails the build immediately**, even if the change seems intentional. Algorithm changes require a version bump (`dvd2-` prefix) rather than modifying existing expected outputs.
 
 ---
 
-*Document status: Draft v0.4 · Authors: Project founders · Last updated: 2026-04-01*
+## 14. Phased Delivery Plan
+
+Phases map directly to version milestones defined in the product spec. Each phase targets a specific `0.x.0` release. Bug-fix patch releases (`0.x.y`) may be cut at any point within a phase without advancing the milestone number.
+
+### Phase 0 → v0.1.0 — Spec and Scaffolding (Weeks 1–6)
+
+- [ ] Finalize and publish `OVID-DVD-1` fingerprint algorithm as `docs/fingerprint-spec.md`
+- [ ] Prototype `ovid-client`: DVD IFO fingerprinting from live drive and ISO
+- [ ] Validate fingerprint stability: same disc → identical output on ≥3 drives, Linux + macOS
+- [ ] PostgreSQL schema with global sequence numbers (Alembic migrations)
+- [ ] FastAPI server: `GET /v1/disc/{fingerprint}` and `POST /v1/disc`
+- [ ] Docker Compose dev environment (`docker compose up` → working local API)
+- [ ] `.env.example`, developer getting-started doc
+- [ ] GitHub Actions CI: lint + unit tests + fingerprint regression suite
+- [ ] Seed: ≥20 real disc entries from founders
+- [ ] **Tag `v0.1.0`, publish `ovid-client` to PyPI**
+
+*Patch releases `0.1.1`–`0.1.x`: IFO parser edge cases, pycdlib compatibility, CI fixes.*
+
+---
+
+### Phase 1 → v0.2.0 — MVP (Weeks 7–14)
+
+- [ ] `ovid-client` Blu-ray: Tier 1 AACS Disc ID + Tier 2 BDMV structure hash
+- [ ] `ovid-client` 4K UHD: same algorithm, `uhd1-aacs-` / `uhd2-` prefixes
+- [ ] Web UI live at `oviddb.org`: search, disc detail, submit form
+- [ ] Auth: email+password, GitHub, Google, Apple OAuth; Mastodon federated login
+- [ ] Linked accounts + email-match merge flow
+- [ ] Two-contributor verification workflow
+- [ ] ARM pull request merged or under active maintainer review
+- [ ] Deploy to cloud host (Railway or Fly.io); `api.oviddb.org` live
+- [ ] `oviddb.com` / `oviddb.net` → `oviddb.org` redirects live (Cloudflare)
+- [ ] Sync feed endpoints: `/v1/sync/head`, `/v1/sync/diff`, `/v1/sync/snapshot`
+- [ ] Mirror mode: `docker compose --profile mirror up` + `sync.py` daemon
+- [ ] Database: ≥500 disc entries
+- [ ] Rate limiting and basic spam prevention
+- [ ] Integration CI pipeline running against staging
+- [ ] **Tag `v0.2.0`; public announcement (GitHub, ARM forums, r/DataHoarder, Doom9)**
+
+*Patch releases `0.2.1`–`0.2.x`: post-launch bug fixes, OAuth edge cases, performance.*
+
+---
+
+### Phase 2 → v0.3.0 — Self-Hosted and Community (Weeks 15–26)
+
+- [ ] Edit history and full audit log in Web UI
+- [ ] UPC barcode lookup endpoint
+- [ ] Community dispute flagging and resolution workflow
+- [ ] Monthly CC0 database dump published to `snapshots.oviddb.org`
+- [ ] Self-hosted getting-started guide and one-command installer
+- [ ] `docs/sync-spec.md`: formal sync protocol specification
+- [ ] Governance model published (`docs/governance.md`)
+- [ ] Database: ≥5,000 disc entries
+- [ ] **Tag `v0.3.0`**
+
+*Patch releases `0.3.1`–`0.3.x`.*
+
+---
+
+### Phase 3 → v0.4.0 — TV Series and Scale (Weeks 27–40)
+
+- [ ] TV series disc entries with episode-to-title mapping
+- [ ] Community voting on conflicting disc entries
+- [ ] `ovid-client` Node.js library published to npm
+- [ ] Federated node mode: local writes + upstream submission
+- [ ] Database: ≥10,000 disc entries
+- [ ] **Tag `v0.4.0`**
+
+*Patch releases `0.4.1`–`0.4.x`.*
+
+---
+
+### Stable → v1.0.0
+
+- [ ] All blocking Open Questions resolved
+- [ ] API versioning policy frozen (`/v1/` stable; breaking changes go to `/v2/`)
+- [ ] Non-profit foundation or fiscal sponsorship in place
+- [ ] Full OpenAPI reference auto-generated at `api.oviddb.org/docs`
+- [ ] Migration guide for any pre-1.0 API changes
+- [ ] **Tag `v1.0.0`; foundation announcement**
+
+---
+
+*Document status: Draft v0.5 · Authors: Project founders · Last updated: 2026-04-01*
