@@ -8,5 +8,7 @@ Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 Requires-Dist: pycdlib>=1.14
 Requires-Dist: click>=8.0
+Requires-Dist: requests>=2.28
+Requires-Dist: rich>=13.0
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0; extra == "dev"
