@@ -1,10 +1,12 @@
 """Disc-related API endpoints — /v1 router."""
 
 import logging
+import math
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.deps import get_db
@@ -15,6 +17,8 @@ from app.schemas import (
     DiscSubmitRequest,
     DiscSubmitResponse,
     ReleaseResponse,
+    SearchResponse,
+    SearchResultRelease,
     TitleResponse,
     TrackResponse,
 )
@@ -237,3 +241,111 @@ def submit_disc(
         return _error_response(
             request_id, "internal_error", "Failed to submit disc", 500
         )
+
+
+# ---------------------------------------------------------------------------
+# POST /v1/disc/{fingerprint}/verify
+# ---------------------------------------------------------------------------
+@router.post("/disc/{fingerprint}/verify")
+def verify_disc(
+    fingerprint: str,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Any:
+    """Promote a disc from unverified → verified (idempotent)."""
+    request_id: str = request.state.request_id
+
+    disc = db.query(Disc).filter(Disc.fingerprint == fingerprint).first()
+    if disc is None:
+        return _error_response(
+            request_id, "not_found", f"No disc with fingerprint '{fingerprint}'", 404
+        )
+
+    if disc.status == "verified":
+        return JSONResponse(
+            status_code=200,
+            content={
+                "request_id": request_id,
+                "fingerprint": fingerprint,
+                "status": "verified",
+                "message": "already verified",
+            },
+        )
+
+    disc.status = "verified"
+    db.commit()
+
+    logger.info("disc_verified fingerprint=%s", fingerprint)
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "request_id": request_id,
+            "fingerprint": fingerprint,
+            "status": "verified",
+            "message": "Disc verified successfully",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /v1/search
+# ---------------------------------------------------------------------------
+PAGE_SIZE = 20
+
+
+@router.get("/search", response_model=SearchResponse)
+def search_releases(
+    request: Request,
+    q: str | None = Query(default=None),
+    type: str | None = Query(default=None),
+    year: int | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Search releases by title with optional type/year filters and pagination."""
+    request_id: str = request.state.request_id
+
+    if not q or not q.strip():
+        return _error_response(
+            request_id, "bad_request", "Query parameter 'q' is required", 400
+        )
+
+    query = db.query(Release).filter(Release.title.ilike(f"%{q}%"))
+
+    if type is not None:
+        query = query.filter(Release.content_type == type)
+    if year is not None:
+        query = query.filter(Release.year == year)
+
+    total_results = query.count()
+    total_pages = max(1, math.ceil(total_results / PAGE_SIZE)) if total_results > 0 else 0
+
+    releases = query.offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
+
+    results = []
+    for rel in releases:
+        disc_count = (
+            db.query(func.count())
+            .select_from(DiscRelease)
+            .filter(DiscRelease.release_id == rel.id)
+            .scalar()
+        )
+        results.append(
+            SearchResultRelease(
+                id=str(rel.id),
+                title=rel.title,
+                year=rel.year,
+                content_type=rel.content_type,
+                tmdb_id=rel.tmdb_id,
+                disc_count=disc_count or 0,
+            )
+        )
+
+    return SearchResponse(
+        request_id=request_id,
+        results=results,
+        page=page,
+        total_pages=total_pages,
+        total_results=total_results,
+    )
