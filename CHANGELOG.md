@@ -4,6 +4,13 @@ All notable changes to OVID are documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/) in the form `0.MILESTONE.PATCH` during pre-release development. See the [product spec](docs/OVID-product-spec.md) for the versioning scheme.
 
+## [0.1.1] — 2026-04-02
+
+### Fixed
+- CI/CD: Upgraded all GitHub Actions to Node 24 versions (checkout v6, setup-python v6, upload/download-artifact v6, Docker actions v4/v7)
+- CI/CD: Fixed Docker image name casing for GHCR push (repository owner must be lowercase)
+- CI/CD: Fixed artifact download pattern to exclude Docker build records
+
 ## [0.1.0] — 2026-04-02
 
 **Foundation & Core Pipeline** — First release. Proves the end-to-end OVID pipeline: DVD fingerprinting from any source, REST API for disc metadata CRUD, OAuth authentication, and an interactive CLI with TMDB integration.
@@ -79,4 +86,5 @@ This project uses [Semantic Versioning](https://semver.org/) in the form `0.MILE
 - DriveReader on macOS requires a mounted volume or ISO — direct /dev/diskN not tested on real hardware
 - Not published to PyPI yet (planned for v0.2.0)
 
+[0.1.1]: https://github.com/The-Artificer-of-Ciphers-LLC/OVID/releases/tag/v0.1.1
 [0.1.0]: https://github.com/The-Artificer-of-Ciphers-LLC/OVID/releases/tag/v0.1.0
