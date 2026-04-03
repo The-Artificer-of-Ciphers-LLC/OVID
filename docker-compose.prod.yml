@@ -1,6 +1,11 @@
 # Production overrides — merge with base:
 #   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #
+# This file targets the canonical production environment:
+#   API:  https://api.oviddb.org  (reverse-proxied via redshirt, host port 8100)
+#   Web:  https://oviddb.org      (reverse-proxied via redshirt, host port 3100)
+#   DB:   PostgreSQL on internal port 5432 (not exposed externally)
+#
 # See docs/deployment.md for full deployment instructions.
 
 x-prod-note: >
@@ -12,12 +17,17 @@ x-prod-note: >
 services:
 
   db:
+    container_name: ovid-prod-db
     # Don't expose PostgreSQL externally in production
     ports: !reset []
 
   api:
+    container_name: ovid-prod-api
     # No source mount in production — use the baked-in image
     volumes: !reset []
+    # Expose on 8100 to avoid conflict with dev stack on 8000
+    ports:
+      - "8100:8000"
     command: >-
       gunicorn -w 4 -k uvicorn.workers.UvicornWorker
       main:app --bind 0.0.0.0:8000
@@ -26,7 +36,7 @@ services:
       SECRET_KEY:            ${OVID_SECRET_KEY}
       OVID_MODE:             ${OVID_MODE:-canonical}
       LOG_LEVEL:             ${LOG_LEVEL:-info}
-      CORS_ORIGINS:          ${CORS_ORIGINS:-https://holodeck.nomorestars.com}
+      CORS_ORIGINS:          ${CORS_ORIGINS:-https://oviddb.org}
       GITHUB_CLIENT_ID:      ${GITHUB_CLIENT_ID}
       GITHUB_CLIENT_SECRET:  ${GITHUB_CLIENT_SECRET}
       GOOGLE_CLIENT_ID:      ${GOOGLE_CLIENT_ID}
@@ -37,6 +47,10 @@ services:
       APPLE_PRIVATE_KEY:     ${APPLE_PRIVATE_KEY}
 
   web:
+    container_name: ovid-prod-web
+    # Expose on 3100 to avoid conflict with dev stack on 3000
+    ports:
+      - "3100:3000"
     environment:
-      NEXT_PUBLIC_API_URL: https://holodeck.nomorestars.com
+      NEXT_PUBLIC_API_URL: https://api.oviddb.org
       API_URL: http://api:8000

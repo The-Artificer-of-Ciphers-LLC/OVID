@@ -1,6 +1,6 @@
 # OVID API Reference
 
-**Base URL:** `http://localhost:8000` (development) / `https://api.oviddb.org` (production, future)
+**Base URL:** `http://localhost:8000` (development) / `https://api.oviddb.org` (production)
 **Version:** v1
 **Format:** All responses are JSON. All responses include an `X-Request-ID` header.
 
