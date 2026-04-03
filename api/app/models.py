@@ -323,3 +323,20 @@ class DiscEdit(Base):
 
     # relationships
     disc: Mapped["Disc | None"] = relationship(back_populates="edits")
+
+
+# ---------------------------------------------------------------------------
+# mastodon_oauth_clients — cache for dynamic client registration
+# ---------------------------------------------------------------------------
+class MastodonOAuthClient(Base):
+    __tablename__ = "mastodon_oauth_clients"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    domain: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    client_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    client_secret: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow
+    )

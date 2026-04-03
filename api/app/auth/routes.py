@@ -524,3 +524,149 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             "display_name": user.display_name,
         },
     }
+
+# ---------------------------------------------------------------------------
+# Mastodon OAuth
+# ---------------------------------------------------------------------------
+
+from app.auth.mastodon import validate_mastodon_domain, get_or_register_client
+from app.models import MastodonOAuthClient
+
+@auth_router.get("/mastodon/login")
+async def mastodon_login(request: Request, domain: str = "", db: Session = Depends(get_db)):
+    """Begin Mastodon OAuth flow."""
+    if not domain:
+        raise HTTPException(status_code=400, detail={"error": "missing_domain", "reason": "domain query param required"})
+
+    try:
+        domain = validate_mastodon_domain(domain)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail={"error": "invalid_domain", "reason": str(e)})
+
+    # Get or register client
+    client = await get_or_register_client(db, domain)
+    
+    # Generate state
+    state = secrets.token_urlsafe(32)
+    request.session["mastodon_state"] = state
+    request.session["mastodon_domain"] = domain
+
+    redirect_uri = f"{_OVID_API_URL}/v1/auth/mastodon/callback"
+    params = {
+        "client_id": client.client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "read",
+        "state": state,
+    }
+    qs = "&".join(f"{k}={v}" for k, v in params.items())
+
+    from starlette.responses import RedirectResponse
+    return RedirectResponse(url=f"https://{domain}/oauth/authorize?{qs}")
+
+@auth_router.get("/mastodon/callback")
+async def mastodon_callback(request: Request, db: Session = Depends(get_db)):
+    """Exchange Mastodon code for token, verify account, upsert user."""
+    code = request.query_params.get("code")
+    state = request.query_params.get("state")
+    
+    if not code:
+        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "No authorization code"})
+        
+    expected_state = request.session.get("mastodon_state")
+    domain = request.session.get("mastodon_domain")
+    
+    if not expected_state or state != expected_state:
+        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "State mismatch"})
+        
+    if not domain:
+        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "Session missing domain"})
+        
+    client = db.query(MastodonOAuthClient).filter_by(domain=domain).first()
+    if not client:
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "reason": "Client registration lost"})
+        
+    redirect_uri = f"{_OVID_API_URL}/v1/auth/mastodon/callback"
+    
+    try:
+        async with httpx.AsyncClient() as http_client:
+            # Token exchange
+            token_resp = await http_client.post(
+                f"https://{domain}/oauth/token",
+                data={
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "client_id": client.client_id,
+                    "client_secret": client.client_secret,
+                    "redirect_uri": redirect_uri,
+                },
+                timeout=10.0
+            )
+            
+            if token_resp.status_code != 200:
+                logger.warning("auth_failed provider=mastodon reason=token_error status=%d", token_resp.status_code)
+                raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "Token exchange failed"})
+                
+            token_data = token_resp.json()
+            access_token = token_data.get("access_token")
+            if not access_token:
+                logger.warning("auth_failed provider=mastodon reason=no_access_token")
+                raise HTTPException(status_code=401, detail={"error": "provider_error", "reason": "No access token received"})
+                
+            # Verify credentials
+            verify_resp = await http_client.get(
+                f"https://{domain}/api/v1/accounts/verify_credentials",
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=10.0
+            )
+            
+            if verify_resp.status_code != 200:
+                logger.warning("auth_failed provider=mastodon reason=verify_error status=%d", verify_resp.status_code)
+                raise HTTPException(status_code=502, detail={"error": "provider_error", "reason": "Failed to verify credentials"})
+                
+            account_data = verify_resp.json()
+            account_id = account_data.get("id")
+            username = account_data.get("username")
+            display_name = account_data.get("display_name")
+            
+            if not account_id or not username:
+                logger.warning("auth_failed provider=mastodon reason=malformed_account")
+                raise HTTPException(status_code=502, detail={"error": "provider_error", "reason": "Malformed account data"})
+                
+    except httpx.TimeoutException:
+        logger.warning("auth_failed provider=mastodon reason=timeout")
+        raise HTTPException(status_code=504, detail={"error": "gateway_timeout", "reason": "Communication with Mastodon instance timed out"})
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logger.warning("auth_failed provider=mastodon reason=request_error detail=%s", str(e))
+        raise HTTPException(status_code=502, detail={"error": "bad_gateway", "reason": str(e)})
+
+    # Clean up session
+    request.session.pop("mastodon_state", None)
+    request.session.pop("mastodon_domain", None)
+    
+    # Upsert user
+    provider_id = f"{domain}:{account_id}"
+    
+    # Provide placeholder email since Mastodon doesn't give us one
+    placeholder_email = f"{username}@{domain}"
+    
+    user = user_upsert(
+        db,
+        provider="mastodon",
+        provider_id=provider_id,
+        email=placeholder_email,
+        display_name=display_name or username,
+    )
+
+    jwt_token = create_access_token(user.id)
+
+    return {
+        "token": jwt_token,
+        "user": {
+            "id": str(user.id),
+            "username": user.username,
+            "display_name": user.display_name,
+        },
+    }
