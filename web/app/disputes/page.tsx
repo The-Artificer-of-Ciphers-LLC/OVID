@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getDisputedDiscs } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Disputed Discs — OVID" };
 
 export default async function DisputesPage() {
