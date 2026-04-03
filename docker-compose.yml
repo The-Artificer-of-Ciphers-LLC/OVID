@@ -34,6 +34,22 @@ services:
       - ./api:/app
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
+  sync:
+    build: ./api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - mirror
+    environment:
+      DATABASE_URL: postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}
+      SYNC_SOURCE_URL: ${SYNC_SOURCE_URL:-https://api.oviddb.org}
+      SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-60}
+    command: python scripts/sync.py --daemon
+    volumes:
+      - ./api:/app
+
   web:
     build: ./web
     restart: unless-stopped
