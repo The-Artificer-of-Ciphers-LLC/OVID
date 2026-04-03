@@ -1,0 +1,42 @@
+# Production overrides — merge with base:
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# See docs/deployment.md for full deployment instructions.
+
+x-prod-note: >
+  This file is a Docker Compose override. It is NOT standalone.
+  Always run with both files:
+    docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+  Use the docker-compose binary (hyphenated), not 'docker compose' plugin.
+
+services:
+
+  db:
+    # Don't expose PostgreSQL externally in production
+    ports: !reset []
+
+  api:
+    # No source mount in production — use the baked-in image
+    volumes: !reset []
+    command: >-
+      gunicorn -w 4 -k uvicorn.workers.UvicornWorker
+      main:app --bind 0.0.0.0:8000
+    environment:
+      DATABASE_URL:          postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}
+      SECRET_KEY:            ${OVID_SECRET_KEY}
+      OVID_MODE:             ${OVID_MODE:-canonical}
+      LOG_LEVEL:             ${LOG_LEVEL:-info}
+      CORS_ORIGINS:          ${CORS_ORIGINS:-https://holodeck.nomorestars.com}
+      GITHUB_CLIENT_ID:      ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET:  ${GITHUB_CLIENT_SECRET}
+      GOOGLE_CLIENT_ID:      ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET:  ${GOOGLE_CLIENT_SECRET}
+      APPLE_CLIENT_ID:       ${APPLE_CLIENT_ID}
+      APPLE_TEAM_ID:         ${APPLE_TEAM_ID}
+      APPLE_KEY_ID:          ${APPLE_KEY_ID}
+      APPLE_PRIVATE_KEY:     ${APPLE_PRIVATE_KEY}
+
+  web:
+    environment:
+      NEXT_PUBLIC_API_URL: https://holodeck.nomorestars.com
+      API_URL: http://api:8000
