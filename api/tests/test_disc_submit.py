@@ -112,14 +112,31 @@ class TestDiscSubmit:
 # Error paths
 # ---------------------------------------------------------------------------
 class TestDiscSubmitErrors:
-    def test_submit_duplicate_fingerprint(self, client, seeded_disc, auth_header):
-        """POST same fingerprint twice → 409 Conflict."""
+    def test_submit_duplicate_fingerprint_conflicting_metadata(
+        self, client, seeded_disc, auth_header
+    ):
+        """POST same fingerprint with conflicting metadata → 200 disputed.
+
+        The seeded disc has no submitted_by, so the current user is treated
+        as a different contributor.  Metadata (tmdb_id) differs → disputed.
+        """
+        payload = {**VALID_PAYLOAD, "fingerprint": "dvd-ABC123-main"}
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "disputed"
+        assert "request_id" in data
+
+    def test_submit_duplicate_same_user_returns_409(
+        self, client, seeded_disc_with_owner, auth_header
+    ):
+        """POST same fingerprint by the same user → 409 conflict."""
         payload = {**VALID_PAYLOAD, "fingerprint": "dvd-ABC123-main"}
         resp = client.post("/v1/disc", json=payload, headers=auth_header)
         assert resp.status_code == 409
         data = resp.json()
         assert data["error"] == "conflict"
-        assert "request_id" in data
+        assert "already submitted by this user" in data["message"]
 
     def test_submit_missing_required_fields(self, client, auth_header):
         """POST incomplete payload → 422 from Pydantic validation."""
@@ -145,3 +162,59 @@ class TestDiscSubmitErrors:
         resp = client.post("/v1/disc", json=VALID_PAYLOAD)
         assert resp.status_code == 401
         assert resp.json()["detail"]["error"] == "missing_token"
+
+
+# ---------------------------------------------------------------------------
+# Two-contributor auto-verify / dispute
+# ---------------------------------------------------------------------------
+class TestDiscSubmitAutoVerify:
+    """Duplicate submission by a second contributor auto-verifies or disputes."""
+
+    def test_duplicate_matching_metadata_auto_verifies(
+        self,
+        client,
+        seeded_disc_with_owner,
+        second_auth_header,
+    ):
+        """Second user submitting same fingerprint with matching tmdb_id → 200 verified."""
+        # The seeded disc has tmdb_id=603, title="The Matrix", year=1999
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "dvd-ABC123-main",
+            "release": {
+                "title": "The Matrix",
+                "year": 1999,
+                "content_type": "movie",
+                "tmdb_id": 603,
+                "original_language": "en",
+            },
+        }
+        resp = client.post("/v1/disc", json=payload, headers=second_auth_header)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "verified"
+        assert "auto-verified" in data["message"]
+
+    def test_duplicate_conflicting_metadata_disputes(
+        self,
+        client,
+        seeded_disc_with_owner,
+        second_auth_header,
+    ):
+        """Second user submitting same fingerprint with different metadata → 200 disputed."""
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "dvd-ABC123-main",
+            "release": {
+                "title": "Totally Different Film",
+                "year": 2020,
+                "content_type": "movie",
+                "tmdb_id": 99999,
+                "original_language": "en",
+            },
+        }
+        resp = client.post("/v1/disc", json=payload, headers=second_auth_header)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "disputed"
+        assert "disputed" in data["message"]

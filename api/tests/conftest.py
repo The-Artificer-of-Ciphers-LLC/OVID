@@ -105,7 +105,9 @@ def client() -> TestClient:
 # ---------------------------------------------------------------------------
 # Seed helper
 # ---------------------------------------------------------------------------
-def seed_test_disc(db: Session) -> dict[str, uuid.UUID]:
+def seed_test_disc(
+    db: Session, submitted_by_id: uuid.UUID | None = None
+) -> dict[str, uuid.UUID]:
     """Seed a disc + release + titles + tracks matching the Matrix pattern.
 
     Returns a dict of entity UUIDs: disc_id, release_id, title_id, audio_track_id,
@@ -132,6 +134,7 @@ def seed_test_disc(db: Session) -> dict[str, uuid.UUID]:
         total_discs=1,
         edition_name="10th Anniversary",
         status="verified",
+        submitted_by=submitted_by_id,
     )
     db.add(disc)
     db.flush()
@@ -219,4 +222,41 @@ def test_user(db_session: Session) -> User:
 def auth_header(test_user: User) -> dict[str, str]:
     """Return an Authorization header dict with a valid JWT for the test user."""
     token = create_access_token(test_user.id)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def seeded_disc_with_owner(db_session: Session, test_user: User) -> dict[str, uuid.UUID]:
+    """Seed a disc with submitted_by set to the test user."""
+    return seed_test_disc(db_session, submitted_by_id=test_user.id)
+
+
+# ---------------------------------------------------------------------------
+# Second user helpers (for two-contributor verification tests)
+# ---------------------------------------------------------------------------
+def seed_second_user(db: Session) -> User:
+    """Create a second test user and return the ORM object."""
+    user = User(
+        id=uuid.uuid4(),
+        username="testuser2",
+        email="test2@example.com",
+        display_name="Test User 2",
+        role="contributor",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture()
+def second_user(db_session: Session) -> User:
+    """Fixture that creates and returns a second test user."""
+    return seed_second_user(db_session)
+
+
+@pytest.fixture()
+def second_auth_header(second_user: User) -> dict[str, str]:
+    """Return an Authorization header dict with a valid JWT for the second user."""
+    token = create_access_token(second_user.id)
     return {"Authorization": f"Bearer {token}"}

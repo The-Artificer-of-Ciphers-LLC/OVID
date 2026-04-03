@@ -11,12 +11,15 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.auth.deps import get_current_user
 from app.deps import get_db
-from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, Release, User
+from app.models import Disc, DiscEdit, DiscRelease, DiscTitle, DiscTrack, Release, User
 from app.schemas import (
     STATUS_CONFIDENCE,
+    DiscEditResponse,
+    DiscEditsListResponse,
     DiscLookupResponse,
     DiscSubmitRequest,
     DiscSubmitResponse,
+    ReleaseCreate,
     ReleaseResponse,
     SearchResponse,
     SearchResultRelease,
@@ -49,6 +52,26 @@ def _build_track_response(track: DiscTrack) -> TrackResponse:
         codec=track.codec,
         channels=track.channels,
         is_default=track.is_default,
+    )
+
+
+def _releases_match(
+    existing_disc: Disc, new_release: ReleaseCreate, db: Session
+) -> bool:
+    """Check if the existing disc's release matches the new submission's release."""
+    existing_release = (
+        db.query(Release)
+        .join(DiscRelease, DiscRelease.release_id == Release.id)
+        .filter(DiscRelease.disc_id == existing_disc.id)
+        .first()
+    )
+    if existing_release is None:
+        return False
+    if existing_release.tmdb_id is not None and new_release.tmdb_id is not None:
+        return existing_release.tmdb_id == new_release.tmdb_id
+    return (
+        existing_release.title.lower() == new_release.title.lower()
+        and existing_release.year == new_release.year
     )
 
 
@@ -147,15 +170,59 @@ def submit_disc(
     """Submit a new disc with release, titles, and tracks."""
     request_id: str = request.state.request_id
 
-    # Duplicate check
+    # Duplicate check — auto-verify or dispute logic
     existing = db.query(Disc).filter(Disc.fingerprint == body.fingerprint).first()
     if existing is not None:
-        return _error_response(
-            request_id,
-            "conflict",
-            f"Disc with fingerprint '{body.fingerprint}' already exists",
-            409,
-        )
+        # Same user submitting again → conflict
+        if existing.submitted_by is not None and str(existing.submitted_by) == str(current_user.id):
+            return _error_response(
+                request_id,
+                "conflict",
+                "Disc already submitted by this user",
+                409,
+            )
+        # Different user — check if release metadata matches
+        if _releases_match(existing, body.release, db):
+            existing.status = "verified"
+            existing.verified_by = current_user.id
+            db.add(
+                DiscEdit(
+                    disc_id=existing.id,
+                    user_id=current_user.id,
+                    edit_type="verify",
+                    edit_note="auto-verified by second contributor",
+                )
+            )
+            db.commit()
+            logger.info("disc_auto_verified fingerprint=%s", body.fingerprint)
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "request_id": request_id,
+                    "status": "verified",
+                    "message": "Disc auto-verified by second contributor",
+                },
+            )
+        else:
+            existing.status = "disputed"
+            db.add(
+                DiscEdit(
+                    disc_id=existing.id,
+                    user_id=current_user.id,
+                    edit_type="disputed",
+                    edit_note="metadata conflict on second submission",
+                )
+            )
+            db.commit()
+            logger.info("disc_disputed fingerprint=%s", body.fingerprint)
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "request_id": request_id,
+                    "status": "disputed",
+                    "message": "Disc flagged as disputed due to metadata conflict",
+                },
+            )
 
     try:
         # Create release
@@ -229,6 +296,15 @@ def submit_disc(
                     is_default=st.is_default,
                 ))
 
+        # Audit trail: record the creation event
+        db.add(
+            DiscEdit(
+                disc_id=disc.id,
+                user_id=current_user.id,
+                edit_type="create",
+            )
+        )
+
         db.commit()
 
         logger.info("disc_submitted fingerprint=%s disc_id=%s", body.fingerprint, disc.id)
@@ -258,13 +334,22 @@ def verify_disc(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
-    """Promote a disc from unverified → verified (idempotent)."""
+    """Promote a disc from unverified → verified (idempotent).
+
+    The original submitter cannot verify their own submission (R011).
+    """
     request_id: str = request.state.request_id
 
     disc = db.query(Disc).filter(Disc.fingerprint == fingerprint).first()
     if disc is None:
         return _error_response(
             request_id, "not_found", f"No disc with fingerprint '{fingerprint}'", 404
+        )
+
+    # Cannot verify your own submission
+    if disc.submitted_by is not None and str(disc.submitted_by) == str(current_user.id):
+        return _error_response(
+            request_id, "forbidden", "Cannot verify your own submission", 403
         )
 
     if disc.status == "verified":
@@ -279,6 +364,14 @@ def verify_disc(
         )
 
     disc.status = "verified"
+    disc.verified_by = current_user.id
+    db.add(
+        DiscEdit(
+            disc_id=disc.id,
+            user_id=current_user.id,
+            edit_type="verify",
+        )
+    )
     db.commit()
 
     logger.info("disc_verified fingerprint=%s", fingerprint)
@@ -291,6 +384,51 @@ def verify_disc(
             "status": "verified",
             "message": "Disc verified successfully",
         },
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /v1/disc/{fingerprint}/edits
+# ---------------------------------------------------------------------------
+@router.get("/disc/{fingerprint}/edits", response_model=DiscEditsListResponse)
+def get_disc_edits(
+    fingerprint: str,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Any:
+    """Return the edit history for a disc (R015)."""
+    request_id: str = request.state.request_id
+
+    disc = db.query(Disc).filter(Disc.fingerprint == fingerprint).first()
+    if disc is None:
+        return _error_response(
+            request_id, "not_found", f"No disc with fingerprint '{fingerprint}'", 404
+        )
+
+    edits = (
+        db.query(DiscEdit)
+        .filter(DiscEdit.disc_id == disc.id)
+        .order_by(DiscEdit.created_at.asc())
+        .all()
+    )
+
+    edit_responses = [
+        DiscEditResponse(
+            edit_type=e.edit_type,
+            field_changed=e.field_changed,
+            old_value=e.old_value,
+            new_value=e.new_value,
+            edit_note=e.edit_note,
+            created_at=e.created_at.isoformat() if e.created_at else "",
+            user_id=str(e.user_id) if e.user_id else None,
+        )
+        for e in edits
+    ]
+
+    return DiscEditsListResponse(
+        request_id=request_id,
+        fingerprint=fingerprint,
+        edits=edit_responses,
     )
 
 

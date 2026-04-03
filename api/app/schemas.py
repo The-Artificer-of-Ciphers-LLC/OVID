@@ -111,6 +111,25 @@ class DiscSubmitResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Edit history schemas (R015)
+# ---------------------------------------------------------------------------
+class DiscEditResponse(BaseModel):
+    edit_type: str | None = None
+    field_changed: str | None = None
+    old_value: str | None = None
+    new_value: str | None = None
+    edit_note: str | None = None
+    created_at: str
+    user_id: str | None = None
+
+
+class DiscEditsListResponse(BaseModel):
+    request_id: str
+    fingerprint: str
+    edits: list[DiscEditResponse] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
 # Search schemas
 # ---------------------------------------------------------------------------
 class SearchResultRelease(BaseModel):
