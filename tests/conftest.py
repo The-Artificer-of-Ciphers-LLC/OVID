@@ -29,7 +29,7 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 # API internals — safe to import now that DATABASE_URL is patched
 from app.database import Base  # noqa: E402
 from app.deps import get_db  # noqa: E402
-from app.models import User  # noqa: E402
+from app.models import GlobalSeq, User  # noqa: E402
 from app.auth.jwt import create_access_token  # noqa: E402
 
 # ovid-client is on PYTHONPATH but we don't import anything here;
@@ -67,6 +67,13 @@ def _get_test_db():
 def _reset_tables():
     """Create all tables before each test, drop afterwards."""
     Base.metadata.create_all(bind=_engine)
+    # Seed the global_seq singleton row so next_seq() works in E2E tests
+    with _TestSession() as seed_db:
+        seed_db.add(GlobalSeq(id=1, current_seq=0))
+        seed_db.commit()
+    # Reset rate limiter to avoid spurious 429s
+    from app.rate_limit import limiter  # noqa: E402
+    limiter.reset()
     yield
     Base.metadata.drop_all(bind=_engine)
 
