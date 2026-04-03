@@ -27,3 +27,8 @@ coverage/
 .cache/
 tmp/
 site/
+
+# S04 verification artifacts (contain real JWTs/tokens)
+scripts/test-jwt.txt
+scripts/t02-verification.txt
+scripts/t03-verification.txt
