@@ -1,11 +1,11 @@
-"""Tests for sync feed endpoints — GET /v1/sync/head and /v1/sync/diff."""
+"""Tests for sync feed endpoints — GET /v1/sync/head, /v1/sync/diff, /v1/sync/snapshot."""
 
 import uuid
 from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, GlobalSeq, Release
+from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, GlobalSeq, Release, SyncState
 
 
 # ---------------------------------------------------------------------------
@@ -272,3 +272,60 @@ class TestSyncDiff:
         assert rec["edition_name"] == "4K UHD"
         assert rec["disc_number"] == 2
         assert rec["total_discs"] == 3
+
+
+# ---------------------------------------------------------------------------
+# Helper — seed snapshot metadata into sync_state
+# ---------------------------------------------------------------------------
+def _seed_snapshot_metadata(db: Session, **overrides) -> dict[str, str]:
+    """Seed all five snapshot metadata keys into sync_state. Returns the dict."""
+    defaults = {
+        "snapshot_url": "https://releases.oviddb.org/dumps/ovid-20260401.ndjson.gz",
+        "snapshot_seq": "100",
+        "snapshot_size_bytes": "524288",
+        "snapshot_record_count": "42",
+        "snapshot_sha256": "abc123def456789",
+    }
+    defaults.update(overrides)
+    for key, value in defaults.items():
+        db.add(SyncState(key=key, value=value))
+    db.commit()
+    return defaults
+
+
+# ---------------------------------------------------------------------------
+# /v1/sync/snapshot tests
+# ---------------------------------------------------------------------------
+class TestSyncSnapshot:
+    def test_snapshot_no_metadata_returns_404(self, client):
+        """No snapshot metadata in sync_state returns 404."""
+        resp = client.get("/v1/sync/snapshot")
+        assert resp.status_code == 404
+        data = resp.json()
+        assert "No snapshot available" in data["detail"]
+
+    def test_snapshot_returns_valid_response(self, client, db_session):
+        """Seed all five snapshot keys and verify the response schema."""
+        meta = _seed_snapshot_metadata(db_session)
+
+        resp = client.get("/v1/sync/snapshot")
+        assert resp.status_code == 200
+
+        data = resp.json()
+        assert data["snapshot_seq"] == int(meta["snapshot_seq"])
+        assert data["url"] == meta["snapshot_url"]
+        assert data["size_bytes"] == int(meta["snapshot_size_bytes"])
+        assert data["record_count"] == int(meta["snapshot_record_count"])
+        assert data["sha256"] == meta["snapshot_sha256"]
+
+    def test_snapshot_partial_metadata_returns_404(self, client, db_session):
+        """Only some snapshot keys present — should still return 404."""
+        # Seed only 2 of the 5 required keys
+        db_session.add(SyncState(key="snapshot_url", value="https://example.com/dump.gz"))
+        db_session.add(SyncState(key="snapshot_seq", value="50"))
+        db_session.commit()
+
+        resp = client.get("/v1/sync/snapshot")
+        assert resp.status_code == 404
+        data = resp.json()
+        assert "missing keys" in data["detail"]

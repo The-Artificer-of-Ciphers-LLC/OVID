@@ -17,7 +17,13 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import GlobalSeq
+from app.models import Disc, DiscTitle, DiscTrack, GlobalSeq
+from app.schemas import (
+    SyncDiffRecord,
+    SyncReleaseRecord,
+    SyncTitleRecord,
+    SyncTrackRecord,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,3 +62,64 @@ def next_seq(db: Session) -> int:
 
     logger.debug("sync_seq_incremented new_seq=%d", row.current_seq)
     return row.current_seq
+
+
+# ---------------------------------------------------------------------------
+# Sync record builders — used by /v1/sync/diff route and dump_cc0.py script
+# ---------------------------------------------------------------------------
+
+def build_sync_track(track: DiscTrack) -> SyncTrackRecord:
+    return SyncTrackRecord(
+        index=track.track_index,
+        track_type=track.track_type,
+        language=track.language_code,
+        codec=track.codec,
+        channels=track.channels,
+        is_default=track.is_default,
+    )
+
+
+def build_sync_title(title: DiscTitle) -> SyncTitleRecord:
+    tracks = [build_sync_track(t) for t in title.tracks]
+    return SyncTitleRecord(
+        title_index=title.title_index,
+        is_main_feature=title.is_main_feature,
+        title_type=title.title_type,
+        display_name=title.display_name,
+        duration_secs=title.duration_secs,
+        chapter_count=title.chapter_count,
+        tracks=tracks,
+    )
+
+
+def build_sync_disc(disc: Disc) -> SyncDiffRecord:
+    """Build a full sync record for a disc, including nested titles/tracks/release."""
+    titles = [build_sync_title(t) for t in disc.titles]
+
+    release_resp = None
+    if disc.releases:
+        rel = disc.releases[0]
+        release_resp = SyncReleaseRecord(
+            title=rel.title,
+            year=rel.year,
+            content_type=rel.content_type,
+            tmdb_id=rel.tmdb_id,
+            imdb_id=rel.imdb_id,
+            original_language=rel.original_language,
+        )
+
+    return SyncDiffRecord(
+        type="disc",
+        seq_num=disc.seq_num,
+        fingerprint=disc.fingerprint,
+        format=disc.format,
+        status=disc.status,
+        region_code=disc.region_code,
+        upc=disc.upc,
+        disc_label=disc.disc_label,
+        edition_name=disc.edition_name,
+        disc_number=disc.disc_number,
+        total_discs=disc.total_discs,
+        titles=titles,
+        release=release_resp,
+    )

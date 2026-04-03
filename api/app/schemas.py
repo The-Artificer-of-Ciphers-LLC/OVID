@@ -242,6 +242,16 @@ class SyncHeadResponse(BaseModel):
     timestamp: str
 
 
+class SyncSnapshotResponse(BaseModel):
+    """Response for GET /v1/sync/snapshot — latest CC0 dump metadata."""
+
+    snapshot_seq: int
+    url: str
+    size_bytes: int
+    record_count: int
+    sha256: str
+
+
 # ---------------------------------------------------------------------------
 # Error schema
 # ---------------------------------------------------------------------------

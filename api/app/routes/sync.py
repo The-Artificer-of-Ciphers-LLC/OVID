@@ -1,29 +1,28 @@
 """Sync feed endpoints — /v1/sync router.
 
-Provides two unauthenticated read endpoints for downstream mirrors:
+Provides three unauthenticated read endpoints for downstream mirrors:
 
 - ``GET /v1/sync/head`` — current global sequence number and timestamp
 - ``GET /v1/sync/diff`` — paginated disc records changed since a given seq
+- ``GET /v1/sync/snapshot`` — metadata for the latest CC0 database dump
 """
 
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session, subqueryload
 
 from app.deps import get_db
-from app.models import Disc, DiscTitle, DiscTrack, GlobalSeq
+from app.models import Disc, DiscTitle, GlobalSeq, SyncState
 from app.rate_limit import _dynamic_limit, limiter
 from app.schemas import (
-    SyncDiffRecord,
     SyncDiffResponse,
     SyncHeadResponse,
-    SyncReleaseRecord,
-    SyncTitleRecord,
-    SyncTrackRecord,
+    SyncSnapshotResponse,
 )
+from app.sync import build_sync_disc
 
 logger = logging.getLogger(__name__)
 
@@ -34,63 +33,9 @@ MAX_DIFF_LIMIT = 1000
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers — builders are in app.sync to avoid auth import chain for scripts
 # ---------------------------------------------------------------------------
-def _build_sync_track(track: DiscTrack) -> SyncTrackRecord:
-    return SyncTrackRecord(
-        index=track.track_index,
-        track_type=track.track_type,
-        language=track.language_code,
-        codec=track.codec,
-        channels=track.channels,
-        is_default=track.is_default,
-    )
-
-
-def _build_sync_title(title: DiscTitle) -> SyncTitleRecord:
-    tracks = [_build_sync_track(t) for t in title.tracks]
-    return SyncTitleRecord(
-        title_index=title.title_index,
-        is_main_feature=title.is_main_feature,
-        title_type=title.title_type,
-        display_name=title.display_name,
-        duration_secs=title.duration_secs,
-        chapter_count=title.chapter_count,
-        tracks=tracks,
-    )
-
-
-def _build_sync_disc(disc: Disc) -> SyncDiffRecord:
-    """Build a full sync record for a disc, including nested titles/tracks/release."""
-    titles = [_build_sync_title(t) for t in disc.titles]
-
-    release_resp = None
-    if disc.releases:
-        rel = disc.releases[0]
-        release_resp = SyncReleaseRecord(
-            title=rel.title,
-            year=rel.year,
-            content_type=rel.content_type,
-            tmdb_id=rel.tmdb_id,
-            imdb_id=rel.imdb_id,
-            original_language=rel.original_language,
-        )
-
-    return SyncDiffRecord(
-        type="disc",
-        seq_num=disc.seq_num,
-        fingerprint=disc.fingerprint,
-        format=disc.format,
-        status=disc.status,
-        region_code=disc.region_code,
-        upc=disc.upc,
-        disc_label=disc.disc_label,
-        edition_name=disc.edition_name,
-        disc_number=disc.disc_number,
-        total_discs=disc.total_discs,
-        titles=titles,
-        release=release_resp,
-    )
+_build_sync_disc = build_sync_disc
 
 
 # ---------------------------------------------------------------------------
@@ -166,4 +111,51 @@ def sync_diff(
         records=records,
         next_since=next_since,
         has_more=has_more,
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /v1/sync/snapshot
+# ---------------------------------------------------------------------------
+_SNAPSHOT_KEYS = [
+    "snapshot_url",
+    "snapshot_seq",
+    "snapshot_size_bytes",
+    "snapshot_record_count",
+    "snapshot_sha256",
+]
+
+
+@router.get("/snapshot", response_model=SyncSnapshotResponse)
+@limiter.limit(_dynamic_limit)
+def sync_snapshot(
+    request: Request, db: Session = Depends(get_db)
+) -> SyncSnapshotResponse:
+    """Return metadata for the latest CC0 database snapshot.
+
+    The snapshot is generated offline by ``scripts/dump_cc0.py`` which
+    writes the metadata keys into the ``sync_state`` table.  Returns 404
+    if no snapshot has been generated yet (any required key is missing).
+    """
+    rows = (
+        db.query(SyncState)
+        .filter(SyncState.key.in_(_SNAPSHOT_KEYS))
+        .all()
+    )
+    state = {row.key: row.value for row in rows}
+
+    # All five keys must be present — partial metadata is invalid.
+    missing = [k for k in _SNAPSHOT_KEYS if k not in state]
+    if missing:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No snapshot available (missing keys: {', '.join(missing)})",
+        )
+
+    return SyncSnapshotResponse(
+        snapshot_seq=int(state["snapshot_seq"]),
+        url=state["snapshot_url"],
+        size_bytes=int(state["snapshot_size_bytes"]),
+        record_count=int(state["snapshot_record_count"]),
+        sha256=state["snapshot_sha256"],
     )
