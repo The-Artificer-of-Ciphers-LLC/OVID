@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.auth.deps import get_current_user
 from app.deps import get_db
 from app.models import Disc, DiscEdit, DiscRelease, DiscTitle, DiscTrack, Release, User
+from app.rate_limit import _dynamic_limit, limiter
 from app.sync import next_seq
 from app.schemas import (
     STATUS_CONFIDENCE,
@@ -99,6 +100,7 @@ def _build_title_response(title: DiscTitle) -> TitleResponse:
 # GET /v1/disc/{fingerprint}
 # ---------------------------------------------------------------------------
 @router.get("/disc/{fingerprint}", response_model=DiscLookupResponse)
+@limiter.limit(_dynamic_limit)
 def lookup_disc(
     fingerprint: str,
     request: Request,
@@ -162,6 +164,7 @@ def lookup_disc(
 # POST /v1/disc
 # ---------------------------------------------------------------------------
 @router.post("/disc", response_model=DiscSubmitResponse, status_code=201)
+@limiter.limit(_dynamic_limit)
 def submit_disc(
     body: DiscSubmitRequest,
     request: Request,
@@ -336,6 +339,7 @@ def submit_disc(
 # POST /v1/disc/{fingerprint}/verify
 # ---------------------------------------------------------------------------
 @router.post("/disc/{fingerprint}/verify")
+@limiter.limit(_dynamic_limit)
 def verify_disc(
     fingerprint: str,
     request: Request,
@@ -400,6 +404,7 @@ def verify_disc(
 # GET /v1/disc/{fingerprint}/edits
 # ---------------------------------------------------------------------------
 @router.get("/disc/{fingerprint}/edits", response_model=DiscEditsListResponse)
+@limiter.limit(_dynamic_limit)
 def get_disc_edits(
     fingerprint: str,
     request: Request,
@@ -448,6 +453,7 @@ PAGE_SIZE = 20
 
 
 @router.get("/search", response_model=SearchResponse)
+@limiter.limit(_dynamic_limit)
 def search_releases(
     request: Request,
     q: str | None = Query(default=None),

@@ -9,12 +9,13 @@ Provides two unauthenticated read endpoints for downstream mirrors:
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session, subqueryload
 
 from app.deps import get_db
 from app.models import Disc, DiscTitle, DiscTrack, GlobalSeq
+from app.rate_limit import _dynamic_limit, limiter
 from app.schemas import (
     SyncDiffRecord,
     SyncDiffResponse,
@@ -96,7 +97,8 @@ def _build_sync_disc(disc: Disc) -> SyncDiffRecord:
 # GET /v1/sync/head
 # ---------------------------------------------------------------------------
 @router.get("/head", response_model=SyncHeadResponse)
-def sync_head(db: Session = Depends(get_db)) -> SyncHeadResponse:
+@limiter.limit(_dynamic_limit)
+def sync_head(request: Request, db: Session = Depends(get_db)) -> SyncHeadResponse:
     """Return the current global sequence number and server timestamp.
 
     Mirrors poll this to decide whether they need to call ``/diff``.
@@ -113,7 +115,9 @@ def sync_head(db: Session = Depends(get_db)) -> SyncHeadResponse:
 # GET /v1/sync/diff
 # ---------------------------------------------------------------------------
 @router.get("/diff", response_model=SyncDiffResponse)
+@limiter.limit(_dynamic_limit)
 def sync_diff(
+    request: Request,
     since: int = Query(..., ge=0, description="Return records with seq_num > since"),
     limit: int = Query(100, ge=1, description="Max records to return (capped at 1000)"),
     db: Session = Depends(get_db),

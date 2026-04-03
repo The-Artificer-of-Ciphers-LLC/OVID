@@ -85,6 +85,20 @@ def _reset_tables():
     Base.metadata.drop_all(bind=_engine)
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Clear slowapi's in-memory storage between tests.
+
+    Without this, rate limit counters accumulate across tests and cause
+    spurious 429s.  We reset *before* each test so the limiter state is
+    fresh regardless of prior test ordering or failure.
+    """
+    from app.rate_limit import limiter  # noqa: E402
+
+    limiter.reset()
+    yield
+
+
 @pytest.fixture()
 def db_session() -> Session:  # type: ignore[misc]
     """Direct DB session for seeding / inspecting data in tests."""
