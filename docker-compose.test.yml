@@ -38,6 +38,7 @@ services:
       OVID_MODE:             ${OVID_MODE:-standalone}
       LOG_LEVEL:             ${LOG_LEVEL:-debug}
       CORS_ORIGINS:          ${CORS_ORIGINS:-http://holodeck.nomorestars.com:3200}
+      OVID_API_URL:          ${OVID_API_URL:-http://holodeck.nomorestars.com:8200}
       GITHUB_CLIENT_ID:      ${GITHUB_CLIENT_ID}
       GITHUB_CLIENT_SECRET:  ${GITHUB_CLIENT_SECRET}
       GOOGLE_CLIENT_ID:      ${GOOGLE_CLIENT_ID}
