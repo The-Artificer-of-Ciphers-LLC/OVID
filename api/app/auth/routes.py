@@ -41,6 +41,9 @@ _APPLE_PRIVATE_KEY = os.environ.get("APPLE_PRIVATE_KEY", "")  # PEM or base64-en
 
 _APPLE_CONFIGURED = bool(_APPLE_CLIENT_ID and _APPLE_TEAM_ID and _APPLE_KEY_ID and _APPLE_PRIVATE_KEY)
 
+_GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+_GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+
 if _GITHUB_CLIENT_ID:
     oauth.register(
         name="github",
@@ -50,6 +53,15 @@ if _GITHUB_CLIENT_ID:
         authorize_url="https://github.com/login/oauth/authorize",
         api_base_url="https://api.github.com/",
         client_kwargs={"scope": "user:email read:user"},
+    )
+
+if _GOOGLE_CLIENT_ID:
+    oauth.register(
+        name="google",
+        client_id=_GOOGLE_CLIENT_ID,
+        client_secret=_GOOGLE_CLIENT_SECRET,
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"},
     )
 
 
@@ -275,11 +287,21 @@ async def apple_callback(request: Request, db: Session = Depends(get_db)):
         logger.warning("auth_failed provider=apple reason=no_id_token")
         raise HTTPException(status_code=401, detail={"error": "provider_error", "reason": "No ID token in response"})
 
-    # Decode the ID token (Apple signs with RS256, but we skip verification
-    # here since we got it directly from Apple over HTTPS — the transport
-    # provides authenticity).  In production, verify against Apple's JWKS.
+    # Decode the ID token verifying against Apple's JWKS
     try:
-        claims = pyjwt.decode(id_token, options={"verify_signature": False})
+        jwks_client = pyjwt.PyJWKClient("https://appleid.apple.com/auth/keys", cache_keys=True)
+        signing_key = jwks_client.get_signing_key_from_jwt(id_token)
+        claims = pyjwt.decode(
+            id_token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=_APPLE_CLIENT_ID,
+            issuer="https://appleid.apple.com",
+            options={"verify_signature": True}
+        )
+    except pyjwt.PyJWKClientError as e:
+        logger.warning("auth_failed provider=apple reason=jwks_error detail=%s", str(e))
+        raise HTTPException(status_code=502, detail={"error": "provider_error", "reason": "Failed to fetch Apple JWKS"})
     except pyjwt.InvalidTokenError as e:
         logger.warning("auth_failed provider=apple reason=invalid_id_token detail=%s", str(e))
         raise HTTPException(status_code=401, detail={"error": "invalid_token", "reason": "Invalid Apple ID token"})
@@ -425,6 +447,71 @@ async def indieauth_callback(request: Request, db: Session = Depends(get_db)):
         provider_id=me_url,
         email=None,  # IndieAuth doesn't provide email
         display_name=me_url,
+    )
+
+    jwt_token = create_access_token(user.id)
+
+    return {
+        "token": jwt_token,
+        "user": {
+            "id": str(user.id),
+            "username": user.username,
+            "display_name": user.display_name,
+        },
+    }
+
+# ---------------------------------------------------------------------------
+# Google OAuth
+# ---------------------------------------------------------------------------
+@auth_router.get("/google/login")
+async def google_login(request: Request):
+    """Redirect to Google authorization page."""
+    if not _GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=501, detail="Google OAuth not configured")
+
+    redirect_uri = f"{_OVID_API_URL}/v1/auth/google/callback"
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+
+@auth_router.get("/google/callback")
+async def google_callback(request: Request, db: Session = Depends(get_db)):
+    """Exchange Google auth code for token, upsert user, return JWT."""
+    if not _GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=501, detail="Google OAuth not configured")
+
+    # Exchange code for access token
+    try:
+        token = await oauth.google.authorize_access_token(request)
+    except OAuthError as e:
+        logger.warning("auth_failed provider=google reason=oauth_error detail=%s", str(e))
+        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": str(e)})
+    except Exception as e:
+        logger.warning("auth_failed provider=google reason=token_exchange detail=%s", str(e))
+        raise HTTPException(status_code=502, detail={"error": "gateway_timeout", "reason": "Token exchange failed"})
+
+    if not token:
+        logger.warning("auth_failed provider=google reason=no_token")
+        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "No token received"})
+
+    # Since we use OpenID Connect, userinfo is parsed automatically by authlib
+    # if we have server_metadata_url.
+    userinfo = token.get("userinfo")
+    if not userinfo:
+        logger.warning("auth_failed provider=google reason=no_userinfo")
+        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "No userinfo received"})
+
+    google_sub = userinfo.get("sub")
+    if not google_sub:
+        logger.warning("auth_failed provider=google reason=malformed_response")
+        raise HTTPException(status_code=401, detail={"error": "provider_error", "reason": "Malformed Google response"})
+
+    # Upsert user
+    user = user_upsert(
+        db,
+        provider="google",
+        provider_id=google_sub,
+        email=userinfo.get("email"),
+        display_name=userinfo.get("name"),
     )
 
     jwt_token = create_access_token(user.id)

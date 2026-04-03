@@ -1,0 +1,77 @@
+[
+  {
+    "name": "Test 1: BD Fingerprint (Tier 2)",
+    "status": "PASS",
+    "notes": "Prefix bd2- and 40 hex chars"
+  },
+  {
+    "name": "Test 2: BD Fingerprint (Tier 1)",
+    "status": "PASS",
+    "notes": "Prefix bd1-aacs- and 40 hex chars"
+  },
+  {
+    "name": "Test 3: UHD Fingerprint Detection",
+    "status": "PASS",
+    "notes": "UHD 0300 recognized"
+  },
+  {
+    "name": "Test 4: JSON Output for Blu-ray",
+    "status": "PASS",
+    "notes": "JSON structure valid"
+  },
+  {
+    "name": "Test 5: JSON Output for DVD",
+    "status": "PASS",
+    "notes": "DVD JSON valid, no tier key"
+  },
+  {
+    "name": "Test 6: Short Flag -j Works",
+    "status": "PASS",
+    "notes": "-j equivalent to --json"
+  },
+  {
+    "name": "Test 7: DVD Fingerprint Still Works",
+    "status": "PASS",
+    "notes": "Identical to M001 behavior"
+  },
+  {
+    "name": "Test 8: AACS Tier 1 Fallback to Tier 2",
+    "status": "PASS",
+    "notes": "AACS empty fallback to Tier 2"
+  },
+  {
+    "name": "Test 9: Obfuscation Playlist Filtering",
+    "status": "PASS",
+    "notes": "Only 1 playlist (>= 60s) included"
+  },
+  {
+    "name": "Test 10: All Playlists Under 60 Seconds",
+    "status": "PASS",
+    "notes": "Clear error message, non-zero exit"
+  },
+  {
+    "name": "Test 11: BD Submit Payload Format",
+    "status": "PASS",
+    "notes": "Payload verified: True"
+  },
+  {
+    "name": "Test 12: Invalid Path Handling",
+    "status": "PASS",
+    "notes": "Clear errors, no stack traces"
+  },
+  {
+    "name": "Edge: Exactly 60s playlist",
+    "status": "PASS",
+    "notes": "Included"
+  },
+  {
+    "name": "Edge: Mixed valid and malformed",
+    "status": "PASS",
+    "notes": "Valid processed, malformed skipped"
+  },
+  {
+    "name": "Edge: BD and DVD coexist",
+    "status": "PASS",
+    "notes": "BD takes priority"
+  }
+]

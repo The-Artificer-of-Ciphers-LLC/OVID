@@ -67,8 +67,8 @@ def _patch_apple_configured():
     }
 
 
-def _apple_patches(token_response=None, token_status=200, token_error=None):
-    """Return an ExitStack with Apple config + mocked httpx."""
+def _apple_patches(token_response=None, token_status=200, token_error=None, jwks_error=None):
+    """Return an ExitStack with Apple config + mocked httpx + mocked JWKS."""
     stack = ExitStack()
     _, config_patches = _patch_apple_configured()
     for target, value in config_patches.items():
@@ -95,6 +95,28 @@ def _apple_patches(token_response=None, token_status=200, token_error=None):
     mock_client.post = mock_post
 
     stack.enter_context(patch("app.auth.routes.httpx.AsyncClient", return_value=mock_client))
+    
+    # Mock PyJWKClient and the PyJWT decode
+    mock_jwk_client = MagicMock()
+    if jwks_error:
+        mock_jwk_client.get_signing_key_from_jwt.side_effect = jwks_error
+    else:
+        mock_signing_key = MagicMock()
+        mock_signing_key.key = "mock_key"
+        mock_jwk_client.get_signing_key_from_jwt.return_value = mock_signing_key
+        
+    stack.enter_context(patch("app.auth.routes.pyjwt.PyJWKClient", return_value=mock_jwk_client))
+    
+    # We still need to patch pyjwt.decode to return the unverified payload 
+    # since we're signing with HS256 for testing but calling RS256 in production code
+    original_decode = pyjwt.decode
+    def mock_decode(token, key=None, *args, **kwargs):
+        if key == "mock_key":
+            return original_decode(token, options={"verify_signature": False})
+        return original_decode(token, key, *args, **kwargs)
+        
+    stack.enter_context(patch("app.auth.routes.pyjwt.decode", side_effect=mock_decode))
+    
     return stack
 
 
@@ -215,3 +237,10 @@ class TestAppleCallbackErrors:
             resp = client.get("/v1/auth/apple/callback?code=abc")
         assert resp.status_code == 401
         assert resp.json()["detail"]["error"] == "invalid_token"
+
+    def test_jwks_error_returns_502(self, client: TestClient):
+        """JWKS fetch error → 502."""
+        with _apple_patches(jwks_error=pyjwt.PyJWKClientError("Connection error")):
+            resp = client.get("/v1/auth/apple/callback?code=abc")
+        assert resp.status_code == 502
+        assert resp.json()["detail"]["error"] == "provider_error"

@@ -103,9 +103,22 @@ class BDDisc:
                 "All MPLS files in BDMV/PLAYLIST are malformed or unreadable"
             )
 
+        # Filter out obfuscation playlists (< 60s) for the final disc object
+        # so they don't appear in JSON or submit payloads
+        filtered_playlists = []
+        for fname, pl in parsed_playlists:
+            total_dur = sum(pi.duration_seconds for pi in pl.play_items)
+            if total_dur >= 60.0:
+                filtered_playlists.append((fname, pl))
+        
+        if not filtered_playlists:
+            raise ValueError(
+                f"No valid playlists after 60-second filter (had {len(parsed_playlists)} playlist(s), all under 60.0s)"
+            )
+
         # Detect UHD from first valid playlist's version header
         is_uhd = any(
-            pl.header.version == "0300" for _, pl in parsed_playlists
+            pl.header.version == "0300" for _, pl in filtered_playlists
         )
         format_type = "uhd" if is_uhd else "bluray"
         logger.info("Detected format: %s", format_type)
@@ -120,12 +133,12 @@ class BDDisc:
                 format_type=format_type,
                 canonical_string="",
                 source_type=source_type,
-                playlists=[pl for _, pl in parsed_playlists],
+                playlists=[pl for _, pl in filtered_playlists],
             )
 
         # Fall back to Tier 2 structure hash
         logger.info("AACS Tier 1 unavailable, falling back to Tier 2 structure hash")
-        canonical = build_bd_canonical_string(parsed_playlists, is_uhd)
+        canonical = build_bd_canonical_string(filtered_playlists, is_uhd)
         fp = compute_bd_structure_fingerprint(canonical, is_uhd)
 
         return cls(
@@ -134,7 +147,7 @@ class BDDisc:
             format_type=format_type,
             canonical_string=canonical,
             source_type=source_type,
-            playlists=[pl for _, pl in parsed_playlists],
+            playlists=[pl for _, pl in filtered_playlists],
         )
 
     @staticmethod
