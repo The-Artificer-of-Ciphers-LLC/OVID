@@ -1,58 +1,3 @@
-def finalize_auth(request: Request, db: Session, provider: str, provider_id: str, email: str | None, display_name: str | None):
-    """Handle user upsert, explicit linking, implicit linking, and JWT creation."""
-    link_to_user_id = request.session.pop("link_to_user_id", None)
-    try:
-        user = user_upsert(
-            db,
-            provider=provider,
-            provider_id=provider_id,
-            email=email,
-            display_name=display_name,
-            link_to_user_id=link_to_user_id,
-        )
-    except EmailConflictError as e:
-        request.session["pending_link"] = {
-            "provider": provider,
-            "provider_id": provider_id,
-        }
-        from fastapi.responses import JSONResponse
-        return JSONResponse(status_code=409, content={"error": "email_conflict", "existing_user_id": e.existing_user_id})
-    except ProviderAlreadyLinkedError:
-        raise HTTPException(status_code=400, detail={"error": "already_linked", "reason": "Provider is linked to another account"})
-
-    pending_link = request.session.pop("pending_link", None)
-    if pending_link:
-        try:
-            user_upsert(
-                db,
-                provider=pending_link["provider"],
-                provider_id=pending_link["provider_id"],
-                email=None,
-                display_name=None,
-                link_to_user_id=str(user.id),
-            )
-        except ProviderAlreadyLinkedError:
-            pass
-
-    jwt_token = create_access_token(user.id)
-
-    web_redirect_uri = request.session.pop("web_redirect_uri", "")
-    if web_redirect_uri:
-        from urllib.parse import urlencode
-        from starlette.responses import RedirectResponse
-        separator = "&" if "?" in web_redirect_uri else "?"
-        redirect_url = f"{web_redirect_uri}{separator}{urlencode({'token': jwt_token})}"
-        return RedirectResponse(url=redirect_url, status_code=302)
-
-    return {
-        "token": jwt_token,
-        "user": {
-            "id": str(user.id),
-            "username": user.username,
-            "display_name": user.display_name,
-        },
-    }
-
 """Auth routes — GitHub OAuth, Apple Sign-In, IndieAuth, and /v1/auth/me."""
 
 import logging
@@ -118,6 +63,65 @@ if _GOOGLE_CLIENT_ID:
         server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
         client_kwargs={"scope": "openid email profile"},
     )
+
+
+# ---------------------------------------------------------------------------
+# Shared auth callback helper
+# ---------------------------------------------------------------------------
+def finalize_auth(request: Request, db: Session, provider: str, provider_id: str, email: str | None, display_name: str | None):
+    """Handle user upsert, explicit linking, implicit linking, and JWT creation."""
+    link_to_user_id = request.session.pop("link_to_user_id", None)
+    try:
+        user = user_upsert(
+            db,
+            provider=provider,
+            provider_id=provider_id,
+            email=email,
+            display_name=display_name,
+            link_to_user_id=link_to_user_id,
+        )
+    except EmailConflictError as e:
+        request.session["pending_link"] = {
+            "provider": provider,
+            "provider_id": provider_id,
+        }
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=409, content={"error": "email_conflict", "existing_user_id": e.existing_user_id})
+    except ProviderAlreadyLinkedError:
+        raise HTTPException(status_code=400, detail={"error": "already_linked", "reason": "Provider is linked to another account"})
+
+    pending_link = request.session.pop("pending_link", None)
+    if pending_link:
+        try:
+            user_upsert(
+                db,
+                provider=pending_link["provider"],
+                provider_id=pending_link["provider_id"],
+                email=None,
+                display_name=None,
+                link_to_user_id=str(user.id),
+            )
+        except ProviderAlreadyLinkedError:
+            pass
+
+    jwt_token = create_access_token(user.id)
+
+    web_redirect_uri = request.session.pop("web_redirect_uri", "")
+    if web_redirect_uri:
+        from urllib.parse import urlencode
+        from starlette.responses import RedirectResponse
+        separator = "&" if "?" in web_redirect_uri else "?"
+        redirect_url = f"{web_redirect_uri}{separator}{urlencode({'token': jwt_token})}"
+        return RedirectResponse(url=redirect_url, status_code=302)
+
+    return {
+        "token": jwt_token,
+        "user": {
+            "id": str(user.id),
+            "username": user.username,
+            "display_name": user.display_name,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
