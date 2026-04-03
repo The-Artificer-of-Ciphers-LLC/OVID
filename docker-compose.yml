@@ -34,5 +34,16 @@ services:
       - ./api:/app
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
+  web:
+    build: ./web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      API_URL: http://api:8000
+    ports:
+      - "3000:3000"
+
 volumes:
   ovid_pgdata:
