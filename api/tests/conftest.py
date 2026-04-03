@@ -27,7 +27,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import Base  # noqa: E402
 from app.deps import get_db  # noqa: E402
-from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, Release, User  # noqa: E402
+from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, GlobalSeq, Release, User  # noqa: E402
 from app.auth.jwt import create_access_token  # noqa: E402
 
 
@@ -77,6 +77,10 @@ def _get_test_db():
 def _reset_tables():
     """Create all tables before each test and drop them afterwards."""
     Base.metadata.create_all(bind=_engine)
+    # Seed the global_seq singleton row so next_seq() works in tests
+    with _TestSession() as seed_db:
+        seed_db.add(GlobalSeq(id=1, current_seq=0))
+        seed_db.commit()
     yield
     Base.metadata.drop_all(bind=_engine)
 

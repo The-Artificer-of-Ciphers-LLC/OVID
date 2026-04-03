@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.auth.deps import get_current_user
 from app.deps import get_db
 from app.models import Disc, DiscEdit, DiscRelease, DiscTitle, DiscTrack, Release, User
+from app.sync import next_seq
 from app.schemas import (
     STATUS_CONFIDENCE,
     DiscEditResponse,
@@ -185,6 +186,7 @@ def submit_disc(
         if _releases_match(existing, body.release, db):
             existing.status = "verified"
             existing.verified_by = current_user.id
+            existing.seq_num = next_seq(db)
             db.add(
                 DiscEdit(
                     disc_id=existing.id,
@@ -205,6 +207,7 @@ def submit_disc(
             )
         else:
             existing.status = "disputed"
+            existing.seq_num = next_seq(db)
             db.add(
                 DiscEdit(
                     disc_id=existing.id,
@@ -296,6 +299,11 @@ def submit_disc(
                     is_default=st.is_default,
                 ))
 
+        # Assign sync sequence numbers so mirrors can track this change
+        seq = next_seq(db)
+        disc.seq_num = seq
+        release.seq_num = seq
+
         # Audit trail: record the creation event
         db.add(
             DiscEdit(
@@ -365,6 +373,7 @@ def verify_disc(
 
     disc.status = "verified"
     disc.verified_by = current_user.id
+    disc.seq_num = next_seq(db)
     db.add(
         DiscEdit(
             disc_id=disc.id,

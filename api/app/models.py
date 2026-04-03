@@ -14,7 +14,9 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -32,6 +34,28 @@ from app.database import Base
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# ---------------------------------------------------------------------------
+# global_seq — monotonic counter for sync feed sequence numbers (D023)
+# ---------------------------------------------------------------------------
+class GlobalSeq(Base):
+    """Single-row table holding the current sync sequence counter.
+
+    The CHECK constraint ``id = 1`` enforces exactly one row.  Consumers
+    call :func:`app.sync.next_seq` which atomically increments
+    ``current_seq`` via SELECT … FOR UPDATE (PostgreSQL) — on SQLite the
+    FOR UPDATE clause is silently ignored but writes are serialized anyway.
+    """
+
+    __tablename__ = "global_seq"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    current_seq: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+
+    __table_args__ = (
+        CheckConstraint("id = 1", name="ck_global_seq_single_row"),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -71,6 +95,7 @@ class Disc(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )
+    seq_num: Mapped[int | None] = mapped_column(BigInteger, index=True)
 
     # relationships
     titles: Mapped[list["DiscTitle"]] = relationship(
@@ -112,6 +137,7 @@ class Release(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow
     )
+    seq_num: Mapped[int | None] = mapped_column(BigInteger, index=True)
 
     # relationships
     discs: Mapped[list["Disc"]] = relationship(
@@ -230,6 +256,7 @@ class DiscSet(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow
     )
+    seq_num: Mapped[int | None] = mapped_column(BigInteger, index=True)
 
     # relationships
     release: Mapped["Release"] = relationship(back_populates="disc_sets")
