@@ -195,6 +195,26 @@ export interface ProvidersResponse {
   providers: string[];
 }
 
+// Dispute / UPC response types
+export interface DisputedDiscsResponse {
+  request_id: string;
+  total: number;
+  limit: number;
+  offset: number;
+  results: DiscLookupResponse[];
+}
+
+export interface UpcLookupResponse {
+  request_id: string;
+  results: DiscLookupResponse[];
+}
+
+export interface ResolveDisputeResponse {
+  request_id: string;
+  status: string;
+  message: string;
+}
+
 // ---------------------------------------------------------------------------
 // API functions
 // ---------------------------------------------------------------------------
@@ -256,4 +276,26 @@ export function unlinkProvider(
       headers: { Authorization: `Bearer ${token}` },
     },
   );
+}
+
+// Dispute / UPC functions
+
+export function getDisputedDiscs(limit = 50, offset = 0): Promise<DisputedDiscsResponse> {
+  return apiFetch<DisputedDiscsResponse>(`/v1/disc/disputed?limit=${limit}&offset=${offset}`);
+}
+
+export function resolveDispute(
+  fingerprint: string,
+  action: "verify" | "reject",
+  token: string,
+): Promise<ResolveDisputeResponse> {
+  return apiFetch<ResolveDisputeResponse>(`/v1/disc/${encodeURIComponent(fingerprint)}/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ action }),
+  });
+}
+
+export function lookupByUpc(upc: string): Promise<UpcLookupResponse> {
+  return apiFetch<UpcLookupResponse>(`/v1/disc/upc/${encodeURIComponent(upc)}`);
 }

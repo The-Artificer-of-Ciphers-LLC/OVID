@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getDisc, getDiscEdits, ApiError } from "@/lib/api";
 import DiscStructure from "@/components/DiscStructure";
 import EditHistory from "@/components/EditHistory";
+import DisputeResolver from "@/components/DisputeResolver";
 
 type Props = {
   params: Promise<{ fingerprint: string }>;
@@ -157,6 +158,11 @@ export default async function DiscDetailPage({ params }: Props) {
         <h2 className="text-lg font-semibold mb-3">Edit History</h2>
         <EditHistory edits={edits} />
       </section>
+
+      {/* Dispute resolver (client component, renders only for trusted+ users) */}
+      {disc.status === "disputed" && (
+        <DisputeResolver fingerprint={fingerprint} conflictData={null} />
+      )}
     </div>
   );
 }

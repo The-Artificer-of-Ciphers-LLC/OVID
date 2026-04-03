@@ -30,6 +30,9 @@ export default function NavBar() {
           <Link href="/submit" className="hover:text-blue-600 transition-colors">
             Submit
           </Link>
+          <Link href="/disputes" className="hover:text-blue-600 transition-colors">
+            Disputes
+          </Link>
 
           {loading ? (
             <span className="text-neutral-400 text-xs">…</span>
