@@ -355,6 +355,23 @@ class DiscEdit(Base):
 # ---------------------------------------------------------------------------
 # mastodon_oauth_clients — cache for dynamic client registration
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# sync_state — key/value store for mirror-mode sync bookkeeping
+# ---------------------------------------------------------------------------
+class SyncState(Base):
+    """Key-value pairs used by the sync daemon to track state.
+
+    Example rows:
+      key='last_seq'  value='42'
+      key='snapshot_etag' value='abc123'
+    """
+
+    __tablename__ = "sync_state"
+
+    key: Mapped[str] = mapped_column(String(50), primary_key=True)
+    value: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
 class MastodonOAuthClient(Base):
     __tablename__ = "mastodon_oauth_clients"
 

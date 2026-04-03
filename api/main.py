@@ -10,7 +10,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.auth.config import SECRET_KEY
 from app.auth.routes import auth_router
-from app.middleware import RequestIdMiddleware
+from app.middleware import MirrorModeMiddleware, RequestIdMiddleware
 from app.rate_limit import UNAUTH_LIMIT, limiter, rate_limit_exceeded_handler
 from app.routes.disc import router as disc_router
 from app.routes.sync import router as sync_router
@@ -36,6 +36,11 @@ app.add_middleware(
 # Must be added before route handlers that use request.session.
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 app.add_middleware(RequestIdMiddleware)
+
+# Mirror-mode guard — when OVID_MODE=mirror, reject all write methods.
+# Added last so it wraps outermost (checked first on every request).
+if os.environ.get("OVID_MODE") == "mirror":
+    app.add_middleware(MirrorModeMiddleware)
 
 # Rate limiting — exception handler turns RateLimitExceeded into JSON 429.
 # No SlowAPIMiddleware — limit enforcement happens in the @limiter.limit()

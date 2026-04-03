@@ -27,7 +27,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import Base  # noqa: E402
 from app.deps import get_db  # noqa: E402
-from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, GlobalSeq, Release, User  # noqa: E402
+from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, GlobalSeq, Release, SyncState, User  # noqa: E402
 from app.auth.jwt import create_access_token  # noqa: E402
 
 
