@@ -1,5 +1,7 @@
 """Pydantic request/response schemas for OVID API — tech spec §4."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
@@ -92,6 +94,18 @@ class ReleaseCreate(BaseModel):
 
 class UpcLookupResponse(BaseModel):
     request_id: str
+    results: list[DiscLookupResponse] = Field(default_factory=list)
+
+
+class DisputeResolveRequest(BaseModel):
+    action: Literal["verify", "reject"]
+
+
+class DisputedDiscsResponse(BaseModel):
+    request_id: str
+    total: int
+    limit: int
+    offset: int
     results: list[DiscLookupResponse] = Field(default_factory=list)
 
 

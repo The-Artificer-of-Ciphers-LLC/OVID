@@ -1,7 +1,9 @@
 """Disc-related API endpoints — /v1 router."""
 
+import json
 import logging
 import math
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -21,6 +23,8 @@ from app.schemas import (
     DiscLookupResponse,
     DiscSubmitRequest,
     DiscSubmitResponse,
+    DisputeResolveRequest,
+    DisputedDiscsResponse,
     ReleaseCreate,
     ReleaseResponse,
     SearchResponse,
@@ -159,6 +163,85 @@ def lookup_disc_by_upc(
 
 
 # ---------------------------------------------------------------------------
+# GET /v1/disc/disputed  (must register before /disc/{fingerprint})
+# ---------------------------------------------------------------------------
+@router.get("/disc/disputed", response_model=DisputedDiscsResponse)
+@limiter.limit(_dynamic_limit)
+async def list_disputed_discs(
+    request: Request,
+    db: Session = Depends(get_db),
+    limit: int = 50,
+    offset: int = 0,
+) -> DisputedDiscsResponse:
+    """List all discs currently in 'disputed' status."""
+    request_id = str(uuid.uuid4())
+    q = db.query(Disc).filter(Disc.status == "disputed")
+    total = q.count()
+    discs = (
+        q.options(
+            joinedload(Disc.titles).joinedload(DiscTitle.tracks),
+            selectinload(Disc.releases),
+        )
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    results = [_disc_to_response(d, request_id) for d in discs]
+    return DisputedDiscsResponse(
+        request_id=request_id,
+        total=total,
+        limit=limit,
+        offset=offset,
+        results=results,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /v1/disc/{fingerprint}/resolve
+# ---------------------------------------------------------------------------
+@router.post("/disc/{fingerprint}/resolve")
+@limiter.limit(_dynamic_limit)
+async def resolve_dispute(
+    fingerprint: str,
+    body: DisputeResolveRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> JSONResponse:
+    """Resolve a disputed disc — trusted/editor/admin users only."""
+    request_id = str(uuid.uuid4())
+    if current_user.role not in ("trusted", "editor", "admin"):
+        return _error_response(request_id, "forbidden", "Trusted user role required", 403)
+    disc = db.query(Disc).filter(Disc.fingerprint == fingerprint).first()
+    if disc is None:
+        return _error_response(request_id, "not_found", "Disc not found", 404)
+    if disc.status != "disputed":
+        return _error_response(request_id, "invalid_state", "Disc is not in disputed state", 409)
+    if body.action == "verify":
+        disc.status = "verified"
+        disc.verified_by = current_user.id
+        edit_note = f"Dispute resolved: marked verified by {current_user.username}"
+    else:  # reject
+        disc.status = "unverified"
+        edit_note = f"Dispute resolved: reverted to unverified by {current_user.username}"
+    disc.seq_num = next_seq(db)
+    db.add(
+        DiscEdit(
+            disc_id=disc.id,
+            user_id=current_user.id,
+            edit_type="resolve",
+            edit_note=edit_note,
+        )
+    )
+    db.commit()
+    logger.info("disc_resolved fingerprint=%s action=%s resolver=%s", fingerprint, body.action, current_user.id)
+    return JSONResponse(
+        status_code=200,
+        content={"request_id": request_id, "status": disc.status, "message": "Dispute resolved"},
+    )
+
+
+# ---------------------------------------------------------------------------
 # GET /v1/disc/{fingerprint}
 # ---------------------------------------------------------------------------
 @router.get("/disc/{fingerprint}", response_model=DiscLookupResponse)
@@ -246,6 +329,7 @@ def submit_disc(
                     user_id=current_user.id,
                     edit_type="disputed",
                     edit_note="metadata conflict on second submission",
+                    new_value=json.dumps(body.release.model_dump()),
                 )
             )
             db.commit()

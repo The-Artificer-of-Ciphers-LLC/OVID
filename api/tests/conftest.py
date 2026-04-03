@@ -278,3 +278,34 @@ def second_auth_header(second_user: User) -> dict[str, str]:
     """Return an Authorization header dict with a valid JWT for the second user."""
     token = create_access_token(second_user.id)
     return {"Authorization": f"Bearer {token}"}
+
+
+# ---------------------------------------------------------------------------
+# Trusted user helpers (for dispute resolution tests)
+# ---------------------------------------------------------------------------
+def seed_trusted_user(db: Session) -> User:
+    """Create a trusted test user and return the ORM object."""
+    user = User(
+        id=uuid.uuid4(),
+        username="trusted_user",
+        email="trusted@test.local",
+        display_name="Trusted User",
+        role="trusted",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture()
+def trusted_user(db_session: Session) -> User:
+    """Fixture that creates and returns a trusted test user."""
+    return seed_trusted_user(db_session)
+
+
+@pytest.fixture()
+def trusted_auth_header(trusted_user: User) -> dict[str, str]:
+    """Return an Authorization header dict with a valid JWT for the trusted user."""
+    token = create_access_token(trusted_user.id)
+    return {"Authorization": f"Bearer {token}"}
