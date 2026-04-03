@@ -12,6 +12,21 @@ requires-python = ">=3.9"
 authors = [
     { name = "OVID Contributors" },
 ]
+keywords = ["disc", "fingerprint", "bluray", "dvd", "identification"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "pycdlib>=1.14",
     "click>=8.0",
@@ -19,6 +34,11 @@ dependencies = [
     "rich>=13.0",
     "tmdbv3api>=1.9",
 ]
+
+[project.urls]
+Homepage = "https://github.com/The-Artificer-of-Ciphers-LLC/OVID"
+Repository = "https://github.com/The-Artificer-of-Ciphers-LLC/OVID"
+"Bug Tracker" = "https://github.com/The-Artificer-of-Ciphers-LLC/OVID/issues"
 
 [project.optional-dependencies]
 dev = [

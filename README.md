@@ -105,23 +105,29 @@ OVID does **not** copy or mirror TMDB or TVDB content. It only stores cross-refe
 
 ## Project Status
 
-**Current version: v0.1.0** — Foundation & Core Pipeline complete.
+**Current version: v0.1.0** — Foundation & Core Pipeline complete. v0.2.0 in development.
 
 OVID v0.1.0 delivers the end-to-end pipeline: fingerprint a DVD from any source, submit it to the API with TMDB-linked metadata via an interactive CLI wizard, and retrieve full disc structure (titles, tracks, chapters, confidence). OAuth authentication gates write access.
+
+v0.2.0 adds Blu-ray and 4K UHD fingerprinting, a Next.js web UI, multi-provider OAuth with account linking, and production deployment.
 
 ### What's Working
 
 | Component | Status |
 |-----------|--------|
 | DVD fingerprinting (OVID-DVD-1) | ✅ Stable — 113 tests, 100× determinism verified |
+| Blu-ray / UHD fingerprinting (OVID-BD-1) | ✅ Stable |
 | REST API (lookup, submit, verify, search) | ✅ Complete — 124 tests |
-| OAuth (GitHub, Apple, IndieAuth) | ✅ Complete — 69 auth tests |
+| OAuth (GitHub, Apple, Google, Mastodon, IndieAuth) | ✅ Complete |
+| Account linking (multi-provider) | ✅ Complete |
 | CLI (`ovid fingerprint`, `ovid lookup`, `ovid submit`) | ✅ Complete |
+| Next.js Web UI (search, detail, submit, account) | ✅ Complete |
 | Docker Compose dev stack | ✅ Operational |
 | PostgreSQL schema (9 tables, Alembic) | ✅ Deployed |
-| Blu-ray fingerprinting | 🔜 Planned for v0.2.0 |
-| Web UI | 🔜 Planned for v0.2.0 |
-| PyPI publishing | 🔜 Planned for v0.2.0 |
+| CORS middleware | ✅ Complete |
+| Community verification workflow | ✅ Complete |
+| Edit history | ✅ Complete |
+| PyPI publishing | ✅ CI/CD ready |
 
 ### Quick Start
 
@@ -158,7 +164,7 @@ ovid submit /path/to/VIDEO_TS --api-url http://localhost:8000 --token YOUR_JWT
 | Version | Milestone | Status |
 |---------|-----------|--------|
 | **v0.1.0** | Foundation & Core Pipeline — DVD fingerprinting, REST API, OAuth, CLI wizard | ✅ Released |
-| v0.2.0 | Full Format Support & Web UI — Blu-ray fingerprinting, Next.js web UI, PyPI, cloud deployment | 🔜 Next |
+| **v0.2.0** | Full Format Support & Web UI — Blu-ray fingerprinting, Next.js web UI, PyPI, cloud deployment | 🚧 In Progress |
 | v0.3.0 | Distribution & Community — Sync feeds, self-hosted mirrors, moderation, data dumps | Planned |
 | v1.0.0 | Stable — Public API contract, ≥10k disc entries, foundation formed | Future |
 

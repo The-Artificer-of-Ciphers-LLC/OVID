@@ -86,5 +86,57 @@ This project uses [Semantic Versioning](https://semver.org/) in the form `0.MILE
 - DriveReader on macOS requires a mounted volume or ISO — direct /dev/diskN not tested on real hardware
 - Not published to PyPI yet (planned for v0.2.0)
 
+## [0.2.0] — Unreleased
+
+**Full Format Support, Web UI & Auth** — Adds Blu-ray and 4K UHD fingerprinting, a Next.js web UI, multi-provider OAuth with account linking, community verification workflow, and production deployment support.
+
+### Added
+
+#### Blu-ray & UHD Fingerprinting (`ovid-client`)
+- OVID-BD-1 fingerprint algorithm: SHA-256 of canonical structural string from MPLS playlist data
+- Pure-Python MPLS binary parser — no native dependencies required
+- BD folder reader for BDMV directory structures
+- Support for 4K UHD discs (same OVID-BD-1 algorithm)
+- Obfuscation playlist filtering — identifies and skips fake playlists used as copy protection
+- `ovid fingerprint /path/to/BDMV` CLI support for Blu-ray and UHD discs
+- JSON output mode: `ovid fingerprint --json` returns structured disc data
+
+#### OAuth & Account Linking
+- Google OAuth login/callback
+- Mastodon OAuth login/callback with per-instance dynamic client registration
+- Account linking: multiple OAuth providers can be linked to a single user account (matched by email)
+- `GET /v1/auth/providers` — list linked OAuth providers for the current user
+- `DELETE /v1/auth/providers/{provider}` — unlink a provider (prevents unlinking the last one)
+- Apple Sign-In JWKS verification — tokens validated against Apple's published JSON Web Key Set
+
+#### API Enhancements
+- CORS middleware with configurable allowed origins via `CORS_ORIGINS` env var
+- Community verification workflow: second contributor submitting matching fingerprint auto-promotes disc to verified status
+- Metadata conflict detection: conflicting submissions flagged as disputed
+- `GET /v1/disc/{fingerprint}/edits` — edit history endpoint
+- `submitted_by` tracking on all disc submissions
+
+#### Next.js Web UI (`web/`)
+- Server-rendered disc browsing and search interface
+- Disc detail pages showing full structure (titles, tracks, chapters) for DVD and Blu-ray
+- Google OAuth login flow via the web UI
+- Fingerprint JSON file upload for disc submission
+- Account settings page with linked provider management
+
+#### Deployment & Infrastructure
+- PyPI publishing via trusted publishing (OIDC) in release workflow
+- Web Docker image (`ovid-web`) build in release workflow
+- Web test job in CI workflow
+- Production Docker Compose override file
+- Deployment runbook for holodeck.nomorestars.com
+
+### Fixed
+- CLI binary builds now include Blu-ray module hidden imports for PyInstaller
+
+### Known Limitations
+- Search uses SQL `ilike` — adequate at current scale, needs full-text search index at volume
+- DriveReader on macOS requires a mounted volume or ISO — direct /dev/diskN not tested on real hardware
+
+[0.2.0]: https://github.com/The-Artificer-of-Ciphers-LLC/OVID/releases/tag/v0.2.0
 [0.1.1]: https://github.com/The-Artificer-of-Ciphers-LLC/OVID/releases/tag/v0.1.1
 [0.1.0]: https://github.com/The-Artificer-of-Ciphers-LLC/OVID/releases/tag/v0.1.0

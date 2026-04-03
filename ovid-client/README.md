@@ -1,35 +1,3 @@
-Metadata-Version: 2.4
-Name: ovid-client
-Version: 0.1.0
-Summary: OVID disc fingerprinting client — generates stable identifiers for DVD and Blu-ray discs
-Author: OVID Contributors
-License-Expression: AGPL-3.0-or-later
-Project-URL: Homepage, https://github.com/The-Artificer-of-Ciphers-LLC/OVID
-Project-URL: Repository, https://github.com/The-Artificer-of-Ciphers-LLC/OVID
-Project-URL: Bug Tracker, https://github.com/The-Artificer-of-Ciphers-LLC/OVID/issues
-Keywords: disc,fingerprint,bluray,dvd,identification
-Classifier: Development Status :: 3 - Alpha
-Classifier: Environment :: Console
-Classifier: Intended Audience :: End Users/Desktop
-Classifier: Intended Audience :: Developers
-Classifier: Operating System :: OS Independent
-Classifier: Programming Language :: Python :: 3
-Classifier: Programming Language :: Python :: 3.9
-Classifier: Programming Language :: Python :: 3.10
-Classifier: Programming Language :: Python :: 3.11
-Classifier: Programming Language :: Python :: 3.12
-Classifier: Topic :: Multimedia :: Video
-Classifier: Topic :: Software Development :: Libraries :: Python Modules
-Requires-Python: >=3.9
-Description-Content-Type: text/markdown
-Requires-Dist: pycdlib>=1.14
-Requires-Dist: click>=8.0
-Requires-Dist: requests>=2.28
-Requires-Dist: rich>=13.0
-Requires-Dist: tmdbv3api>=1.9
-Provides-Extra: dev
-Requires-Dist: pytest>=7.0; extra == "dev"
-
 # ovid-client
 
 **OVID disc fingerprinting client** — generates stable, deterministic identifiers for DVD, Blu-ray, and 4K UHD discs.

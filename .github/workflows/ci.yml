@@ -69,3 +69,20 @@ jobs:
 
       - name: Run E2E tests
         run: PYTHONPATH=api python -m pytest tests/ -v --tb=short
+
+  web-tests:
+    name: Web UI tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: cd web && npm ci
+
+      - name: Run tests
+        run: cd web && npx vitest run
