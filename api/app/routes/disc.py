@@ -127,6 +127,8 @@ def lookup_disc(
         edition_name=disc.edition_name,
         disc_number=disc.disc_number,
         total_discs=disc.total_discs,
+        submitted_by=str(disc.submitted_by) if disc.submitted_by else None,
+        verified_by=str(disc.verified_by) if disc.verified_by else None,
         release=release_resp,
         titles=titles_resp,
     )
@@ -179,6 +181,7 @@ def submit_disc(
             total_discs=body.total_discs,
             edition_name=body.edition_name,
             status="unverified",
+            submitted_by=current_user.id,
         )
         db.add(disc)
         db.flush()

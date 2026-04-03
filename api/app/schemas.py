@@ -53,6 +53,8 @@ class DiscLookupResponse(BaseModel):
     edition_name: str | None = None
     disc_number: int = 1
     total_discs: int = 1
+    submitted_by: str | None = None
+    verified_by: str | None = None
     release: ReleaseResponse | None = None
     titles: list[TitleResponse] = Field(default_factory=list)
 

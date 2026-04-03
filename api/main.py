@@ -1,6 +1,9 @@
 """OVID API Server — minimal bootstrap."""
 
+import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth.config import SECRET_KEY
@@ -16,6 +19,15 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# CORS — must be added before SessionMiddleware so preflight OPTIONS
+# requests get proper headers without hitting the session layer.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # SessionMiddleware is required for OAuth state (CSRF protection).
 # Must be added before route handlers that use request.session.
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)

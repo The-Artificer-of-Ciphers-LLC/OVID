@@ -2,6 +2,8 @@
 
 from sqlalchemy.orm import Session
 
+from app.models import Disc
+
 
 VALID_PAYLOAD = {
     "fingerprint": "bd-NEW001-main",
@@ -93,6 +95,17 @@ class TestDiscSubmit:
         assert "request_id" in data
         assert len(data["request_id"]) > 0
         assert "x-request-id" in resp.headers
+
+    def test_submit_tracks_submitted_by(self, client, auth_header, test_user, db_session):
+        """POST sets disc.submitted_by to the authenticated user's ID."""
+        payload = {**VALID_PAYLOAD, "fingerprint": "bd-SUBMIT-TRACK-001"}
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 201
+
+        disc = db_session.query(Disc).filter(Disc.fingerprint == "bd-SUBMIT-TRACK-001").first()
+        assert disc is not None
+        # SQLite stores UUIDs as strings; compare string representations
+        assert str(disc.submitted_by) == str(test_user.id)
 
 
 # ---------------------------------------------------------------------------
