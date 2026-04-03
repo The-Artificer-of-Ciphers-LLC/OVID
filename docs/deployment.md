@@ -8,14 +8,15 @@ This runbook covers deploying the OVID stack (API, web UI, PostgreSQL) in both d
 |---|---|---|---|---|
 | Development | `http://localhost:8000` | `http://localhost:3000` | holodeck (LAN) | Direct port access, hot-reload |
 | Production | `https://api.oviddb.org` | `https://oviddb.org` | holodeck → redshirt → Cloudflare | Reverse-proxied, TLS via Cloudflare |
+| Test | `http://holodeck.nomorestars.com:8200` | `http://holodeck.nomorestars.com:3200` | holodeck (`~/OVID-test/`) | Isolated OAuth/UI testing |
 
-Both environments run on **holodeck.nomorestars.com**, but on different port ranges to avoid conflicts:
+All environments run on **holodeck.nomorestars.com**, but on different port ranges to avoid conflicts:
 
-| Service | Dev ports | Prod ports |
-|---|---|---|
-| PostgreSQL | 5432 (exposed) | not exposed |
-| API | 8000 | 8100 → 8000 (internal) |
-| Web | 3000 | 3100 → 3000 (internal) |
+| Service | Dev ports | Prod ports | Test ports |
+|---|---|---|---|
+| PostgreSQL | 5432 (exposed) | not exposed | 5434 (exposed) |
+| API | 8000 | 8100 → 8000 (internal) | 8200 → 8000 (internal) |
+| Web | 3000 | 3100 → 3000 (internal) | 3200 → 3000 (internal) |
 
 ---
 
@@ -191,19 +192,112 @@ If using Cloudflare Origin Certificates on redshirt, set SSL/TLS mode to **Full 
 
 ---
 
-## Running Both Stacks Simultaneously
+## Test Stack (holodeck, isolated OAuth/UI testing)
 
-The dev and prod stacks can run side-by-side on holodeck because they use different ports and container names:
+The test stack runs in an isolated directory (`~/OVID-test/`) on holodeck with its own ports, database volume, and environment. It is used for testing OAuth flows, UI changes, and integration work without affecting dev or production data.
+
+### Purpose
+
+- Test OAuth provider configurations (GitHub, Apple, Google) against real callback URLs
+- Validate UI changes with real API data in an isolated environment
+- Run integration tests against a stable stack that won't be disrupted by dev hot-reloading
+
+### Ports
+
+| Service | Host Port | Internal Port | Container |
+|---|---|---|---|
+| PostgreSQL | 5434 | 5432 | `ovid-test-db` |
+| API | 8200 | 8000 | `ovid-test-api` |
+| Web | 3200 | 3000 | `ovid-test-web` |
+
+### Deploy
 
 ```bash
-# Dev stack (ports 8000/3000/5432)
-docker-compose up -d
+# Clone (first time only)
+git clone https://github.com/The-Artificer-of-Ciphers-LLC/OVID.git ~/OVID-test
+cd ~/OVID-test
 
-# Prod stack (ports 8100/3100, DB not exposed)
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Or pull latest (subsequent deploys)
+cd ~/OVID-test && git pull
+
+# Copy .env.test from your local machine (it's gitignored)
+# From your dev machine:
+#   scp .env.test holodeck.nomorestars.com:~/OVID-test/.env.test
+
+# Generate OVID_SECRET_KEY if not set
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+# Paste the output into .env.test as OVID_SECRET_KEY=<value>
+
+# Build images (bakes NEXT_PUBLIC_API_URL into web client)
+docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test -p ovid-test build
+
+# Start DB and run migrations
+docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test -p ovid-test up -d db
+docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test -p ovid-test run --rm api alembic upgrade head
+
+# Start all services
+docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test -p ovid-test up -d
 ```
 
-Note: they share the same `docker-compose.yml` base, so they share the same Docker volumes by default. For fully isolated data, use a separate project directory or `--project-name` flag.
+### Verify
+
+```bash
+# All containers running
+docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test -p ovid-test ps
+
+# API health
+curl http://holodeck.nomorestars.com:8200/health
+# Expected: {"status":"ok"}
+
+# Sync head (empty DB returns seq 0)
+curl http://holodeck.nomorestars.com:8200/v1/sync/head
+
+# Web returns 200
+curl -o /dev/null -w "%{http_code}" http://holodeck.nomorestars.com:3200
+```
+
+### Logs & Troubleshooting
+
+```bash
+# All services
+docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test -p ovid-test logs -f
+
+# Single service
+docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test -p ovid-test logs -f api
+
+# Check for port conflicts
+ss -tlnp | grep -E '(5434|8200|3200)'
+```
+
+### Teardown
+
+```bash
+# Stop without removing data
+docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test -p ovid-test down
+
+# Stop and remove data volume
+docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test -p ovid-test down -v
+```
+
+---
+
+## Running All Stacks Simultaneously
+
+The dev, prod, and test stacks can run side-by-side on holodeck because they use different ports, container names, and (for test) a separate project directory:
+
+```bash
+# Dev stack (ports 8000/3000/5432) — from ~/ovid/
+docker-compose up -d
+
+# Prod stack (ports 8100/3100, DB not exposed) — from ~/ovid/
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# Test stack (ports 8200/3200/5434) — from ~/OVID-test/
+cd ~/OVID-test
+docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test -p ovid-test up -d
+```
+
+Note: dev and prod share the same `docker-compose.yml` base directory, so they share Docker volumes by default. The test stack uses a separate directory (`~/OVID-test/`) with its own volume, ensuring full data isolation.
 
 ---
 
@@ -218,6 +312,9 @@ curl http://localhost:8100/health
 
 # Prod (from internet)
 curl https://api.oviddb.org/health
+
+# Test
+curl http://holodeck.nomorestars.com:8200/health
 ```
 
 Expected: `{"status": "ok"}`
