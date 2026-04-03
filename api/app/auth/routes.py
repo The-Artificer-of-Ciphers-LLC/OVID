@@ -35,6 +35,15 @@ def finalize_auth(request: Request, db: Session, provider: str, provider_id: str
             pass
 
     jwt_token = create_access_token(user.id)
+
+    web_redirect_uri = request.session.pop("web_redirect_uri", "")
+    if web_redirect_uri:
+        from urllib.parse import urlencode
+        from starlette.responses import RedirectResponse
+        separator = "&" if "?" in web_redirect_uri else "?"
+        redirect_url = f"{web_redirect_uri}{separator}{urlencode({'token': jwt_token})}"
+        return RedirectResponse(url=redirect_url, status_code=302)
+
     return {
         "token": jwt_token,
         "user": {
@@ -115,10 +124,15 @@ if _GOOGLE_CLIENT_ID:
 # GitHub OAuth
 # ---------------------------------------------------------------------------
 @auth_router.get("/github/login")
-async def github_login(request: Request):
+async def github_login(request: Request, web_redirect_uri: str = ""):
     """Redirect to GitHub authorization page."""
     if not _GITHUB_CLIENT_ID:
         raise HTTPException(status_code=501, detail="GitHub OAuth not configured")
+
+    if web_redirect_uri:
+        if not web_redirect_uri.startswith(("http://", "https://")):
+            raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
+        request.session["web_redirect_uri"] = web_redirect_uri
 
     redirect_uri = f"{_OVID_API_URL}/v1/auth/github/callback"
     return await oauth.github.authorize_redirect(request, redirect_uri)
@@ -250,10 +264,15 @@ _APPLE_TOKEN_URL = "https://appleid.apple.com/auth/token"
 
 
 @auth_router.get("/apple/login")
-async def apple_login(request: Request):
+async def apple_login(request: Request, web_redirect_uri: str = ""):
     """Redirect to Apple's OIDC authorization endpoint."""
     if not _APPLE_CONFIGURED:
         raise HTTPException(status_code=501, detail="Apple Sign-In not configured")
+
+    if web_redirect_uri:
+        if not web_redirect_uri.startswith(("http://", "https://")):
+            raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
+        request.session["web_redirect_uri"] = web_redirect_uri
 
     redirect_uri = f"{_OVID_API_URL}/v1/auth/apple/callback"
     state = secrets.token_urlsafe(32)
@@ -363,10 +382,15 @@ async def apple_callback(request: Request, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @auth_router.get("/indieauth/login")
-async def indieauth_login(request: Request, url: str = ""):
+async def indieauth_login(request: Request, url: str = "", web_redirect_uri: str = ""):
     """Begin IndieAuth flow: discover endpoints, redirect to authorization_endpoint."""
     if not url:
         raise HTTPException(status_code=400, detail={"error": "missing_url", "reason": "url query param required"})
+
+    if web_redirect_uri:
+        if not web_redirect_uri.startswith(("http://", "https://")):
+            raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
+        request.session["web_redirect_uri"] = web_redirect_uri
 
     try:
         validated_url = validate_url(url, allow_localhost=True)
@@ -479,10 +503,15 @@ async def indieauth_callback(request: Request, db: Session = Depends(get_db)):
 # Google OAuth
 # ---------------------------------------------------------------------------
 @auth_router.get("/google/login")
-async def google_login(request: Request):
+async def google_login(request: Request, web_redirect_uri: str = ""):
     """Redirect to Google authorization page."""
     if not _GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=501, detail="Google OAuth not configured")
+
+    if web_redirect_uri:
+        if not web_redirect_uri.startswith(("http://", "https://")):
+            raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
+        request.session["web_redirect_uri"] = web_redirect_uri
 
     redirect_uri = f"{_OVID_API_URL}/v1/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
@@ -537,10 +566,15 @@ from app.auth.mastodon import validate_mastodon_domain, get_or_register_client
 from app.models import MastodonOAuthClient
 
 @auth_router.get("/mastodon/login")
-async def mastodon_login(request: Request, domain: str = "", db: Session = Depends(get_db)):
+async def mastodon_login(request: Request, domain: str = "", web_redirect_uri: str = "", db: Session = Depends(get_db)):
     """Begin Mastodon OAuth flow."""
     if not domain:
         raise HTTPException(status_code=400, detail={"error": "missing_domain", "reason": "domain query param required"})
+
+    if web_redirect_uri:
+        if not web_redirect_uri.startswith(("http://", "https://")):
+            raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
+        request.session["web_redirect_uri"] = web_redirect_uri
 
     try:
         domain = validate_mastodon_domain(domain)

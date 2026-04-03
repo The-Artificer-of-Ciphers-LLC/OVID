@@ -208,3 +208,61 @@ class TestAuthMe:
         """Bad JWT → 401."""
         resp = client.get("/v1/auth/me", headers={"Authorization": "Bearer garbage"})
         assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# web_redirect_uri — OAuth redirect to frontend
+# ---------------------------------------------------------------------------
+
+class TestWebRedirectUri:
+    """Test the web_redirect_uri flow for browser-based OAuth."""
+
+    def test_login_stores_redirect_and_callback_returns_302(self, client: TestClient, db_session: Session):
+        """Login with web_redirect_uri stores value in session; callback returns 302 redirect with token."""
+        from starlette.responses import JSONResponse
+
+        # Mock authorize_redirect to return a simple 200 (simulates redirect to GitHub)
+        mock_oauth = MagicMock()
+        mock_authorize = AsyncMock(return_value=JSONResponse(content={"ok": True}))
+        mock_oauth.github.authorize_redirect = mock_authorize
+
+        # Step 1: Call login with web_redirect_uri — this stores it in session
+        with patch("app.auth.routes.oauth", mock_oauth), \
+             patch("app.auth.routes._GITHUB_CLIENT_ID", "fake-client-id"):
+            login_resp = client.get(
+                "/v1/auth/github/login?web_redirect_uri=http://localhost:3000/auth/callback"
+            )
+        assert login_resp.status_code == 200
+
+        # Step 2: Call callback — the session still has web_redirect_uri
+        with _patch_oauth():
+            # follow_redirects=False so we can inspect the 302
+            callback_resp = client.get(
+                "/v1/auth/github/callback",
+                follow_redirects=False,
+            )
+
+        assert callback_resp.status_code == 302
+        location = callback_resp.headers["location"]
+        assert location.startswith("http://localhost:3000/auth/callback?")
+        assert "token=" in location
+
+    def test_login_rejects_invalid_scheme(self, client: TestClient):
+        """web_redirect_uri with javascript: scheme → 400."""
+        with patch("app.auth.routes._GITHUB_CLIENT_ID", "fake-client-id"):
+            resp = client.get(
+                "/v1/auth/github/login?web_redirect_uri=javascript:alert(1)"
+            )
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "invalid_redirect_uri"
+
+    def test_callback_without_redirect_returns_json(self, client: TestClient, db_session: Session):
+        """Without web_redirect_uri in session, callback returns JSON (regression guard)."""
+        with _patch_oauth():
+            resp = client.get("/v1/auth/github/callback")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "token" in data
+        assert "user" in data
+        assert data["user"]["username"] == "github_12345"
