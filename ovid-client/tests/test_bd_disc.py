@@ -361,3 +361,313 @@ class TestOpenReaderBD:
             assert isinstance(reader, BDFolderReader)
         finally:
             reader.close()
+
+
+# ===================================================================
+# CLI integration tests — BD fingerprint, --json, and submit payload
+# ===================================================================
+
+
+class TestCLIBDFingerprint:
+    """CLI `ovid fingerprint` with Blu-ray sources and --json flag."""
+
+    def test_cli_fingerprint_bd_folder(self, tmp_path):
+        """CLI fingerprints a BD folder and prints a bd1/bd2/uhd prefix."""
+        from click.testing import CliRunner
+        from ovid.cli import main as cli_main
+
+        root = _make_bd_dir(
+            tmp_path,
+            mpls_files={"00001.mpls": _make_long_playlist()},
+        )
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["fingerprint", str(root)])
+
+        assert result.exit_code == 0
+        output = result.output.strip()
+        # No AACS → Tier 2 → bd2- prefix
+        assert output.startswith("bd2-")
+        assert len(output) == 44  # "bd2-" (4) + 40 hex
+
+    def test_cli_fingerprint_bd_tier1(self, tmp_path):
+        """CLI fingerprints a BD folder with AACS → bd1-aacs- prefix."""
+        from click.testing import CliRunner
+        from ovid.cli import main as cli_main
+
+        root = _make_bd_dir(
+            tmp_path,
+            mpls_files={"00001.mpls": _make_long_playlist()},
+            aacs_files={"Unit_Key_RO.inf": b"some_aacs_key_data"},
+        )
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["fingerprint", str(root)])
+
+        assert result.exit_code == 0
+        output = result.output.strip()
+        assert output.startswith("bd1-aacs-")
+
+    def test_cli_fingerprint_uhd(self, tmp_path):
+        """CLI fingerprints UHD disc → uhd2- prefix."""
+        from click.testing import CliRunner
+        from ovid.cli import main as cli_main
+
+        root = _make_bd_dir(
+            tmp_path,
+            mpls_files={"00001.mpls": _make_long_playlist(version="0300")},
+        )
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["fingerprint", str(root)])
+
+        assert result.exit_code == 0
+        output = result.output.strip()
+        assert output.startswith("uhd2-")
+
+    def test_cli_fingerprint_json_bd(self, tmp_path):
+        """--json flag outputs valid JSON with BD structure keys."""
+        import json
+        from click.testing import CliRunner
+        from ovid.cli import main as cli_main
+
+        root = _make_bd_dir(
+            tmp_path,
+            mpls_files={
+                "00001.mpls": _make_long_playlist(
+                    duration_seconds=120.0,
+                    audio_streams=[(0x81, "eng", 6)],
+                    subtitle_streams=[(0x90, "eng")],
+                    chapter_count=5,
+                ),
+            },
+        )
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["fingerprint", "--json", str(root)])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+
+        assert data["fingerprint"].startswith("bd2-")
+        assert data["format"] == "Blu-ray"
+        assert data["tier"] == 2
+        assert data["source_type"] == "BDFolderReader"
+        assert "structure" in data
+        assert "playlists" in data["structure"]
+        assert len(data["structure"]["playlists"]) == 1
+
+        pl = data["structure"]["playlists"][0]
+        assert "play_items" in pl
+        assert "audio_streams" in pl
+        assert "subtitle_streams" in pl
+        assert "chapters" in pl
+        assert pl["version"] == "0200"
+
+    def test_cli_fingerprint_json_dvd(self, tmp_path):
+        """--json flag works for DVD too (backward compat)."""
+        import json
+        from click.testing import CliRunner
+        from conftest import make_vmg_ifo, make_vts_ifo
+        from ovid.cli import main as cli_main
+
+        vmg = make_vmg_ifo(vts_count=1, title_entries=1)
+        vts = make_vts_ifo(
+            pgcs=[(1, 30, 0, 12)],
+            audio_streams=[(0, "en", 6)],
+            subtitle_streams=["en"],
+        )
+        vts_dir = tmp_path / "VIDEO_TS"
+        vts_dir.mkdir()
+        (vts_dir / "VIDEO_TS.IFO").write_bytes(vmg)
+        (vts_dir / "VTS_01_0.IFO").write_bytes(vts)
+
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["fingerprint", "--json", str(tmp_path)])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+
+        assert data["fingerprint"].startswith("dvd1-")
+        assert data["format"] == "DVD"
+        assert data["source_type"] == "FolderReader"
+        assert "structure" in data
+        assert "vts" in data["structure"]
+        assert data["structure"]["vts_count"] == 1
+        assert data["structure"]["title_count"] == 1
+        assert "tier" not in data  # DVD has no tier
+
+    def test_cli_fingerprint_still_works_dvd(self, tmp_path):
+        """Existing DVD path still produces dvd1- fingerprint (no regressions)."""
+        from click.testing import CliRunner
+        from conftest import make_vmg_ifo, make_vts_ifo
+        from ovid.cli import main as cli_main
+
+        vmg = make_vmg_ifo(vts_count=1, title_entries=1)
+        vts = make_vts_ifo(
+            pgcs=[(0, 45, 30, 8)],
+            audio_streams=[(0, "en", 6)],
+            subtitle_streams=["en"],
+        )
+        vts_dir = tmp_path / "VIDEO_TS"
+        vts_dir.mkdir()
+        (vts_dir / "VIDEO_TS.IFO").write_bytes(vmg)
+        (vts_dir / "VTS_01_0.IFO").write_bytes(vts)
+
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["fingerprint", str(tmp_path)])
+
+        assert result.exit_code == 0
+        output = result.output.strip()
+        assert output.startswith("dvd1-")
+        assert len(output) == 45
+
+    def test_cli_fingerprint_json_short_flag(self, tmp_path):
+        """-j shorthand works for --json."""
+        import json
+        from click.testing import CliRunner
+        from ovid.cli import main as cli_main
+
+        root = _make_bd_dir(
+            tmp_path,
+            mpls_files={"00001.mpls": _make_long_playlist()},
+        )
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["fingerprint", "-j", str(root)])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "fingerprint" in data
+
+    def test_cli_fingerprint_invalid_path(self):
+        """Invalid path still returns error exit code."""
+        from click.testing import CliRunner
+        from ovid.cli import main as cli_main
+
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["fingerprint", "/no/such/path"])
+        assert result.exit_code == 1
+
+
+# ===================================================================
+# Submit payload tests — BD
+# ===================================================================
+
+
+class TestBuildSubmitPayloadBD:
+    """_build_submit_payload() with BDDisc objects."""
+
+    def test_build_submit_payload_bd(self, tmp_path):
+        """BD disc produces a payload with format='Blu-ray' and playlist-based titles."""
+        from ovid.cli import _build_submit_payload
+
+        root = _make_bd_dir(
+            tmp_path,
+            mpls_files={
+                "00001.mpls": _make_long_playlist(
+                    duration_seconds=7200.0,
+                    audio_streams=[(0x81, "eng", 6), (0x83, "fra", 8)],
+                    subtitle_streams=[(0x90, "eng"), (0x90, "spa")],
+                    chapter_count=20,
+                ),
+                "00002.mpls": _make_long_playlist(
+                    duration_seconds=120.0,
+                    audio_streams=[(0x81, "eng", 2)],
+                    subtitle_streams=[],
+                    chapter_count=1,
+                ),
+            },
+        )
+        disc = BDDisc.from_path(str(root))
+
+        payload = _build_submit_payload(
+            disc=disc,
+            title="Test Movie",
+            year=2024,
+            tmdb_id=12345,
+            imdb_id="tt9999999",
+            edition_name="Collector's Edition",
+            disc_number=1,
+            total_discs=2,
+        )
+
+        assert payload["fingerprint"] == disc.fingerprint
+        assert payload["format"] == "Blu-ray"
+        assert payload["disc_number"] == 1
+        assert payload["total_discs"] == 2
+        assert payload["edition_name"] == "Collector's Edition"
+        assert payload["release"]["title"] == "Test Movie"
+        assert payload["release"]["year"] == 2024
+        assert payload["release"]["tmdb_id"] == 12345
+        assert payload["release"]["imdb_id"] == "tt9999999"
+
+        titles = payload["titles"]
+        assert len(titles) == 2
+
+        # Main feature should be the longest playlist (7200s)
+        main_title = [t for t in titles if t["is_main_feature"]]
+        assert len(main_title) == 1
+        assert main_title[0]["duration_secs"] == 7200.0
+        assert main_title[0]["chapter_count"] == 20
+        assert len(main_title[0]["audio_tracks"]) == 2
+        assert len(main_title[0]["subtitle_tracks"]) == 2
+
+    def test_build_submit_payload_uhd(self, tmp_path):
+        """UHD disc produces format='UHD'."""
+        from ovid.cli import _build_submit_payload
+
+        root = _make_bd_dir(
+            tmp_path,
+            mpls_files={
+                "00001.mpls": _make_long_playlist(
+                    duration_seconds=120.0,
+                    version="0300",
+                ),
+            },
+        )
+        disc = BDDisc.from_path(str(root))
+
+        payload = _build_submit_payload(
+            disc=disc,
+            title="UHD Movie",
+            year=2025,
+            tmdb_id=None,
+            imdb_id="",
+            edition_name=None,
+            disc_number=1,
+            total_discs=1,
+        )
+
+        assert payload["format"] == "UHD"
+        assert "tmdb_id" not in payload["release"]
+        assert "imdb_id" not in payload["release"]
+        assert "edition_name" not in payload
+
+    def test_build_submit_payload_dvd_unchanged(self, tmp_path):
+        """DVD disc still produces format='DVD' (no regressions)."""
+        from conftest import make_vmg_ifo, make_vts_ifo
+        from ovid.cli import _build_submit_payload
+        from ovid.disc import Disc
+
+        vmg = make_vmg_ifo(vts_count=1, title_entries=1)
+        vts = make_vts_ifo(
+            pgcs=[(1, 30, 0, 12)],
+            audio_streams=[(0, "en", 6)],
+            subtitle_streams=["en"],
+        )
+        vts_dir = tmp_path / "VIDEO_TS"
+        vts_dir.mkdir()
+        (vts_dir / "VIDEO_TS.IFO").write_bytes(vmg)
+        (vts_dir / "VTS_01_0.IFO").write_bytes(vts)
+
+        disc = Disc.from_path(str(tmp_path))
+
+        payload = _build_submit_payload(
+            disc=disc,
+            title="DVD Movie",
+            year=2020,
+            tmdb_id=None,
+            imdb_id="",
+            edition_name=None,
+            disc_number=1,
+            total_discs=1,
+        )
+
+        assert payload["format"] == "DVD"
+        assert payload["fingerprint"].startswith("dvd1-")

@@ -5,7 +5,9 @@ Entry point: ``ovid fingerprint <path>``
 
 from __future__ import annotations
 
+import json
 import sys
+from typing import Any, Union
 
 import click
 
@@ -19,18 +21,24 @@ def main() -> None:
 
 @main.command()
 @click.argument("path")
-def fingerprint(path: str) -> None:
-    """Compute and print the OVID fingerprint for a DVD source.
+@click.option("--json", "-j", "output_json", is_flag=True, default=False,
+              help="Output structured JSON with fingerprint and disc structure.")
+def fingerprint(path: str, output_json: bool) -> None:
+    """Compute and print the OVID fingerprint for a disc source.
 
-    PATH may be a VIDEO_TS folder, an ISO image, or a block device.
+    PATH may be a VIDEO_TS folder (DVD), BDMV folder (Blu-ray/UHD),
+    an ISO image, or a block device.
     """
     try:
-        disc = Disc.from_path(path)
+        result = _detect_and_fingerprint(path)
     except (FileNotFoundError, ValueError, OSError) as exc:
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
-    click.echo(disc.fingerprint)
+    if output_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo(result["fingerprint"])
 
 
 @main.command()
@@ -76,16 +84,27 @@ def submit(path: str, api_url: str | None, token: str | None) -> None:
 
     # ── Step 1: Parse disc ──────────────────────────────────────────
     try:
-        disc = Disc.from_path(path)
+        disc: Union[Disc, "BDDisc"] = _open_disc(path)
     except (FileNotFoundError, ValueError, OSError) as exc:
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
+    from ovid.bd_disc import BDDisc as _BDDisc
+    is_bd = isinstance(disc, _BDDisc)
+
     console.print(f"\n[bold]Disc fingerprint:[/bold] {disc.fingerprint}")
-    console.print(
-        f"  VTS count: {disc.vts_count}  ·  "
-        f"Title count: {disc.title_count}"
-    )
+    if is_bd:
+        fmt_label = "UHD" if disc.format_type == "uhd" else "Blu-ray"
+        console.print(
+            f"  Format: {fmt_label}  ·  "
+            f"Tier: {disc.tier}  ·  "
+            f"Playlists: {len(disc.playlists)}"
+        )
+    else:
+        console.print(
+            f"  VTS count: {disc.vts_count}  ·  "
+            f"Title count: {disc.title_count}"
+        )
 
     # ── Step 2: TMDB search (or manual fallback) ────────────────────
     tmdb_id: int | None = None
@@ -149,6 +168,157 @@ def submit(path: str, api_url: str | None, token: str | None) -> None:
     except Exception as exc:
         click.echo(f"Error submitting disc: {exc}", err=True)
         sys.exit(1)
+
+
+# ------------------------------------------------------------------
+# Auto-detection helpers
+# ------------------------------------------------------------------
+
+def _is_bd_path(path: str) -> bool:
+    """Check whether *path* contains a BDMV subdirectory (case-insensitive)."""
+    import os
+
+    if not os.path.isdir(path):
+        return False
+    basename = os.path.basename(os.path.normpath(path))
+    if basename.upper() == "BDMV":
+        return True
+    try:
+        for entry in os.listdir(path):
+            if entry.upper() == "BDMV" and os.path.isdir(os.path.join(path, entry)):
+                return True
+    except OSError:
+        pass
+    return False
+
+
+def _open_disc(path: str) -> Union[Disc, Any]:
+    """Open a disc from *path*, auto-detecting BD vs DVD.
+
+    Returns a :class:`BDDisc` or :class:`Disc` instance.
+    """
+    if _is_bd_path(path):
+        from ovid.bd_disc import BDDisc
+        return BDDisc.from_path(path)
+    return Disc.from_path(path)
+
+
+def _detect_and_fingerprint(path: str) -> dict:
+    """Auto-detect BD vs DVD, parse, and return a structured result dict.
+
+    Returns a dict with keys:
+    - ``fingerprint``: the OVID fingerprint string
+    - ``format``: ``'DVD'``, ``'Blu-ray'``, or ``'UHD'``
+    - ``source_type``: reader class name
+    - ``structure``: format-specific disc structure
+
+    For Blu-ray/UHD, ``tier`` is also included (1 or 2).
+    """
+    if _is_bd_path(path):
+        from ovid.bd_disc import BDDisc
+        bd = BDDisc.from_path(path)
+        fmt = "UHD" if bd.format_type == "uhd" else "Blu-ray"
+        return {
+            "fingerprint": bd.fingerprint,
+            "format": fmt,
+            "tier": bd.tier,
+            "source_type": bd.source_type,
+            "structure": _bd_structure(bd),
+        }
+
+    disc = Disc.from_path(path)
+    return {
+        "fingerprint": disc.fingerprint,
+        "format": "DVD",
+        "source_type": disc.source_type,
+        "structure": _dvd_structure(disc),
+    }
+
+
+def _bd_structure(bd: Any) -> dict:
+    """Build the JSON-serialisable structure dict for a Blu-ray disc."""
+    playlists = []
+    for pl in bd.playlists:
+        play_items = []
+        for pi in pl.play_items:
+            play_items.append({
+                "clip_id": pi.clip_id,
+                "in_time": pi.in_time,
+                "out_time": pi.out_time,
+                "duration_seconds": pi.duration_seconds,
+            })
+
+        audio_streams = []
+        for s in pl.audio_streams:
+            audio_streams.append({
+                "codec": s.codec,
+                "language": s.language,
+                "channels": s.channels,
+            })
+
+        subtitle_streams = []
+        for s in pl.subtitle_streams:
+            subtitle_streams.append({
+                "codec": s.codec,
+                "language": s.language,
+            })
+
+        chapters = []
+        for ch in pl.chapter_marks:
+            chapters.append({
+                "mark_type": ch.mark_type,
+                "play_item_ref": ch.play_item_ref,
+                "timestamp": ch.timestamp,
+                "duration_seconds": ch.duration_seconds,
+            })
+
+        playlists.append({
+            "version": pl.header.version,
+            "play_items": play_items,
+            "audio_streams": audio_streams,
+            "subtitle_streams": subtitle_streams,
+            "chapters": chapters,
+        })
+
+    return {"playlists": playlists}
+
+
+def _dvd_structure(disc: Disc) -> dict:
+    """Build the JSON-serialisable structure dict for a DVD disc."""
+    vts_list = []
+    for vts in disc._vts_list:
+        pgcs = []
+        for pgc in vts.pgc_list:
+            pgcs.append({
+                "duration_seconds": pgc.duration_seconds,
+                "chapter_count": pgc.chapter_count,
+            })
+
+        audio_streams = []
+        for s in vts.audio_streams:
+            audio_streams.append({
+                "codec": s.codec,
+                "language": s.language,
+                "channels": s.channels,
+            })
+
+        subtitle_streams = []
+        for s in vts.subtitle_streams:
+            subtitle_streams.append({
+                "language": s.language,
+            })
+
+        vts_list.append({
+            "pgcs": pgcs,
+            "audio_streams": audio_streams,
+            "subtitle_streams": subtitle_streams,
+        })
+
+    return {
+        "vts_count": disc.vts_count,
+        "title_count": disc.title_count,
+        "vts": vts_list,
+    }
 
 
 # ------------------------------------------------------------------
@@ -222,6 +392,44 @@ def _tmdb_search_flow(
 
 def _build_submit_payload(
     *,
+    disc: Union["Disc", Any],
+    title: str,
+    year: int | None,
+    tmdb_id: int | None,
+    imdb_id: str,
+    edition_name: str | None,
+    disc_number: int,
+    total_discs: int,
+) -> dict:
+    """Build the POST /v1/disc JSON payload from Disc or BDDisc structure."""
+    from ovid.bd_disc import BDDisc
+
+    if isinstance(disc, BDDisc):
+        return _build_bd_submit_payload(
+            bd_disc=disc,
+            title=title,
+            year=year,
+            tmdb_id=tmdb_id,
+            imdb_id=imdb_id,
+            edition_name=edition_name,
+            disc_number=disc_number,
+            total_discs=total_discs,
+        )
+
+    return _build_dvd_submit_payload(
+        disc=disc,
+        title=title,
+        year=year,
+        tmdb_id=tmdb_id,
+        imdb_id=imdb_id,
+        edition_name=edition_name,
+        disc_number=disc_number,
+        total_discs=total_discs,
+    )
+
+
+def _build_dvd_submit_payload(
+    *,
     disc: "Disc",
     title: str,
     year: int | None,
@@ -231,7 +439,7 @@ def _build_submit_payload(
     disc_number: int,
     total_discs: int,
 ) -> dict:
-    """Build the POST /v1/disc JSON payload from Disc structure."""
+    """Build the POST /v1/disc JSON payload from DVD Disc structure."""
     titles: list[dict] = []
     title_index = 0
     first_title = True
@@ -278,6 +486,90 @@ def _build_submit_payload(
     payload: dict = {
         "fingerprint": disc.fingerprint,
         "format": "DVD",
+        "release": release,
+        "titles": titles,
+        "disc_number": disc_number,
+        "total_discs": total_discs,
+    }
+    if edition_name:
+        payload["edition_name"] = edition_name
+
+    return payload
+
+
+def _build_bd_submit_payload(
+    *,
+    bd_disc: Any,
+    title: str,
+    year: int | None,
+    tmdb_id: int | None,
+    imdb_id: str,
+    edition_name: str | None,
+    disc_number: int,
+    total_discs: int,
+) -> dict:
+    """Build the POST /v1/disc JSON payload from BDDisc structure.
+
+    Each playlist becomes a title entry. The first playlist with the
+    longest duration is marked as the main feature.
+    """
+    fmt = "UHD" if bd_disc.format_type == "uhd" else "Blu-ray"
+
+    titles: list[dict] = []
+    title_index = 0
+
+    # Find longest playlist to mark as main feature
+    longest_idx = 0
+    longest_dur = 0.0
+    for i, pl in enumerate(bd_disc.playlists):
+        dur = sum(pi.duration_seconds for pi in pl.play_items)
+        if dur > longest_dur:
+            longest_dur = dur
+            longest_idx = i
+
+    for i, pl in enumerate(bd_disc.playlists):
+        total_duration = sum(pi.duration_seconds for pi in pl.play_items)
+        chapter_count = len([m for m in pl.chapter_marks if m.mark_type == 1])
+
+        audio_tracks = []
+        for ai, stream in enumerate(pl.audio_streams):
+            audio_tracks.append({
+                "track_index": ai,
+                "language_code": stream.language,
+                "codec": stream.codec,
+                "channels": stream.channels,
+            })
+
+        subtitle_tracks = []
+        for si, stream in enumerate(pl.subtitle_streams):
+            subtitle_tracks.append({
+                "track_index": si,
+                "language_code": stream.language,
+            })
+
+        titles.append({
+            "title_index": title_index,
+            "is_main_feature": (i == longest_idx),
+            "duration_secs": total_duration,
+            "chapter_count": chapter_count,
+            "audio_tracks": audio_tracks,
+            "subtitle_tracks": subtitle_tracks,
+        })
+        title_index += 1
+
+    release: dict = {
+        "title": title,
+        "year": year,
+        "content_type": "movie",
+    }
+    if tmdb_id is not None:
+        release["tmdb_id"] = tmdb_id
+    if imdb_id:
+        release["imdb_id"] = imdb_id
+
+    payload: dict = {
+        "fingerprint": bd_disc.fingerprint,
+        "format": fmt,
         "release": release,
         "titles": titles,
         "disc_number": disc_number,
