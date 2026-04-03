@@ -1,0 +1,61 @@
+# Test-stack overrides — merge with base:
+#   docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d
+#
+# This file targets the isolated test environment on holodeck:
+#   API:  http://holodeck.nomorestars.com:8200  (host port 8200)
+#   Web:  http://holodeck.nomorestars.com:3200  (host port 3200)
+#   DB:   PostgreSQL on host port 5434 (debug access)
+#
+# See docs/deployment.md for full deployment instructions.
+
+x-test-note: >
+  This file is a Docker Compose override. It is NOT standalone.
+  Always run with both files:
+    docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d
+  Use the docker-compose binary (hyphenated), not 'docker compose' plugin.
+
+services:
+
+  db:
+    container_name: ovid-test-db
+    # Expose PostgreSQL for debug access in test environment
+    ports: !override
+      - "5434:5432"
+
+  api:
+    container_name: ovid-test-api
+    # No source mount in test — use the baked-in image
+    volumes: !reset []
+    # Expose on 8200 to avoid conflict with dev (8000) and prod (8100)
+    ports: !override
+      - "8200:8000"
+    command: >-
+      gunicorn -w 4 -k uvicorn.workers.UvicornWorker
+      main:app --bind 0.0.0.0:8000
+    environment:
+      DATABASE_URL:          postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}
+      SECRET_KEY:            ${OVID_SECRET_KEY}
+      OVID_MODE:             ${OVID_MODE:-standalone}
+      LOG_LEVEL:             ${LOG_LEVEL:-debug}
+      CORS_ORIGINS:          ${CORS_ORIGINS:-http://holodeck.nomorestars.com:3200}
+      GITHUB_CLIENT_ID:      ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET:  ${GITHUB_CLIENT_SECRET}
+      GOOGLE_CLIENT_ID:      ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET:  ${GOOGLE_CLIENT_SECRET}
+      APPLE_CLIENT_ID:       ${APPLE_CLIENT_ID}
+      APPLE_TEAM_ID:         ${APPLE_TEAM_ID}
+      APPLE_KEY_ID:          ${APPLE_KEY_ID}
+      APPLE_PRIVATE_KEY:     ${APPLE_PRIVATE_KEY}
+
+  web:
+    container_name: ovid-test-web
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: 'http://holodeck.nomorestars.com:8200'
+    # Expose on 3200 to avoid conflict with dev (3000) and prod (3100)
+    ports: !override
+      - "3200:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://holodeck.nomorestars.com:8200
+      API_URL: http://api:8000

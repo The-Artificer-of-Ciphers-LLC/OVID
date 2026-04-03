@@ -8,6 +8,12 @@ RUN npm ci
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Accept NEXT_PUBLIC_API_URL as a build arg so it's baked into client bundles.
+# Override via docker-compose build args (e.g., docker-compose.test.yml).
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 RUN npm run build
 
 # Stage 2 — Production runner
