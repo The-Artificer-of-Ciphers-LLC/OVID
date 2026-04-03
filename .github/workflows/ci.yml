@@ -86,3 +86,20 @@ jobs:
 
       - name: Run tests
         run: cd web && npx vitest run
+
+  docs-build:
+    name: Documentation build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install MkDocs Material
+        run: pip install -r docs/requirements.txt
+
+      - name: Build documentation (strict)
+        run: mkdocs build --strict

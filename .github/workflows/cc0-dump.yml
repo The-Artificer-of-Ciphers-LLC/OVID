@@ -1,0 +1,43 @@
+name: Monthly CC0 Data Dump
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"  # 06:00 UTC on the 1st of every month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cc0-dump:
+    name: Generate and publish CC0 dump
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r api/requirements.txt
+
+      - name: Generate CC0 dump
+        run: |
+          DUMP_DATE=$(date +%Y%m%d)
+          python scripts/dump_cc0.py --output /tmp/ovid-dump-${DUMP_DATE}.ndjson.gz
+          echo "DUMP_DATE=${DUMP_DATE}" >> "$GITHUB_ENV"
+          echo "DUMP_FILE=/tmp/ovid-dump-${DUMP_DATE}.ndjson.gz" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="cc0-dump-${DUMP_DATE}"
+          gh release create "${TAG}" \
+            --title "CC0 Data Dump — ${DUMP_DATE}" \
+            --notes "Monthly CC0 database snapshot in NDJSON format (gzip compressed)." \
+            "${DUMP_FILE}"

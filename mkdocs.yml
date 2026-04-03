@@ -1,0 +1,55 @@
+site_name: OVID
+site_description: Open Video Disc Database — community-driven disc fingerprints under CC0
+site_url: https://the-artificer-of-ciphers-llc.github.io/OVID/
+repo_url: https://github.com/The-Artificer-of-Ciphers-LLC/OVID
+repo_name: The-Artificer-of-Ciphers-LLC/OVID
+
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quick Start: docker-quickstart.md
+    - Development Setup: getting-started-dev.md
+  - User Guide:
+    - CLI Reference: cli-reference.md
+    - Self-Hosting Guide: self-hosting.md
+  - Technical:
+    - API Reference: api-reference.md
+    - Fingerprint Spec: fingerprint-spec.md
+  - Community:
+    - Contributing: contributing.md
+    - ARM Integration: arm-integration.md
+  - Deployment: deployment.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
