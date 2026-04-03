@@ -150,6 +150,80 @@ class SearchResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Sync feed schemas (R018)
+# ---------------------------------------------------------------------------
+class SyncTrackRecord(BaseModel):
+    """Track data for sync diff records — mirrors TrackResponse."""
+
+    index: int
+    track_type: str
+    language: str | None = None
+    codec: str | None = None
+    channels: int | None = None
+    is_default: bool = False
+
+
+class SyncTitleRecord(BaseModel):
+    """Title data for sync diff records — includes all tracks unsplit."""
+
+    title_index: int
+    is_main_feature: bool = False
+    title_type: str | None = None
+    display_name: str | None = None
+    duration_secs: int | None = None
+    chapter_count: int | None = None
+    tracks: list[SyncTrackRecord] = Field(default_factory=list)
+
+
+class SyncReleaseRecord(BaseModel):
+    """Release data for sync diff records."""
+
+    title: str
+    year: int | None = None
+    content_type: str
+    tmdb_id: int | None = None
+    imdb_id: str | None = None
+    original_language: str | None = None
+
+
+class SyncDiffRecord(BaseModel):
+    """A single disc record in a sync diff response.
+
+    Includes enough data for a mirror to reconstruct the disc locally.
+    The ``type`` discriminator enables future extension to non-disc records.
+    """
+
+    type: str = "disc"
+    seq_num: int
+    fingerprint: str
+    format: str
+    status: str
+    region_code: str | None = None
+    upc: str | None = None
+    disc_label: str | None = None
+    edition_name: str | None = None
+    disc_number: int = 1
+    total_discs: int = 1
+    titles: list[SyncTitleRecord] = Field(default_factory=list)
+    release: SyncReleaseRecord | None = None
+
+
+class SyncDiffResponse(BaseModel):
+    """Response for GET /v1/sync/diff — paginated change feed."""
+
+    records: list[SyncDiffRecord] = Field(default_factory=list)
+    next_since: int
+    has_more: bool
+
+
+class SyncHeadResponse(BaseModel):
+    """Response for GET /v1/sync/head — current sequence position."""
+
+    seq: int
+    timestamp: str
+
+
+# ---------------------------------------------------------------------------
 # Error schema
 # ---------------------------------------------------------------------------
 class ErrorResponse(BaseModel):
