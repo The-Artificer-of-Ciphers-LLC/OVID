@@ -90,6 +90,11 @@ class ReleaseCreate(BaseModel):
     original_language: str | None = None
 
 
+class UpcLookupResponse(BaseModel):
+    request_id: str
+    results: list[DiscLookupResponse] = Field(default_factory=list)
+
+
 class DiscSubmitRequest(BaseModel):
     fingerprint: str = Field(min_length=1)
     format: str = Field(min_length=1)

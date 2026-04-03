@@ -27,6 +27,7 @@ from app.schemas import (
     SearchResultRelease,
     TitleResponse,
     TrackResponse,
+    UpcLookupResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,67 @@ def _build_title_response(title: DiscTitle) -> TitleResponse:
     )
 
 
+def _disc_to_response(disc: Disc, request_id: str) -> DiscLookupResponse:
+    """Convert a Disc ORM object to a DiscLookupResponse schema."""
+    confidence = STATUS_CONFIDENCE.get(disc.status, "low")
+
+    release_resp = None
+    if disc.releases:
+        rel = disc.releases[0]
+        release_resp = ReleaseResponse(
+            title=rel.title,
+            year=rel.year,
+            content_type=rel.content_type,
+            tmdb_id=rel.tmdb_id,
+            imdb_id=rel.imdb_id,
+        )
+
+    titles_resp = [_build_title_response(t) for t in disc.titles]
+
+    return DiscLookupResponse(
+        request_id=request_id,
+        fingerprint=disc.fingerprint,
+        format=disc.format,
+        status=disc.status,
+        confidence=confidence,
+        region_code=disc.region_code,
+        upc=disc.upc,
+        edition_name=disc.edition_name,
+        disc_number=disc.disc_number,
+        total_discs=disc.total_discs,
+        submitted_by=str(disc.submitted_by) if disc.submitted_by else None,
+        verified_by=str(disc.verified_by) if disc.verified_by else None,
+        release=release_resp,
+        titles=titles_resp,
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /v1/disc/upc/{upc}
+# ---------------------------------------------------------------------------
+@router.get("/disc/upc/{upc}", response_model=UpcLookupResponse)
+@limiter.limit(_dynamic_limit)
+def lookup_disc_by_upc(
+    upc: str,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Any:
+    """Look up all discs sharing a UPC barcode."""
+    request_id: str = request.state.request_id
+
+    discs = (
+        db.query(Disc)
+        .filter(Disc.upc == upc)
+        .options(
+            joinedload(Disc.titles).joinedload(DiscTitle.tracks),
+            selectinload(Disc.releases),
+        )
+        .all()
+    )
+    results = [_disc_to_response(d, request_id) for d in discs]
+    return UpcLookupResponse(request_id=request_id, results=results)
+
+
 # ---------------------------------------------------------------------------
 # GET /v1/disc/{fingerprint}
 # ---------------------------------------------------------------------------
@@ -124,40 +186,7 @@ def lookup_disc(
             request_id, "not_found", f"No disc with fingerprint '{fingerprint}'", 404
         )
 
-    # Confidence from status
-    confidence = STATUS_CONFIDENCE.get(disc.status, "low")
-
-    # First release, if any
-    release_resp = None
-    if disc.releases:
-        rel = disc.releases[0]
-        release_resp = ReleaseResponse(
-            title=rel.title,
-            year=rel.year,
-            content_type=rel.content_type,
-            tmdb_id=rel.tmdb_id,
-            imdb_id=rel.imdb_id,
-        )
-
-    # Build titles with split tracks
-    titles_resp = [_build_title_response(t) for t in disc.titles]
-
-    return DiscLookupResponse(
-        request_id=request_id,
-        fingerprint=disc.fingerprint,
-        format=disc.format,
-        status=disc.status,
-        confidence=confidence,
-        region_code=disc.region_code,
-        upc=disc.upc,
-        edition_name=disc.edition_name,
-        disc_number=disc.disc_number,
-        total_discs=disc.total_discs,
-        submitted_by=str(disc.submitted_by) if disc.submitted_by else None,
-        verified_by=str(disc.verified_by) if disc.verified_by else None,
-        release=release_resp,
-        titles=titles_resp,
-    )
+    return _disc_to_response(disc, request_id)
 
 
 # ---------------------------------------------------------------------------
