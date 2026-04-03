@@ -5,6 +5,7 @@ src/ovid/client.py
 src/ovid/disc.py
 src/ovid/fingerprint.py
 src/ovid/ifo_parser.py
+src/ovid/mpls_parser.py
 src/ovid/tmdb.py
 src/ovid/readers/__init__.py
 src/ovid/readers/base.py
@@ -22,6 +23,9 @@ tests/test_cli_submit.py
 tests/test_client.py
 tests/test_disc.py
 tests/test_fingerprint.py
+tests/test_fixtures.py
 tests/test_ifo_parser.py
+tests/test_mpls_parser.py
 tests/test_readers.py
+tests/test_real_disc.py
 tests/test_tmdb.py
