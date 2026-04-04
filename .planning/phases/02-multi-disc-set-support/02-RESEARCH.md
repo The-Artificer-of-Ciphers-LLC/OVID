@@ -99,22 +99,23 @@ No new dependencies required. This phase extends existing patterns only. [VERIFI
 
 ### New File Structure
 ```
-api/app/routes/set.py              # NEW — disc set CRUD routes
-api/app/routes/disc.py             # MODIFY — extend submit + lookup
-api/app/schemas.py                 # MODIFY — add set schemas
-api/app/models.py                  # MODIFY — add unique constraint
-api/app/sync.py                    # MODIFY — add build_sync_set()
-api/alembic/versions/XXXXXX_*.py   # NEW — unique constraint migration
-api/tests/test_disc_sets.py        # NEW — set route tests
-api/tests/test_disc_submit.py      # MODIFY — add set integration tests
-api/tests/conftest.py              # MODIFY — add set seed helpers
-web/lib/api.ts                     # MODIFY — add set types + functions
-web/components/SiblingDiscs.tsx     # NEW — sibling display component
-web/components/SetSearchInput.tsx   # NEW — search-as-you-type for sets
-web/app/disc/[fingerprint]/page.tsx # MODIFY — integrate SiblingDiscs
-web/components/SubmitForm.tsx       # MODIFY — add set toggle section
-ovid-client/src/ovid/client.py     # MODIFY — add set search/create
-ovid-client/src/ovid/cli.py        # MODIFY — extend submit wizard
+api/app/routes/set.py              # NEW -- disc set CRUD routes
+api/app/routes/disc.py             # MODIFY -- extend submit + lookup
+api/app/schemas.py                 # MODIFY -- add set schemas
+api/app/models.py                  # MODIFY -- add unique constraint
+api/app/sync.py                    # MODIFY -- add build_sync_set()
+api/alembic/versions/XXXXXX_*.py   # NEW -- unique constraint migration
+api/tests/test_disc_sets.py        # NEW -- set route tests
+api/tests/test_disc_submit.py      # MODIFY -- add set integration tests
+api/tests/conftest.py              # MODIFY -- add set seed helpers
+web/lib/api.ts                     # MODIFY -- add set types + functions
+web/components/SiblingDiscs.tsx     # NEW -- sibling display component
+web/components/SetSearchInput.tsx   # NEW -- search-as-you-type for sets
+web/app/disc/[fingerprint]/page.tsx # MODIFY -- integrate SiblingDiscs
+web/components/SubmitForm.tsx       # MODIFY -- add set toggle section
+ovid-client/src/ovid/client.py     # MODIFY -- add set search/create
+ovid-client/src/ovid/cli.py        # MODIFY -- extend submit wizard
+ovid-client/tests/test_client_sets.py # NEW -- client set method tests
 ```
 
 ### Pattern 1: New Route Module (set.py)
@@ -158,7 +159,7 @@ class DiscSetNested(BaseModel):
 
 class DiscLookupResponse(BaseModel):
     # ... existing fields ...
-    disc_set: DiscSetNested | None = None  # NEW — null when not in a set
+    disc_set: DiscSetNested | None = None  # NEW -- null when not in a set
 ```
 [VERIFIED: follows existing schema patterns in schemas.py]
 
@@ -223,7 +224,7 @@ const EDITION_SUGGESTIONS = [
   "Ultimate Edition",
 ];
 ```
-[ASSUMED — discretion area, choosing simplest approach]
+[ASSUMED -- discretion area, choosing simplest approach]
 
 ### Anti-Patterns to Avoid
 - **Separate API call for siblings:** D-03 specifies one request gets everything. Do NOT require a second fetch for sibling data.
@@ -406,7 +407,7 @@ def create_set(self, payload: dict) -> dict:
 | SET-05 | disc_sets seq_num column | unit | `pytest tests/test_disc_sets.py::test_set_seq_num -x` | Wave 0 |
 | SET-06 | Web disc detail shows siblings | unit | `cd web && npx vitest run src/__tests__/disc-detail.test.tsx` | Wave 0 |
 | SET-07 | Web submit form set toggle | unit | `cd web && npx vitest run src/__tests__/submit.test.tsx` | Exists (extend) |
-| SET-08 | CLI prompts for set membership | manual-only | Manual -- requires interactive Rich prompts | N/A |
+| SET-08 | CLI client set methods | unit | `cd ovid-client && python -m pytest tests/test_client_sets.py -x` | Wave 0 |
 
 ### Wave 0 Gaps
 - [ ] `api/tests/test_disc_sets.py` -- covers SET-01, SET-02, SET-05
@@ -415,6 +416,7 @@ def create_set(self, payload: dict) -> dict:
 - [ ] `web/src/__tests__/disc-detail.test.tsx` -- covers SET-06
 - [ ] Extend `web/src/__tests__/submit.test.tsx` -- covers SET-07
 - [ ] Extend `api/tests/conftest.py` -- add `seed_test_disc_set()` helper
+- [ ] `ovid-client/tests/test_client_sets.py` -- covers SET-08
 
 ### Sampling Rate
 - **Per task commit:** `cd api && python -m pytest tests/test_disc_sets.py -x`
@@ -449,17 +451,17 @@ def create_set(self, payload: dict) -> dict:
 | A2 | Set search pagination uses same PAGE_SIZE (20) as release search | Architecture Patterns | Trivial to change |
 | A3 | Sync feed extension for disc_sets is in scope for this phase | Pitfalls, Pitfall 5 | If deferred to Phase 4, mirrors will lack set data temporarily |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Sync feed scope for disc_sets**
    - What we know: SET-05 says `disc_sets` gets `seq_num` (already done). The sync diff route currently only queries `Disc` records.
    - What's unclear: Should this phase extend the sync diff to include `disc_set` records, or defer to Phase 4 (Sync and Mirror Hardening)?
-   - Recommendation: Add minimal sync support (include `disc_set_id` in disc sync records) but defer full `disc_set` record syncing to Phase 4. This keeps Phase 2 focused while ensuring disc-to-set links are visible in the sync feed.
+   - RESOLVED: Add minimal sync support (include `disc_set_id` in disc sync records) but defer full `disc_set` record syncing to Phase 4. This keeps Phase 2 focused while ensuring disc-to-set links are visible in the sync feed. Plan 01 Task 3 adds `disc_set_id` to `SyncDiffRecord` and `build_sync_disc()`.
 
 2. **Set search query scope**
    - What we know: D-04 says search by release name/edition.
    - What's unclear: Should set search join through to the release table to search by release title, or only search `edition_name` directly on `disc_sets`?
-   - Recommendation: Join to `releases` table and search both `Release.title` and `DiscSet.edition_name` with `ilike`. This matches the submit form UX where users think in terms of movie titles.
+   - RESOLVED: Join to `releases` table and search both `Release.title` and `DiscSet.edition_name` with `ilike`. This matches the submit form UX where users think in terms of movie titles. Plan 01 Task 2 implements this in `GET /v1/set` route.
 
 ## Sources
 
