@@ -36,9 +36,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Valkey/Redis infrastructure, rate limiting migration, startup validation
-- [ ] 01-02-PLAN.md — Mastodon hardening, bug fixes, error sanitization
-- [ ] 01-03-PLAN.md — Auth code exchange, cookie delivery, device flow, refresh rotation
+- [x] 01-01-PLAN.md — Valkey/Redis infrastructure, rate limiting migration, startup validation
+- [x] 01-02-PLAN.md — Mastodon hardening, bug fixes, error sanitization
+- [x] 01-03-PLAN.md — Auth code exchange, cookie delivery, device flow, refresh rotation
 
 ### Phase 2: Multi-Disc Set Support
 **Goal**: Users can group related discs (box sets, multi-disc releases) and see sibling discs when looking up any disc in a set
