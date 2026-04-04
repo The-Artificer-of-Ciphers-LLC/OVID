@@ -27,6 +27,12 @@ class TrackResponse(BaseModel):
     is_default: bool = False
 
 
+class ChapterResponse(BaseModel):
+    chapter_index: int
+    name: str | None = None
+    start_time_secs: int | None = None
+
+
 class TitleResponse(BaseModel):
     title_index: int
     is_main_feature: bool = False
@@ -36,6 +42,7 @@ class TitleResponse(BaseModel):
     chapter_count: int | None = None
     audio_tracks: list[TrackResponse] = Field(default_factory=list)
     subtitle_tracks: list[TrackResponse] = Field(default_factory=list)
+    chapters: list[ChapterResponse] = Field(default_factory=list)
 
 
 class ReleaseResponse(BaseModel):
@@ -75,6 +82,12 @@ class TrackCreate(BaseModel):
     is_default: bool = False
 
 
+class ChapterCreate(BaseModel):
+    chapter_index: int = Field(ge=1)
+    name: str | None = Field(default=None, max_length=200)
+    start_time_secs: int | None = Field(default=None, ge=0)
+
+
 class TitleCreate(BaseModel):
     title_index: int = Field(ge=0)
     title_type: str | None = None
@@ -84,6 +97,7 @@ class TitleCreate(BaseModel):
     display_name: str | None = None
     audio_tracks: list[TrackCreate] = Field(default_factory=list)
     subtitle_tracks: list[TrackCreate] = Field(default_factory=list)
+    chapters: list[ChapterCreate] = Field(default_factory=list)
 
 
 class ReleaseCreate(BaseModel):
@@ -198,6 +212,14 @@ class SyncTrackRecord(BaseModel):
     is_default: bool = False
 
 
+class SyncChapterRecord(BaseModel):
+    """Chapter data for sync diff records."""
+
+    chapter_index: int
+    name: str | None = None
+    start_time_secs: int | None = None
+
+
 class SyncTitleRecord(BaseModel):
     """Title data for sync diff records — includes all tracks unsplit."""
 
@@ -208,6 +230,7 @@ class SyncTitleRecord(BaseModel):
     duration_secs: int | None = None
     chapter_count: int | None = None
     tracks: list[SyncTrackRecord] = Field(default_factory=list)
+    chapters: list[SyncChapterRecord] = Field(default_factory=list)
 
 
 class SyncReleaseRecord(BaseModel):
