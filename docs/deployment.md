@@ -126,69 +126,127 @@ The production services start with container name prefixes (`ovid-prod-*`) and o
 
 ### 5. Configure Reverse Proxy (redshirt)
 
-The prod stack listens on holodeck ports 8100 (API) and 3100 (web). The **redshirt** server acts as the public-facing reverse proxy with TLS termination.
+The prod stack listens on holodeck ports 8100 (API) and 3100 (web). The **redshirt** server (`64.98.89.233`) acts as the public-facing reverse proxy with TLS termination via Let's Encrypt.
 
-SSH to redshirt and configure the reverse proxy:
-
-#### Caddy (on redshirt)
-
-```
-api.oviddb.org {
-    reverse_proxy holodeck.nomorestars.com:8100
-}
-
-oviddb.org {
-    reverse_proxy holodeck.nomorestars.com:3100
-}
-```
-
-#### nginx (on redshirt)
+Redshirt runs nginx inside Docker (`/root/compose/`). The vhost config is appended to `/root/compose/nginx/nginx.conf`. The reference copy lives in this repo at [`docs/nginx-oviddb-vhosts.conf`](nginx-oviddb-vhosts.conf).
 
 ```nginx
-server {
-    listen 443 ssl;
-    server_name api.oviddb.org;
+# --- oviddb.org — web UI ---
 
-    # TLS certs managed by Cloudflare Origin Certificates or Let's Encrypt
-    ssl_certificate     /etc/ssl/oviddb/api.oviddb.org.pem;
-    ssl_certificate_key /etc/ssl/oviddb/api.oviddb.org.key;
+server {
+    listen 80;
+    server_name oviddb.org;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
 
     location / {
-        proxy_pass http://holodeck.nomorestars.com:8100;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        return 301 https://$host$request_uri;
     }
 }
 
 server {
     listen 443 ssl;
+    http2 on;
     server_name oviddb.org;
 
-    ssl_certificate     /etc/ssl/oviddb/oviddb.org.pem;
-    ssl_certificate_key /etc/ssl/oviddb/oviddb.org.key;
+    ssl_certificate     /etc/letsencrypt/live/oviddb.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/oviddb.org/privkey.pem;
+
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 
     location / {
-        proxy_pass http://holodeck.nomorestars.com:3100;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_pass http://192.168.0.28:3100;
+    }
+}
+
+# --- api.oviddb.org — API ---
+
+server {
+    listen 80;
+    server_name api.oviddb.org;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name api.oviddb.org;
+
+    ssl_certificate     /etc/letsencrypt/live/oviddb.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/oviddb.org/privkey.pem;
+
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    location / {
+        proxy_pass http://192.168.0.28:8100;
     }
 }
 ```
 
-### 6. Configure Cloudflare DNS
+Key details:
+- **TLS certs:** Let's Encrypt ECDSA SAN certificate at `/etc/letsencrypt/live/oviddb.org/` (covers both `oviddb.org` and `api.oviddb.org`)
+- **ACME challenges:** Port-80 blocks serve `/.well-known/acme-challenge/` from `/var/www/certbot` for certbot renewal
+- **Proxy targets:** holodeck at `192.168.0.28` (LAN IP) — web UI on port 3100, API on port 8100
+- **HTTP/2:** Enabled on port-443 blocks
 
-In the Cloudflare dashboard for the `oviddb.org` zone, create:
+### 6. TLS Certificate Renewal
+
+Certs are issued by Let's Encrypt via certbot running as a Docker service (`certbot_www`) on redshirt. A **weekly cron job** already handles automatic renewal:
+
+```
+# root crontab on redshirt — runs every Sunday at midnight
+0 0 * * 0 /root/compose/renewcert.sh > /var/log/renewcert.log 2>&1
+```
+
+The renewal script (`/root/compose/renewcert.sh`):
+
+```bash
+#!/bin/sh
+cd ~/compose
+/usr/bin/docker compose run certbot_www renew --quiet
+/usr/bin/docker system prune
+```
+
+To manually trigger a renewal or dry-run:
+
+```bash
+# Dry-run (test only, no cert changes)
+ssh trekkie@redshirt.nomorestars.com 'sudo docker compose -f /root/compose/compose.yaml run --rm certbot_www renew --dry-run'
+
+# Real renewal
+ssh trekkie@redshirt.nomorestars.com 'sudo docker compose -f /root/compose/compose.yaml run --rm certbot_www renew'
+
+# Check renewal log
+ssh trekkie@redshirt.nomorestars.com 'sudo cat /var/log/renewcert.log'
+```
+
+After renewal, nginx picks up the new certs automatically (certbot stores them as symlinks that point to the latest version).
+
+### 7. Configure Cloudflare DNS
+
+In the Cloudflare dashboard for the `oviddb.org` zone:
 
 | Type | Name | Content | Proxy |
 |---|---|---|---|
-| A (or CNAME) | `api.oviddb.org` | redshirt's public IP | Proxied (orange cloud) |
-| A (or CNAME) | `oviddb.org` | redshirt's public IP | Proxied (orange cloud) |
+| A | `oviddb.org` | `64.98.89.233` (redshirt) | Proxied (orange cloud) |
+| A | `api.oviddb.org` | `64.98.89.233` (redshirt) | Proxied (orange cloud) |
 
-If using Cloudflare Origin Certificates on redshirt, set SSL/TLS mode to **Full (strict)**.
+Cloudflare SSL/TLS mode must be set to **Full (strict)** — Cloudflare will validate the Let's Encrypt origin cert on redshirt.
 
 ---
 
