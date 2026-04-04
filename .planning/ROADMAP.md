@@ -49,12 +49,13 @@ Plans:
   2. Looking up a disc that belongs to a set returns all sibling discs in the response
   3. Web UI disc detail page shows sibling discs when the disc is part of a set
   4. Web UI submission form allows specifying set membership with disc number
-**Plans**: TBD
+**Plans:** 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — Set schemas, routes, migration, disc submit/lookup integration (API layer)
+- [ ] 02-02-PLAN.md — SiblingDiscs component, SetSearchInput, SubmitForm set toggle (Web UI)
+- [ ] 02-03-PLAN.md — CLI submit wizard set prompting, OVIDClient set methods
 
 ### Phase 3: Chapter Name Data
 **Goal**: OVID stores and returns chapter-level metadata for disc titles, and Blu-ray scans extract chapter timestamps and disc titles automatically
@@ -158,7 +159,7 @@ Phases 4 and 5 can execute in parallel (sync and CLI have no mutual deps).
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Security Hardening & Infrastructure | 0/3 | Planned | - |
-| 2. Multi-Disc Set Support | 0/2 | Not started | - |
+| 2. Multi-Disc Set Support | 0/3 | Planned | - |
 | 3. Chapter Name Data | 0/2 | Not started | - |
 | 4. Sync Protocol & Mirror Hardening | 0/2 | Not started | - |
 | 5. CLI Scanner Tool | 0/2 | Not started | - |
