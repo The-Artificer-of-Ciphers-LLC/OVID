@@ -11,7 +11,7 @@ Requirements for the 0.3.0 milestone. Each maps to roadmap phases.
 
 - [ ] **SEC-01**: Auth flow uses authorization code exchange or HttpOnly cookie instead of JWT in URL query params
 - [ ] **SEC-02**: Mastodon domain validation prevents DNS rebinding attacks (pin resolved IP)
-- [ ] **SEC-03**: JWT secret key validated at startup (length ≥32 bytes, entropy check)
+- [ ] **SEC-03**: JWT secret key validated at startup (length >=32 bytes, entropy check)
 - [ ] **SEC-04**: Apple Sign-In private key validated at startup with clear error on misconfiguration
 - [ ] **SEC-05**: OAuth client secrets never included in API error responses
 - [ ] **SEC-06**: Apple Sign-In works end-to-end in production (fix 501)
@@ -19,7 +19,7 @@ Requirements for the 0.3.0 milestone. Each maps to roadmap phases.
 ### Bug Fixes
 
 - [ ] **BUG-01**: Mastodon placeholder email includes instance domain to prevent collision (format: `mastodon_{domain}_{account_id}@noemail.placeholder`)
-- [ ] **BUG-02**: Disc status transitions validated against allowed state machine (unverified→verified, unverified→disputed, disputed→verified, disputed→unverified)
+- [ ] **BUG-02**: Disc status transitions validated against allowed state machine (unverified->verified, unverified->disputed, disputed->verified, disputed->unverified)
 - [ ] **BUG-03**: Mastodon dynamic registration uses ON CONFLICT or advisory lock to prevent race condition
 - [ ] **BUG-04**: Disc submission catches specific exceptions (IntegrityError, ValidationError) instead of bare Exception
 - [ ] **BUG-05**: Mastodon OAuth client cache has expiry mechanism (expires_at + cleanup job)
@@ -35,7 +35,7 @@ Requirements for the 0.3.0 milestone. Each maps to roadmap phases.
 
 - [ ] **SET-01**: `POST /v1/set` creates a disc set record (release_id, edition_name, total_discs)
 - [ ] **SET-02**: `GET /v1/set/{set_id}` returns set with all member discs
-- [ ] **SET-03**: `POST /v1/disc` accepts optional `disc_set_id`, validates disc_number ≤ total_discs
+- [ ] **SET-03**: `POST /v1/disc` accepts optional `disc_set_id`, validates disc_number <= total_discs
 - [ ] **SET-04**: `GET /v1/disc/{fingerprint}` includes sibling discs when part of a set
 - [ ] **SET-05**: `disc_sets` table gets `seq_num` column for sync feed parity
 - [ ] **SET-06**: Web UI disc detail page shows sibling discs in a set
@@ -90,7 +90,7 @@ Requirements for the 0.3.0 milestone. Each maps to roadmap phases.
 ### Performance
 
 - [ ] **PERF-01**: k6 load test suite (smoke, load, stress scenarios) in repository
-- [ ] **PERF-02**: API responds ≤500ms at p95 under 100 concurrent users
+- [ ] **PERF-02**: API responds <=500ms at p95 under 100 concurrent users
 - [ ] **PERF-03**: Load test integrated into release checklist (manual or CI)
 
 ### Documentation
@@ -104,7 +104,7 @@ Requirements for the 0.3.0 milestone. Each maps to roadmap phases.
 
 ### Launch
 
-- [ ] **LAUNCH-01**: Database seeded to ≥500 real disc entries
+- [ ] **LAUNCH-01**: Database seeded to >=500 real disc entries
 - [ ] **LAUNCH-02**: Public announcement drafted for GitHub, ARM forums, r/DataHoarder, Doom9
 - [ ] **LAUNCH-03**: Announcement posted to all channels
 
@@ -178,57 +178,57 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SET-06 | Phase 2 | Pending |
 | SET-07 | Phase 2 | Pending |
 | SET-08 | Phase 2 | Pending |
-| CHAP-01 | Phase 2 | Pending |
-| CHAP-02 | Phase 2 | Pending |
-| CHAP-03 | Phase 2 | Pending |
-| CHAP-04 | Phase 2 | Pending |
-| CHAP-05 | Phase 2 | Pending |
-| CHAP-06 | Phase 2 | Pending |
-| CHAP-07 | Phase 2 | Pending |
-| CHAP-08 | Phase 2 | Pending |
-| CHAP-09 | Phase 2 | Pending |
-| CHAP-10 | Phase 2 | Pending |
-| SYNC-01 | Phase 3 | Pending |
-| SYNC-02 | Phase 3 | Pending |
-| SYNC-03 | Phase 3 | Pending |
-| SYNC-04 | Phase 3 | Pending |
-| SYNC-05 | Phase 3 | Pending |
-| SYNC-06 | Phase 3 | Pending |
-| SYNC-07 | Phase 3 | Pending |
-| SYNC-08 | Phase 3 | Pending |
-| CLI-01 | Phase 4 | Pending |
-| CLI-02 | Phase 4 | Pending |
-| CLI-03 | Phase 4 | Pending |
-| CLI-04 | Phase 4 | Pending |
-| CLI-05 | Phase 4 | Pending |
-| CLI-06 | Phase 4 | Pending |
-| WEB-01 | Phase 5 | Pending |
-| WEB-02 | Phase 5 | Pending |
-| WEB-03 | Phase 5 | Pending |
-| WEB-04 | Phase 5 | Pending |
-| WEB-05 | Phase 5 | Pending |
-| WEB-06 | Phase 5 | Pending |
-| WEB-07 | Phase 5 | Pending |
-| WEB-08 | Phase 5 | Pending |
-| WEB-09 | Phase 5 | Pending |
-| DOC-01 | Phase 5 | Pending |
-| DOC-02 | Phase 5 | Pending |
-| DOC-03 | Phase 5 | Pending |
-| DOC-04 | Phase 5 | Pending |
-| DOC-05 | Phase 5 | Pending |
-| DOC-06 | Phase 5 | Pending |
-| PERF-01 | Phase 6 | Pending |
-| PERF-02 | Phase 6 | Pending |
-| PERF-03 | Phase 6 | Pending |
-| LAUNCH-01 | Phase 6 | Pending |
-| LAUNCH-02 | Phase 6 | Pending |
-| LAUNCH-03 | Phase 6 | Pending |
+| CHAP-01 | Phase 3 | Pending |
+| CHAP-02 | Phase 3 | Pending |
+| CHAP-03 | Phase 3 | Pending |
+| CHAP-04 | Phase 3 | Pending |
+| CHAP-05 | Phase 3 | Pending |
+| CHAP-06 | Phase 3 | Pending |
+| CHAP-07 | Phase 3 | Pending |
+| CHAP-08 | Phase 3 | Pending |
+| CHAP-09 | Phase 3 | Pending |
+| CHAP-10 | Phase 3 | Pending |
+| SYNC-01 | Phase 4 | Pending |
+| SYNC-02 | Phase 4 | Pending |
+| SYNC-03 | Phase 4 | Pending |
+| SYNC-04 | Phase 4 | Pending |
+| SYNC-05 | Phase 4 | Pending |
+| SYNC-06 | Phase 4 | Pending |
+| SYNC-07 | Phase 4 | Pending |
+| SYNC-08 | Phase 4 | Pending |
+| CLI-01 | Phase 5 | Pending |
+| CLI-02 | Phase 5 | Pending |
+| CLI-03 | Phase 5 | Pending |
+| CLI-04 | Phase 5 | Pending |
+| CLI-05 | Phase 5 | Pending |
+| CLI-06 | Phase 5 | Pending |
+| WEB-01 | Phase 6 | Pending |
+| WEB-02 | Phase 6 | Pending |
+| WEB-03 | Phase 6 | Pending |
+| WEB-04 | Phase 6 | Pending |
+| WEB-05 | Phase 6 | Pending |
+| WEB-06 | Phase 6 | Pending |
+| WEB-07 | Phase 6 | Pending |
+| WEB-08 | Phase 6 | Pending |
+| WEB-09 | Phase 6 | Pending |
+| DOC-01 | Phase 7 | Pending |
+| DOC-02 | Phase 7 | Pending |
+| DOC-03 | Phase 7 | Pending |
+| DOC-04 | Phase 7 | Pending |
+| DOC-05 | Phase 7 | Pending |
+| DOC-06 | Phase 7 | Pending |
+| PERF-01 | Phase 8 | Pending |
+| PERF-02 | Phase 8 | Pending |
+| PERF-03 | Phase 8 | Pending |
+| LAUNCH-01 | Phase 8 | Pending |
+| LAUNCH-02 | Phase 8 | Pending |
+| LAUNCH-03 | Phase 8 | Pending |
 
 **Coverage:**
-- v1 requirements: 62 total
-- Mapped to phases: 62
-- Unmapped: 0 ✓
+- v1 requirements: 68 total
+- Mapped to phases: 68
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-04*
-*Last updated: 2026-04-04 after initial definition*
+*Last updated: 2026-04-04 after roadmap creation*
