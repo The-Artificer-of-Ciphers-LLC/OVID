@@ -45,7 +45,6 @@ jobs:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     needs: test
-    environment: pypi
     permissions:
       id-token: write
     steps:
@@ -214,7 +213,7 @@ jobs:
   release:
     name: GitHub Release
     runs-on: ubuntu-latest
-    needs: [docker, docker-web, cli-binaries, pypi]
+    needs: [docker, docker-web, cli-binaries]
     steps:
       - uses: actions/checkout@v6
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ovid-client"
-version = "0.1.0"
+version = "0.2.0"
 description = "OVID disc fingerprinting client — generates stable identifiers for DVD and Blu-ray discs"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
