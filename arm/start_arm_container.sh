@@ -94,6 +94,7 @@ docker run -d \
     `# ── OVID environment ──` \
     -e OVID_ENABLED=true \
     -e OVID_API_URL=http://api:8000 \
+    -e OVID_API_TOKEN="${OVID_API_TOKEN:-}" \
     \
     `# ── ARM standard mounts (holodeck paths) ──` \
     -v /home/arm:/home/arm \

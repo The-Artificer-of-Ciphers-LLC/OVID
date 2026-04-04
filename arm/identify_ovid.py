@@ -71,7 +71,7 @@ def _is_bd_path(path: str) -> bool:
 # Fingerprinting
 # ------------------------------------------------------------------
 
-def _fingerprint_disc(disc_path: str) -> str:
+def fingerprint_disc(disc_path: str) -> str:
     """Fingerprint a disc at *disc_path*, returning the fingerprint string.
 
     Detects BD vs DVD automatically. Raises on failure (caller catches).
@@ -156,7 +156,7 @@ def lookup_ovid(
     """
     # ── Step 1: Fingerprint ──────────────────────────────────────────
     try:
-        fingerprint = _fingerprint_disc(disc_path)
+        fingerprint = fingerprint_disc(disc_path)
     except FileNotFoundError as exc:
         logger.info("OVID fingerprint skipped (not found): %s", exc)
         return None
@@ -199,6 +199,133 @@ def lookup_ovid(
         result.get("confidence"),
     )
     return result
+
+
+# ------------------------------------------------------------------
+# Auto-submit on miss
+# ------------------------------------------------------------------
+
+def submit_to_ovid(
+    fingerprint: str,
+    title: str,
+    year: int | str | None,
+    disc_format: str,
+    disc_label: str | None = None,
+    video_type: str | None = None,
+    api_url: str = "http://api:8000",
+) -> bool:
+    """Submit a disc to OVID after a miss, using metadata from ARM/OMDB.
+
+    Called after ARM's original identify populates the job with title/year
+    from OMDB.  This seeds the OVID database so the *next* insert of the
+    same disc gets a hit.
+
+    Requires ``OVID_API_TOKEN`` environment variable to be set with a valid
+    JWT.  If missing, the submit is silently skipped.
+
+    Args:
+        fingerprint: OVID fingerprint string (dvd1-*, bd1-aacs-*, etc.).
+        title: Disc title from ARM/OMDB (may have dashes instead of spaces).
+        year: Release year from OMDB.
+        disc_format: ``'dvd'`` or ``'bluray'`` (ARM's disctype).
+        disc_label: Disc volume label (e.g. ``DOCTOR_WHO``).
+        video_type: ``'movie'`` or ``'series'`` from ARM.
+        api_url: Base URL of the OVID API.
+
+    Returns:
+        True if the submission succeeded (HTTP 201 or 409), False otherwise.
+    """
+    token = os.environ.get("OVID_API_TOKEN", "")
+    if not token:
+        # Fallback: read from file (useful when env var can't be set
+        # on a running container without restart)
+        token_file = os.path.join(
+            os.path.dirname(__file__), "..", "..", "home", "arm", "ovid", ".ovid_token"
+        )
+        # Also try a fixed path inside the container
+        for path in [token_file, "/home/arm/ovid/.ovid_token"]:
+            try:
+                with open(path) as f:
+                    token = f.read().strip()
+                if token:
+                    break
+            except OSError:
+                continue
+    if not token:
+        logger.info("OVID auto-submit skipped — no OVID_API_TOKEN or .ovid_token")
+        return False
+
+    if not fingerprint or not title:
+        logger.info("OVID submit skipped — missing fingerprint or title")
+        return False
+
+    # Clean up ARM's dash-separated title → spaces
+    clean_title = title.replace("-", " ").replace("  ", " ").strip()
+
+    # Map ARM's disctype to OVID format
+    fmt = "bluray" if disc_format and "blu" in disc_format.lower() else "dvd"
+
+    # Map ARM's video_type to OVID content_type
+    content_type = "movie"
+    if video_type and video_type.lower() in ("series", "tv", "tvshow"):
+        content_type = "series"
+
+    # Parse year
+    parsed_year = None
+    if year:
+        try:
+            parsed_year = int(str(year).strip())
+        except (ValueError, TypeError):
+            pass
+
+    payload = {
+        "fingerprint": fingerprint,
+        "format": fmt,
+        "disc_label": disc_label or "",
+        "release": {
+            "title": clean_title,
+            "year": parsed_year,
+            "content_type": content_type,
+        },
+        "titles": [],
+    }
+
+    headers = {"Authorization": f"Bearer {token}"}
+    url = f"{api_url.rstrip('/')}/v1/disc"
+    try:
+        resp = requests.post(
+            url, json=payload, headers=headers, timeout=_TIMEOUT_SECONDS
+        )
+    except requests.exceptions.Timeout:
+        logger.warning("OVID submit timed out after %ds", _TIMEOUT_SECONDS)
+        return False
+    except requests.exceptions.ConnectionError:
+        logger.warning("OVID API unreachable at %s for submit", api_url)
+        return False
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("OVID submit unexpected error: %s", exc)
+        return False
+
+    if resp.status_code == 201:
+        logger.info(
+            "OVID submit: %s → %s (%s) — disc seeded in database",
+            fingerprint,
+            clean_title,
+            parsed_year,
+        )
+        return True
+
+    if resp.status_code == 409:
+        logger.info("OVID submit: %s already exists (409)", fingerprint)
+        return True  # Already there — that's fine
+
+    logger.warning(
+        "OVID submit failed: HTTP %d for %s — %s",
+        resp.status_code,
+        fingerprint,
+        resp.text[:200] if resp.text else "(no body)",
+    )
+    return False
 
 
 # ------------------------------------------------------------------
