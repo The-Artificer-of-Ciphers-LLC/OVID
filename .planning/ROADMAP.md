@@ -66,12 +66,13 @@ Plans:
   2. Blu-ray fingerprinting extracts MPLS chapter timestamps and bdmt_*.xml disc/title names when present
   3. Sync feed includes chapter data so mirrors receive chapter metadata
   4. Web UI shows chapter names under each title on the disc detail page
-**Plans**: TBD
+**Plans:** 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md — DiscChapter model, schemas, migration, submit/lookup/sync chapter integration (API layer)
+- [ ] 03-02-PLAN.md — MPLS chapter extraction, bdmt parser, DVD IFO timestamps, CLI chapter payload (Client extraction)
+- [ ] 03-03-PLAN.md — ChapterList display, ChapterEditor entry, DiscStructure/SubmitForm integration (Web UI)
 
 ### Phase 4: Sync Protocol & Mirror Hardening
 **Goal**: Self-hosted mirrors can bootstrap from a snapshot and stay current with integrity-verified incremental syncs
@@ -160,7 +161,7 @@ Phases 4 and 5 can execute in parallel (sync and CLI have no mutual deps).
 |-------|----------------|--------|-----------|
 | 1. Security Hardening & Infrastructure | 0/3 | Planned | - |
 | 2. Multi-Disc Set Support | 0/3 | Planned | - |
-| 3. Chapter Name Data | 0/2 | Not started | - |
+| 3. Chapter Name Data | 0/3 | Planned | - |
 | 4. Sync Protocol & Mirror Hardening | 0/2 | Not started | - |
 | 5. CLI Scanner Tool | 0/2 | Not started | - |
 | 6. Web UI Completeness | 0/3 | Not started | - |
