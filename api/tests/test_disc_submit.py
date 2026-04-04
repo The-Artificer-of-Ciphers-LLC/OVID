@@ -1,6 +1,5 @@
 """Tests for POST /v1/disc."""
 
-
 from app.models import Disc
 
 
@@ -257,3 +256,111 @@ class TestDiscSubmitAutoVerify:
         data = resp.json()
         assert data["status"] == "disputed"
         assert "disputed" in data["message"]
+
+
+# ---------------------------------------------------------------------------
+# Set integration tests (Phase 2)
+# ---------------------------------------------------------------------------
+class TestDiscSubmitSetIntegration:
+    """Disc submission with multi-disc set linking."""
+
+    def test_implicit_set_creation(self, client, auth_header):
+        """POST with total_discs > 1 and no disc_set_id auto-creates a set (D-01)."""
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-SET-IMPLICIT-001",
+            "total_discs": 4,
+            "disc_number": 1,
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 201
+
+        get_resp = client.get("/v1/disc/bd-SET-IMPLICIT-001")
+        data = get_resp.json()
+        assert data["disc_set"] is not None
+        assert data["disc_set"]["total_discs"] == 4
+
+    def test_explicit_set_linking(self, client, db_session, auth_header, seeded_disc):
+        """POST with valid disc_set_id links disc to existing set (D-03)."""
+        set_id = seed_test_disc_set(db_session, seeded_disc["release_id"], total_discs=3)
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-SET-EXPLICIT-001",
+            "disc_set_id": str(set_id),
+            "disc_number": 2,
+            "total_discs": 3,
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 201
+
+        get_resp = client.get("/v1/disc/bd-SET-EXPLICIT-001")
+        data = get_resp.json()
+        assert data["disc_set"] is not None
+        assert data["disc_set"]["id"] == str(set_id)
+
+    def test_disc_number_exceeds_total_returns_422(self, client, db_session, auth_header, seeded_disc):
+        """POST with disc_number > total_discs returns 422."""
+        set_id = seed_test_disc_set(db_session, seeded_disc["release_id"], total_discs=2)
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-SET-EXCEED-001",
+            "disc_set_id": str(set_id),
+            "disc_number": 5,
+            "total_discs": 2,
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 422
+        assert "exceeds" in resp.json()["message"].lower()
+
+    def test_duplicate_disc_number_returns_409(self, client, db_session, auth_header, seeded_disc):
+        """POST with disc_set_id and duplicate disc_number returns 409 (D-08)."""
+        set_id = seed_test_disc_set(db_session, seeded_disc["release_id"], total_discs=3)
+        # Submit first disc in slot 1
+        payload1 = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-SET-DUP-001",
+            "disc_set_id": str(set_id),
+            "disc_number": 1,
+            "total_discs": 3,
+        }
+        resp1 = client.post("/v1/disc", json=payload1, headers=auth_header)
+        assert resp1.status_code == 201
+
+        # Submit second disc in slot 1 — conflict
+        payload2 = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-SET-DUP-002",
+            "disc_set_id": str(set_id),
+            "disc_number": 1,
+            "total_discs": 3,
+        }
+        resp2 = client.post("/v1/disc", json=payload2, headers=auth_header)
+        assert resp2.status_code == 409
+        assert "already assigned" in resp2.json()["message"]
+
+    def test_nonexistent_set_returns_404(self, client, auth_header):
+        """POST with disc_set_id pointing to non-existent set returns 404."""
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-SET-NOEXIST-001",
+            "disc_set_id": str(uuid.uuid4()),
+            "disc_number": 1,
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 404
+        assert "not found" in resp.json()["message"].lower()
+
+    def test_backward_compat_no_set(self, client, auth_header):
+        """POST with total_discs=1 and no disc_set_id creates no set (D-14)."""
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-NOSET-001",
+            "total_discs": 1,
+            "disc_number": 1,
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 201
+
+        get_resp = client.get("/v1/disc/bd-NOSET-001")
+        data = get_resp.json()
+        assert data["disc_set"] is None
