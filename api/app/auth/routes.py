@@ -9,7 +9,6 @@ import httpx
 import jwt as pyjwt
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
@@ -153,7 +152,7 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
         token = await oauth.github.authorize_access_token(request)
     except OAuthError as e:
         logger.warning("auth_failed provider=github reason=oauth_error detail=%s", str(e))
-        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": str(e)})
+        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "Authentication failed"})
     except Exception as e:
         logger.warning("auth_failed provider=github reason=token_exchange detail=%s", str(e))
         raise HTTPException(status_code=502, detail={"error": "gateway_timeout", "reason": "Token exchange failed"})
@@ -532,7 +531,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         token = await oauth.google.authorize_access_token(request)
     except OAuthError as e:
         logger.warning("auth_failed provider=google reason=oauth_error detail=%s", str(e))
-        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": str(e)})
+        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "Authentication failed"})
     except Exception as e:
         logger.warning("auth_failed provider=google reason=token_exchange detail=%s", str(e))
         raise HTTPException(status_code=502, detail={"error": "gateway_timeout", "reason": "Token exchange failed"})
@@ -582,8 +581,10 @@ async def mastodon_login(request: Request, domain: str = "", web_redirect_uri: s
 
     try:
         domain = validate_mastodon_domain(domain)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail={"error": "invalid_domain", "reason": str(e)})
+    except HTTPException:
+        raise
+    except ValueError:
+        raise HTTPException(status_code=400, detail={"error": "invalid_domain", "reason": "Domain validation failed"})
 
     # Get or register client
     client = await get_or_register_client(db, domain)
@@ -682,7 +683,7 @@ async def mastodon_callback(request: Request, db: Session = Depends(get_db)):
         if isinstance(e, HTTPException):
             raise e
         logger.warning("auth_failed provider=mastodon reason=request_error detail=%s", str(e))
-        raise HTTPException(status_code=502, detail={"error": "bad_gateway", "reason": str(e)})
+        raise HTTPException(status_code=502, detail={"error": "bad_gateway", "reason": "Communication with Mastodon instance failed"})
 
     # Clean up session
     request.session.pop("mastodon_state", None)
@@ -691,8 +692,8 @@ async def mastodon_callback(request: Request, db: Session = Depends(get_db)):
     # Upsert user
     provider_id = f"{domain}:{account_id}"
     
-    # Provide placeholder email since Mastodon doesn't give us a verified one
-    placeholder_email = f"mastodon_{account_id}@noemail.placeholder"
+    # Provide placeholder email including domain to prevent collision (BUG-01)
+    placeholder_email = f"mastodon_{domain}_{account_id}@noemail.placeholder"
     
     return finalize_auth(
         request,
