@@ -303,3 +303,129 @@ class TestPayloadMapping:
         assert len(t1["audio_tracks"]) == 1
         assert t1["audio_tracks"][0]["channels"] == 2
         assert len(t1["subtitle_tracks"]) == 0
+
+
+# ---------------------------------------------------------------------------
+# Chapter data in submit payloads
+# ---------------------------------------------------------------------------
+
+class TestChapterPayloads:
+    """Chapter data inclusion in BD and DVD submit payloads."""
+
+    def test_dvd_submit_payload_includes_chapters(self) -> None:
+        """DVD payload titles include chapters from PGC chapter_start_times."""
+        from ovid.cli import _build_dvd_submit_payload
+
+        pgc1 = PGCInfo(
+            duration_seconds=7200,
+            chapter_count=3,
+            chapter_start_times=[0.0, 300.5, 1200.0],
+        )
+        vts1 = VTSInfo(
+            pgc_list=[pgc1],
+            audio_streams=[AudioStream(codec="AC3", language="en", channels=6)],
+            subtitle_streams=[],
+        )
+        disc = MagicMock()
+        disc.fingerprint = "dvd1-test"
+        disc._vts_list = [vts1]
+
+        payload = _build_dvd_submit_payload(
+            disc=disc,
+            title="Test",
+            year=2020,
+            tmdb_id=None,
+            imdb_id="",
+            edition_name=None,
+            disc_number=1,
+            total_discs=1,
+        )
+
+        t0 = payload["titles"][0]
+        assert "chapters" in t0
+        chapters = t0["chapters"]
+        assert len(chapters) == 3
+        assert chapters[0] == {"chapter_index": 1, "name": None, "start_time_secs": 0}
+        assert chapters[1] == {"chapter_index": 2, "name": None, "start_time_secs": 301}
+        assert chapters[2] == {"chapter_index": 3, "name": None, "start_time_secs": 1200}
+
+    def test_bd_submit_payload_includes_chapters(self) -> None:
+        """BD payload titles include chapters from MPLS chapter marks."""
+        from ovid.cli import _build_bd_submit_payload
+        from ovid.mpls_parser import ChapterMark, MplsHeader, MplsPlaylist, PlayItem
+
+        pl = MplsPlaylist(
+            header=MplsHeader(version="0200", playlist_start=40, mark_start=100),
+            play_items=[PlayItem(clip_id="00001", in_time=0, out_time=45000 * 7200, duration_seconds=7200.0)],
+            audio_streams=[],
+            subtitle_streams=[],
+            chapter_marks=[
+                ChapterMark(mark_type=1, play_item_ref=0, timestamp=0, duration_seconds=0.0),
+                ChapterMark(mark_type=1, play_item_ref=0, timestamp=4500000, duration_seconds=100.0),
+                ChapterMark(mark_type=2, play_item_ref=0, timestamp=5000000, duration_seconds=111.0),
+                ChapterMark(mark_type=1, play_item_ref=0, timestamp=9000000, duration_seconds=200.0),
+            ],
+        )
+
+        bd_disc = MagicMock()
+        bd_disc.fingerprint = "bd1-aacs-test"
+        bd_disc.format_type = "bluray"
+        bd_disc.playlists = [pl]
+        bd_disc.reader = MagicMock()
+        bd_disc.reader.meta_path.return_value = "/nonexistent/META/DL"
+
+        payload = _build_bd_submit_payload(
+            bd_disc=bd_disc,
+            title="Test BD",
+            year=2021,
+            tmdb_id=None,
+            imdb_id="",
+            edition_name=None,
+            disc_number=1,
+            total_discs=1,
+        )
+
+        t0 = payload["titles"][0]
+        assert "chapters" in t0
+        chapters = t0["chapters"]
+        # 3 marks with mark_type==1 (the mark_type==2 is skipped)
+        assert len(chapters) == 3
+        assert chapters[0] == {"chapter_index": 1, "name": None, "start_time_secs": 0}
+        assert chapters[1] == {"chapter_index": 2, "name": None, "start_time_secs": 100}
+        assert chapters[2] == {"chapter_index": 3, "name": None, "start_time_secs": 200}
+
+    def test_bd_submit_payload_missing_bdmt(self) -> None:
+        """BD payload builds without error when META/DL directory is missing (D-08)."""
+        from ovid.cli import _build_bd_submit_payload
+        from ovid.mpls_parser import ChapterMark, MplsHeader, MplsPlaylist, PlayItem
+
+        pl = MplsPlaylist(
+            header=MplsHeader(version="0200", playlist_start=40, mark_start=100),
+            play_items=[PlayItem(clip_id="00001", in_time=0, out_time=45000 * 120, duration_seconds=120.0)],
+            audio_streams=[],
+            subtitle_streams=[],
+            chapter_marks=[
+                ChapterMark(mark_type=1, play_item_ref=0, timestamp=0, duration_seconds=0.0),
+            ],
+        )
+
+        bd_disc = MagicMock()
+        bd_disc.fingerprint = "bd2-test"
+        bd_disc.format_type = "bluray"
+        bd_disc.playlists = [pl]
+        bd_disc.reader = MagicMock()
+        bd_disc.reader.meta_path.return_value = "/nonexistent/META/DL"
+
+        # Should not raise
+        payload = _build_bd_submit_payload(
+            bd_disc=bd_disc,
+            title="Test",
+            year=2021,
+            tmdb_id=None,
+            imdb_id="",
+            edition_name=None,
+            disc_number=1,
+            total_discs=1,
+        )
+        assert "titles" in payload
+        assert len(payload["titles"]) == 1
