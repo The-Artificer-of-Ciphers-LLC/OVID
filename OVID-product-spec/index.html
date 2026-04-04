@@ -1,0 +1,2249 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Open Video Disc Database — community-driven disc fingerprints under CC0">
+      
+      
+      
+        <link rel="canonical" href="https://the-artificer-of-ciphers-llc.github.io/OVID/OVID-product-spec/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>OVID — Open Video Disc Identification Database - OVID</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ovid-open-video-disc-identification-database" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="OVID" class="md-header__button md-logo" aria-label="OVID" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            OVID
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              OVID — Open Video Disc Identification Database
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/The-Artificer-of-Ciphers-LLC/OVID" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    The-Artificer-of-Ciphers-LLC/OVID
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="OVID" class="md-nav__button md-logo" aria-label="OVID" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    OVID
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/The-Artificer-of-Ciphers-LLC/OVID" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    The-Artificer-of-Ciphers-LLC/OVID
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docker-quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started-dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../self-hosting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Self-Hosting Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fingerprint-spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fingerprint Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Community
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Community
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../arm-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ARM Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#product-requirements-document-prd-v01-draft" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Product Requirements Document (PRD) · v0.1 Draft
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-Goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#target-users" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Target Users
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Target Users">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#primary-the-home-media-archivist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Primary: The Home Media Archivist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secondary-the-arm-ripping-tool-developer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Secondary: The ARM / Ripping Tool Developer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tertiary-the-community-contributor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tertiary: The Community Contributor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#user-stories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User Stories
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="User Stories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#home-media-archivist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Home Media Archivist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arm-ripping-tool-developer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ARM / Ripping Tool Developer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#community-contributor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Community Contributor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#all-authenticated-users-account-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        All Authenticated Users (Account &amp; Identity)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#must-have-p0-mvp-cannot-ship-without-these" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Must-Have — P0 (MVP cannot ship without these)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nice-to-have-p1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nice-to-Have — P1
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#future-considerations-p2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future Considerations — P2
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#success-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Success Metrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Success Metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#leading-indicators-first-3090-days" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Leading Indicators (first 30–90 days)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lagging-indicators-312-months" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lagging Indicators (3–12 months)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open Questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timeline-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeline Considerations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#git-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Git Strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Git Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#branch-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Branch Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#branch-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Branch Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow-normal-feature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow: Normal Feature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow-cutting-a-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow: Cutting a Release
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow-hotfix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow: Hotfix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#commit-message-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commit Message Convention
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-scheme-and-development-milestones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version Scheme and Development Milestones
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Version Scheme and Development Milestones">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#milestone-01-foundation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Milestone 0.1 — Foundation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#milestone-02-mvp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Milestone 0.2 — MVP
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#milestone-03-self-hosted-and-community" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Milestone 0.3 — Self-Hosted and Community
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#milestone-04-tv-series-and-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Milestone 0.4 — TV Series and Scale
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#milestone-10-stable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Milestone 1.0 — Stable
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation-release-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation Release Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Documentation Release Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-0-v010" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 0 → v0.1.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-v020" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1 → v0.2.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-v030" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2 → v0.3.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-v040" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3 → v0.4.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stable-v100" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stable → v1.0.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#competitive-landscape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Competitive Landscape
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="ovid-open-video-disc-identification-database">OVID — Open Video Disc Identification Database<a class="headerlink" href="#ovid-open-video-disc-identification-database" title="Permanent link">&para;</a></h1>
+<h2 id="product-requirements-document-prd-v01-draft">Product Requirements Document (PRD) · v0.1 Draft<a class="headerlink" href="#product-requirements-document-prd-v01-draft" title="Permanent link">&para;</a></h2>
+<hr />
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p><strong>OVID</strong> (Open Video Disc Identification Database) is an open, community-driven database that uniquely identifies physical DVD and Blu-ray discs by their structural fingerprint and maps them to rich release metadata — including disc layout, title/chapter structure, audio/subtitle tracks, and edition information. It is to video discs what MusicBrainz is to audio CDs.</p>
+<p><strong>Target integration:</strong> The <a href="https://github.com/automatic-ripping-machine/automatic-ripping-machine">Automatic Ripping Machine (ARM)</a> and similar home media ripping tools.</p>
+<hr />
+<h2 id="problem-statement">Problem Statement<a class="headerlink" href="#problem-statement" title="Permanent link">&para;</a></h2>
+<p>When a user rips a DVD or Blu-ray disc using tools like ARM, the software must identify <em>what disc this is</em> before it can name files, apply metadata, or route content to the right media library folder. Today, ARM attempts this by reading an embedded disc label (often a cryptic abbreviation like <code>GODZILLA_2014</code> or <code>DISC_1</code>) and querying TMDB or OMDb with that string. This approach has three core failures:</p>
+<ol>
+<li><strong>Disc labels are unreliable.</strong> DVD labels are freeform, frequently abbreviated, and contain no standardized structure. Blu-ray labels are slightly better but still inconsistent across regions and pressings.</li>
+<li><strong>No disc-level specificity.</strong> TMDB and OMDb know about <em>movies</em>, not about <em>specific disc releases</em>. They cannot tell you which titles are the main feature vs. bonus content, how many chapters a title has, what audio tracks are present, or whether this is the theatrical cut or director's cut.</li>
+<li><strong>Edition and region blindness.</strong> The 2003 standard release, the 2014 director's cut remaster, and the UK collector's edition are all "The Lord of the Rings" to TMDB. For a local rip library, these differences matter.</li>
+</ol>
+<p>The cost of not solving this: users manually correct misidentified rips, mislabeled files end up in media libraries, bonus content gets confused with main features, and multi-disc TV sets require tedious manual intervention.</p>
+<hr />
+<h2 id="goals">Goals<a class="headerlink" href="#goals" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Reliable disc identification:</strong> Given a disc inserted into any optical drive, OVID can identify it with ≥95% accuracy without user intervention for discs in the database.</li>
+<li><strong>Disc-layout awareness:</strong> OVID stores not just movie titles but the full disc structure — which title numbers are the main feature, extras, trailers, and bonus content.</li>
+<li><strong>Edition and region resolution:</strong> OVID distinguishes between different pressings of the same film (e.g., theatrical vs. director's cut, US vs. UK, standard vs. collector's edition).</li>
+<li><strong>ARM integration:</strong> OVID provides a clean API that ARM can call as a first-pass metadata provider, falling back to TMDB/OMDb for supplemental movie details.</li>
+<li><strong>Open and community-owned:</strong> All data is contributed and verified by the community under a public domain or CC0 license, with no single commercial entity controlling access.</li>
+</ol>
+<hr />
+<h2 id="non-goals">Non-Goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Non-Goal</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Storing actual video content or disc images</td>
+<td>Legal liability; this is a metadata database, not a piracy tool</td>
+</tr>
+<tr>
+<td>Replacing TMDB/OMDb for movie metadata (plot, cast, ratings)</td>
+<td>OVID handles disc identity and structure; existing APIs handle movie details</td>
+</tr>
+<tr>
+<td>Supporting LaserDisc, VHS, or HD-DVD in v1</td>
+<td>Small audience; focus first on the dominant formats</td>
+</tr>
+<tr>
+<td>A consumer-facing movie browsing UI</td>
+<td>OVID is infrastructure for tools like ARM, not a streaming guide</td>
+</tr>
+<tr>
+<td>Real-time pricing, availability, or streaming links</td>
+<td>Out of scope; other services handle this well</td>
+</tr>
+<tr>
+<td>DRM circumvention or decryption key storage</td>
+<td>Explicitly out of scope for legal reasons</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="target-users">Target Users<a class="headerlink" href="#target-users" title="Permanent link">&para;</a></h2>
+<h3 id="primary-the-home-media-archivist">Primary: The Home Media Archivist<a class="headerlink" href="#primary-the-home-media-archivist" title="Permanent link">&para;</a></h3>
+<p>A person building a personal media library by ripping their owned disc collection to a NAS or home server. They use Plex, Jellyfin, or Emby. They value accuracy and organization but do not want to spend hours manually tagging files. They run ARM or similar automation. They are comfortable with self-hosted software but are not necessarily software developers.</p>
+<h3 id="secondary-the-arm-ripping-tool-developer">Secondary: The ARM / Ripping Tool Developer<a class="headerlink" href="#secondary-the-arm-ripping-tool-developer" title="Permanent link">&para;</a></h3>
+<p>A developer building or maintaining software that rips optical discs. They need a reliable, programmatic way to identify discs and retrieve structured metadata. They want a well-documented REST API, an open data format, and a stable lookup contract.</p>
+<h3 id="tertiary-the-community-contributor">Tertiary: The Community Contributor<a class="headerlink" href="#tertiary-the-community-contributor" title="Permanent link">&para;</a></h3>
+<p>A person who has contributed metadata to MusicBrainz, TMDB, or similar community databases. They understand the value of open data and are willing to submit disc entries, verify fingerprints, and correct errors. They are motivated by completeness and accuracy.</p>
+<hr />
+<h2 id="user-stories">User Stories<a class="headerlink" href="#user-stories" title="Permanent link">&para;</a></h2>
+<h3 id="home-media-archivist">Home Media Archivist<a class="headerlink" href="#home-media-archivist" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>As a home media archivist</strong>, I want the ripping tool to automatically identify the disc I insert so that I do not have to manually look up and type in the movie title.</li>
+<li><strong>As a home media archivist</strong>, I want the tool to know which title on the disc is the main feature (vs. trailers and bonus features) so that my media library only shows the actual movie.</li>
+<li><strong>As a home media archivist</strong>, I want disc identification to work even for older or obscure DVDs that TMDB doesn't know well so that my whole collection gets properly tagged.</li>
+<li><strong>As a home media archivist</strong>, I want to know when the ripped file is from a specific edition (e.g., director's cut, remastered) so that I can distinguish it from other versions in my library.</li>
+<li><strong>As a home media archivist</strong>, when OVID doesn't recognize a disc, I want a simple way to submit the disc's information so that the next person benefits.</li>
+</ul>
+<h3 id="arm-ripping-tool-developer">ARM / Ripping Tool Developer<a class="headerlink" href="#arm-ripping-tool-developer" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>As a developer integrating with OVID</strong>, I want a REST API endpoint that accepts a disc fingerprint and returns disc metadata in JSON so that I can integrate OVID as a metadata provider without changing my tool's architecture.</li>
+<li><strong>As a developer</strong>, I want the API to clearly indicate when a disc is not in the database (vs. a server error) so that my tool can gracefully fall back to other metadata sources.</li>
+<li><strong>As a developer</strong>, I want the API to return a confidence score with each identification so that my tool can decide whether to prompt the user for confirmation.</li>
+<li><strong>As a developer</strong>, I want a client library (Python, at minimum) that handles fingerprint generation and API calls so that integration is a few lines of code rather than a custom implementation.</li>
+</ul>
+<h3 id="community-contributor">Community Contributor<a class="headerlink" href="#community-contributor" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>As a contributor</strong>, I want to submit a new disc entry using data my ripping tool already collected so that I don't have to re-enter information I already have.</li>
+<li><strong>As a contributor</strong>, I want to see when a disc entry has conflicting or unverified data so that I can help resolve discrepancies.</li>
+<li><strong>As a contributor</strong>, I want to bulk-import a set of discs I own so that I can contribute my whole collection at once rather than one at a time.</li>
+<li><strong>As a contributor</strong>, I want the database schema to track which edition/pressing I own separately from the movie itself so that regional differences are captured accurately.</li>
+</ul>
+<h3 id="all-authenticated-users-account-identity">All Authenticated Users (Account &amp; Identity)<a class="headerlink" href="#all-authenticated-users-account-identity" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>As a user</strong>, I want to sign in with my GitHub account so that I don't have to create and remember a new password for yet another service.</li>
+<li><strong>As a user</strong>, I want to sign in with my Google or Apple account so that I have familiar, trusted login options.</li>
+<li><strong>As a Mastodon user</strong>, I want to log in with my Mastodon account (on any instance, e.g. <code>fosstodon.org</code> or <code>mastodon.social</code>) so that I can participate without creating a corporate account.</li>
+<li><strong>As a user who signed up with email</strong>, I want to later link my GitHub account so that I can use either method to log in.</li>
+<li><strong>As a user with multiple linked providers</strong>, I want to see all of them in my account settings and be able to remove any one that I no longer want, as long as at least one remains.</li>
+<li><strong>As a user</strong>, if I try to sign in with a new provider that has the same verified email as an existing account, I want OVID to offer to link them rather than creating a duplicate account.</li>
+</ul>
+<hr />
+<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
+<h3 id="must-have-p0-mvp-cannot-ship-without-these">Must-Have — P0 (MVP cannot ship without these)<a class="headerlink" href="#must-have-p0-mvp-cannot-ship-without-these" title="Permanent link">&para;</a></h3>
+<p><strong>Disc Fingerprinting</strong></p>
+<ul>
+<li>[ ] The system MUST generate a stable, deterministic fingerprint from DVD IFO file structure (number of title sets, title durations, chapter counts)</li>
+<li>[ ] The system MUST generate a stable, deterministic fingerprint from Blu-ray BDMV/PLAYLIST structure (playlist files, clip durations, stream counts)</li>
+<li>[ ] The same disc must always produce the same fingerprint regardless of what drive or OS reads it</li>
+<li>[ ] A Python fingerprinting library (<code>ovid-client</code>) must be installable via <code>pip</code> and produce fingerprints as a standard string</li>
+</ul>
+<p><strong>Lookup API</strong></p>
+<ul>
+<li>[ ] <code>GET /disc/{fingerprint}</code> — returns disc metadata if known, <code>404</code> if not found</li>
+<li>[ ] Response includes: movie title, year, edition name, disc number (for multi-disc sets), main feature title index, format (DVD/BD/4K UHD)</li>
+<li>[ ] Response includes: per-title metadata (duration, chapter count, audio tracks with language/codec, subtitle tracks with language)</li>
+<li>[ ] API returns a <code>confidence</code> field (high / medium / low) with each match</li>
+<li>[ ] API must respond in under 500ms at p95</li>
+</ul>
+<p><strong>Submission API</strong></p>
+<ul>
+<li>[ ] <code>POST /disc</code> — accepts a disc fingerprint plus metadata and creates a new entry (requires account)</li>
+<li>[ ] Submitted entries are marked as <code>unverified</code> until a second contributor independently confirms the fingerprint</li>
+<li>[ ] UPC barcode field (optional) for cross-referencing with retail product databases</li>
+</ul>
+<p><strong>Data Model (core)</strong></p>
+<ul>
+<li>[ ] Disc record: fingerprint, format, region code, UPC, edition name, language, submission date, verification status</li>
+<li>[ ] Release record: links disc to a canonical movie/TV release (title, year, TMDB ID, IMDB ID)</li>
+<li>[ ] Title record: disc title index, type (main feature / bonus / trailer / menu), duration, chapter count</li>
+<li>[ ] Track record: title reference, track type (audio/subtitle/video), language code, codec</li>
+</ul>
+<p><strong>Web UI (minimal)</strong></p>
+<ul>
+<li>[ ] Search by movie title to find known disc releases</li>
+<li>[ ] View a disc entry's full structure</li>
+<li>[ ] Submit a new disc entry via a web form</li>
+<li>[ ] User account creation via email + password <strong>or</strong> any supported OAuth provider</li>
+<li>[ ] OAuth login at launch: <strong>GitHub</strong>, <strong>Google</strong>, <strong>Apple</strong></li>
+<li>[ ] Federated login via <strong>Mastodon / ActivityPub</strong> — user provides their instance URL (e.g. <code>fosstodon.org</code>); OVID performs OAuth2 against that instance</li>
+<li>[ ] Multiple providers linkable to a single OVID account — any linked provider can be used to log in</li>
+<li>[ ] Account settings page shows all linked providers; any can be added or removed (minimum one must remain)</li>
+<li>[ ] Email-match merge: if a new OAuth login carries a verified email matching an existing account, OVID offers to link rather than create a duplicate</li>
+</ul>
+<hr />
+<h3 id="nice-to-have-p1">Nice-to-Have — P1<a class="headerlink" href="#nice-to-have-p1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] UPC barcode lookup: <code>GET /disc/upc/{upc}</code> returns matching disc entries</li>
+<li>[ ] Disc label lookup: <code>GET /disc/label/{label}</code> for rough matching as a fallback</li>
+<li>[ ] ARM configuration wizard: a settings screen in ARM to enable OVID as a metadata provider</li>
+<li>[ ] Chapter name data (e.g., "Opening Credits", "Chapter 1: The Shire") where available</li>
+<li>[ ] Duplicate/alias detection: flag when two submissions appear to be the same disc pressing</li>
+<li>[ ] Community voting on conflicting entries (similar to MusicBrainz edit voting)</li>
+<li>[ ] Export of full database as a CC0 data dump (monthly)</li>
+<li>[ ] JavaScript/Node client library in addition to Python</li>
+</ul>
+<hr />
+<h3 id="future-considerations-p2">Future Considerations — P2<a class="headerlink" href="#future-considerations-p2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 4K UHD Blu-ray support (technically similar to BD, but different encryption layer — handle separately)</li>
+<li>[ ] TV series multi-disc set support with episode-to-title mapping</li>
+<li>[ ] Integration with Jellyfin, Plex, and Emby plugins (not just ARM)</li>
+<li>[ ] Mobile barcode scanning app to submit UPC + fingerprint from a phone</li>
+<li>[ ] Relationship data: "this disc is the same film as X but a different cut"</li>
+<li>[ ] LaserDisc or HD-DVD support</li>
+<li>[ ] ISRC / EIDR (Entertainment Identifier Registry) cross-referencing</li>
+</ul>
+<hr />
+<h2 id="success-metrics">Success Metrics<a class="headerlink" href="#success-metrics" title="Permanent link">&para;</a></h2>
+<h3 id="leading-indicators-first-3090-days">Leading Indicators (first 30–90 days)<a class="headerlink" href="#leading-indicators-first-3090-days" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Target</th>
+<th>Measurement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Discs in database at launch</td>
+<td>≥500 unique disc fingerprints</td>
+<td>Database row count</td>
+</tr>
+<tr>
+<td>API lookup success rate (disc found / lookup attempted)</td>
+<td>≥60% for discs submitted by contributors</td>
+<td>API response logs</td>
+</tr>
+<tr>
+<td>Fingerprint generation success rate</td>
+<td>≥99% (disc readable and mounted)</td>
+<td><code>ovid-client</code> error rate</td>
+</tr>
+<tr>
+<td>ARM integration adoption</td>
+<td>ARM PR merged; ≥50 GitHub stars on OVID repo within 60 days</td>
+<td>GitHub metrics</td>
+</tr>
+<tr>
+<td>Contributor submissions (first month)</td>
+<td>≥100 new disc entries per week</td>
+<td>Submission logs</td>
+</tr>
+</tbody>
+</table>
+<h3 id="lagging-indicators-312-months">Lagging Indicators (3–12 months)<a class="headerlink" href="#lagging-indicators-312-months" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Target</th>
+<th>Measurement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Database coverage</td>
+<td>≥10,000 unique disc fingerprints at 6 months</td>
+<td>DB count</td>
+</tr>
+<tr>
+<td>API lookup hit rate</td>
+<td>≥85% for home media archivists</td>
+<td>API logs, user survey</td>
+</tr>
+<tr>
+<td>False identification rate</td>
+<td>&lt;2% of matched discs are wrong</td>
+<td>Community error reports</td>
+</tr>
+<tr>
+<td>Community health</td>
+<td>≥3 active contributors submitting weekly</td>
+<td>Contributor activity dashboard</td>
+</tr>
+<tr>
+<td>ARM user satisfaction</td>
+<td>Users report &lt;5% manual correction rate</td>
+<td>ARM GitHub discussions, survey</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="open-questions">Open Questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Owner</th>
+<th>Blocking?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What is the exact algorithm for generating a DVD fingerprint from IFO files? Does <code>dvdid</code> produce stable enough output, or do we need a new spec?</td>
+<td>Engineering</td>
+<td><strong>Yes — blocks all disc ID work</strong></td>
+</tr>
+<tr>
+<td>How should we handle multi-disc sets (e.g., 3-disc Lord of the Rings extended edition)? One entry per disc, or one entry per set with child discs?</td>
+<td>Product + Community</td>
+<td>Yes — affects data model</td>
+</tr>
+<tr>
+<td>Should OVID store any data that could be considered a DRM circumvention aid (e.g., disc key hashes)?</td>
+<td>Legal review</td>
+<td><strong>Yes — must be explicit in ToS</strong></td>
+</tr>
+<tr>
+<td>What license should the database use? CC0 (fully public domain, no restrictions) vs. ODbL (open but requires attribution)? MusicBrainz uses CC0.</td>
+<td>Project governance</td>
+<td>Yes — affects downstream use</td>
+</tr>
+<tr>
+<td>Who hosts the infrastructure initially? A foundation, a sponsor, or volunteer hosting?</td>
+<td>Project governance</td>
+<td>No — can defer to beta</td>
+</tr>
+<tr>
+<td>How do we prevent spam or malicious submissions that corrupt the database?</td>
+<td>Engineering + Community</td>
+<td>No — address in v1.1</td>
+</tr>
+<tr>
+<td>Should fingerprints be stable across different ripping software (e.g., MakeMKV vs. libdvdread)? This requires a fingerprinting spec, not just a library.</td>
+<td>Engineering</td>
+<td><strong>Yes — blocks interoperability</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="timeline-considerations">Timeline Considerations<a class="headerlink" href="#timeline-considerations" title="Permanent link">&para;</a></h2>
+<p>This is a greenfield open-source project. There are no contractual deadlines, but a suggested phasing based on dependencies:</p>
+<p><strong>Phase 0 — Foundation (Months 1–2)</strong>
+- Define and publish the disc fingerprinting specification
+- Build and publish <code>ovid-client</code> Python library
+- Stand up basic API (lookup + submit endpoints)
+- Seed the database with ~500 discs from contributors' own collections</p>
+<p><strong>Phase 1 — MVP (Months 3–4)</strong>
+- Web UI for search, browse, and submit
+- ARM pull request / integration guide
+- Community moderation tooling (unverified → verified workflow)
+- Public data dump</p>
+<p><strong>Phase 2 — Growth (Months 5–8)</strong>
+- UPC barcode lookup
+- Community voting / edit history (MusicBrainz-style)
+- Expanded client libraries
+- TV series support</p>
+<hr />
+<h2 id="git-strategy">Git Strategy<a class="headerlink" href="#git-strategy" title="Permanent link">&para;</a></h2>
+<p>OVID follows a simplified <strong>Gitflow</strong> model. All development happens on branches; nothing is committed directly to <code>main</code>.</p>
+<h3 id="branch-types">Branch Types<a class="headerlink" href="#branch-types" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>main                        ← production-ready only; tagged releases live here
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── develop                 ← integration branch; all feature work merges here first
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│   ├── feature/fingerprint-dvd-algo
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── feature/oauth-mastodon
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   ├── feature/sync-diff-endpoint
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│   └── ...
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── release/0.1.0           ← cut from develop when a milestone is ready for testing
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   └── (only bug fixes committed here; no new features)
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>└── hotfix/0.0.1            ← cut from main to patch a live production issue
+</code></pre></div>
+<h3 id="branch-rules">Branch Rules<a class="headerlink" href="#branch-rules" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Branch</th>
+<th>Who can push</th>
+<th>Merge target</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>main</code></td>
+<td>Maintainers only (via PR)</td>
+<td>—</td>
+<td>Protected; requires passing CI + one review</td>
+</tr>
+<tr>
+<td><code>develop</code></td>
+<td>Maintainers via PR</td>
+<td><code>main</code> (via release branch)</td>
+<td>Integration branch; always deployable to staging</td>
+</tr>
+<tr>
+<td><code>feature/*</code></td>
+<td>Any contributor</td>
+<td><code>develop</code></td>
+<td>Named <code>feature/{short-description}</code>; squash merge preferred</td>
+</tr>
+<tr>
+<td><code>release/*</code></td>
+<td>Maintainers</td>
+<td><code>main</code> + back-merge to <code>develop</code></td>
+<td>Named <code>release/{version}</code>; bug fixes only; triggers beta deploy</td>
+</tr>
+<tr>
+<td><code>hotfix/*</code></td>
+<td>Maintainers</td>
+<td><code>main</code> + back-merge to <code>develop</code></td>
+<td>Named <code>hotfix/{version}</code>; emergency production patches</td>
+</tr>
+</tbody>
+</table>
+<h3 id="workflow-normal-feature">Workflow: Normal Feature<a class="headerlink" href="#workflow-normal-feature" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>1. Branch from develop:       git checkout -b feature/oauth-github develop
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>2. Work and commit locally
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>3. Open PR → develop
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>4. CI runs (tests, lint, fingerprint stability check)
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>5. One maintainer review → squash merge into develop
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>6. Branch deleted after merge
+</code></pre></div>
+<h3 id="workflow-cutting-a-release">Workflow: Cutting a Release<a class="headerlink" href="#workflow-cutting-a-release" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>1. Branch from develop:       git checkout -b release/0.2.0 develop
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>2. Update version strings and CHANGELOG
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>3. Deploy to staging; run integration tests against real disc images
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>4. Bug fixes committed directly to release/0.2.0
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>5. Back-merge any fixes to develop:  git merge release/0.2.0 → develop
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>6. When stable, PR release/0.2.0 → main
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>7. Merge + tag:               git tag -a v0.2.0 -m &quot;Release 0.2.0&quot;
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>8. Deploy to production; delete release branch
+</code></pre></div>
+<h3 id="workflow-hotfix">Workflow: Hotfix<a class="headerlink" href="#workflow-hotfix" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>1. Branch from main:          git checkout -b hotfix/0.1.1 main
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>2. Fix the issue; bump patch version; update CHANGELOG
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>3. PR → main (expedited review)
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>4. Merge + tag:               git tag -a v0.1.1
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>5. Back-merge to develop:     git merge hotfix/0.1.1 → develop
+</code></pre></div>
+<h3 id="commit-message-convention">Commit Message Convention<a class="headerlink" href="#commit-message-convention" title="Permanent link">&para;</a></h3>
+<p>OVID follows <a href="https://www.conventionalcommits.org/">Conventional Commits</a>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>&lt;type&gt;(&lt;scope&gt;): &lt;short description&gt;
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>[optional body]
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>[optional footer: Co-Authored-By, Closes #issue]
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>When to use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>feat</code></td>
+<td>New feature or capability</td>
+</tr>
+<tr>
+<td><code>fix</code></td>
+<td>Bug fix</td>
+</tr>
+<tr>
+<td><code>spec</code></td>
+<td>Changes to specification documents only</td>
+</tr>
+<tr>
+<td><code>docs</code></td>
+<td>README, guides, in-code documentation</td>
+</tr>
+<tr>
+<td><code>refactor</code></td>
+<td>Code change with no behavior change</td>
+</tr>
+<tr>
+<td><code>test</code></td>
+<td>Adding or updating tests</td>
+</tr>
+<tr>
+<td><code>chore</code></td>
+<td>Build system, CI, dependency updates</td>
+</tr>
+<tr>
+<td><code>release</code></td>
+<td>Version bump + changelog update commits</td>
+</tr>
+</tbody>
+</table>
+<p>Examples:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>feat(fingerprint): implement OVID-DVD-1 structural hash algorithm
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>fix(sync): handle empty diff response when node is already at head
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>spec(auth): add Mastodon OAuth instance discovery flow
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>release: bump version to 0.2.0
+</code></pre></div></p>
+<hr />
+<h2 id="version-scheme-and-development-milestones">Version Scheme and Development Milestones<a class="headerlink" href="#version-scheme-and-development-milestones" title="Permanent link">&para;</a></h2>
+<p>OVID uses <strong>semantic versioning</strong> in the form <code>0.MILESTONE.PATCH</code> during pre-release development:</p>
+<ul>
+<li><strong>0</strong> — major version fixed at zero until the project reaches a stable public API and ≥10,000 disc entries (signals pre-release / active development)</li>
+<li><strong>MILESTONE</strong> — increments with each named phase completion (Phase 0 → 0.1, Phase 1 → 0.2, etc.)</li>
+<li><strong>PATCH</strong> — increments for bug fixes, security patches, and documentation corrections within a milestone; resets to 0 on each new milestone</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>0.1.0   Phase 0 complete — fingerprint spec + ovid-client published
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>0.1.1   Bug fix (e.g. IFO parser edge case on malformed disc)
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>0.1.2   Bug fix (e.g. pycdlib ISO mount failure on macOS)
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>0.2.0   Phase 1 complete — MVP API + Web UI + ARM integration
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>0.2.1   Bug fix
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>...
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>0.3.0   Phase 2 complete — sync / self-hosted / community moderation
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>1.0.0   Stable public API declared; ≥10,000 disc entries; foundation formed
+</code></pre></div>
+<p>No features are added in patch releases — only fixes to the preceding milestone's scope. If a fix requires a new behaviour, it targets the next milestone instead.</p>
+<h3 id="milestone-01-foundation">Milestone 0.1 — Foundation<a class="headerlink" href="#milestone-01-foundation" title="Permanent link">&para;</a></h3>
+<p><strong>Goal:</strong> A working disc fingerprint algorithm and client library. No server required.</p>
+<p><strong>Exit criteria (all must be true to tag <code>v0.1.0</code>):</strong>
+- [ ] <code>OVID-DVD-1</code> fingerprint algorithm spec published as a standalone document in <code>docs/</code>
+- [ ] <code>ovid-client</code> generates DVD fingerprints from a live drive and from an ISO
+- [ ] Fingerprint stability validated: same disc produces identical fingerprint across ≥3 different drives on Linux and macOS
+- [ ] <code>ovid-client</code> published to PyPI under the name <code>ovid-client</code>
+- [ ] Basic PostgreSQL schema deployed (migrations passing via Alembic)
+- [ ] <code>GET /v1/disc/{fingerprint}</code> and <code>POST /v1/disc</code> endpoints live on <code>api.oviddb.org</code>
+- [ ] Docker Compose dev stack documented and tested (<code>docker compose up</code> → working local API)
+- [ ] Database seeded with ≥20 real disc entries contributed by founders
+- [ ] CI pipeline running on GitHub Actions: lint, unit tests, fingerprint regression tests</p>
+<p><strong>Patch window:</strong> <code>0.1.1</code> – <code>0.1.x</code> addresses bugs in the above before Phase 1 begins.</p>
+<hr />
+<h3 id="milestone-02-mvp">Milestone 0.2 — MVP<a class="headerlink" href="#milestone-02-mvp" title="Permanent link">&para;</a></h3>
+<p><strong>Goal:</strong> A usable product for the home archivist community. Publicly announced.</p>
+<p><strong>Exit criteria (all must be true to tag <code>v0.2.0</code>):</strong>
+- [ ] Web UI live at <code>oviddb.org</code>: search, disc detail view, submit form
+- [ ] All four OAuth providers working: GitHub, Google, Apple, Mastodon
+- [ ] Linked accounts: multiple providers connectable to one account
+- [ ] Two-contributor verification workflow live (unverified → verified)
+- [ ] <code>ovid-client</code> Blu-ray Tier 1 (AACS Disc ID) and Tier 2 (BDMV structure) both working
+- [ ] ARM integration PR merged or under active review
+- [ ] Database seeded to ≥500 disc entries
+- [ ] API response time ≤500ms at p95 under load
+- [ ] Rate limiting and basic abuse prevention live
+- [ ] <code>oviddb.com</code> and <code>oviddb.net</code> redirecting to <code>oviddb.org</code>
+- [ ] Public announcement posted (GitHub, ARM forums, r/DataHoarder, Doom9)</p>
+<p><strong>Patch window:</strong> <code>0.2.1</code> – <code>0.2.x</code> addresses issues found after public launch.</p>
+<hr />
+<h3 id="milestone-03-self-hosted-and-community">Milestone 0.3 — Self-Hosted and Community<a class="headerlink" href="#milestone-03-self-hosted-and-community" title="Permanent link">&para;</a></h3>
+<p><strong>Goal:</strong> Anyone can run their own OVID node. Community governance tooling in place.</p>
+<p><strong>Exit criteria (all must be true to tag <code>v0.3.0</code>):</strong>
+- [ ] Sync feed endpoints live: <code>/v1/sync/head</code>, <code>/v1/sync/diff</code>, <code>/v1/sync/snapshot</code>
+- [ ] <code>docker compose --profile mirror up</code> launches a self-hosted mirror node
+- [ ] Daily snapshot generation and hosting at <code>snapshots.oviddb.org</code>
+- [ ] Self-hosted getting-started guide published
+- [ ] Edit history and audit log visible in Web UI
+- [ ] UPC barcode lookup endpoint live
+- [ ] Community dispute flagging live
+- [ ] Monthly CC0 database dump published
+- [ ] Database at ≥5,000 disc entries</p>
+<p><strong>Patch window:</strong> <code>0.3.1</code> – <code>0.3.x</code>.</p>
+<hr />
+<h3 id="milestone-04-tv-series-and-scale">Milestone 0.4 — TV Series and Scale<a class="headerlink" href="#milestone-04-tv-series-and-scale" title="Permanent link">&para;</a></h3>
+<p><strong>Goal:</strong> TV series multi-disc sets fully supported. Database meaningfully large.</p>
+<p><strong>Exit criteria (all must be true to tag <code>v0.4.0</code>):</strong>
+- [ ] TV series disc entries with episode-to-title mapping
+- [ ] Community voting on conflicting disc entries (MusicBrainz edit-voting model)
+- [ ] <code>ovid-client</code> JavaScript/Node library published to npm
+- [ ] Database at ≥10,000 disc entries
+- [ ] Federated node mode (local writes + upstream submission) — design complete and v1 shipped</p>
+<p><strong>Patch window:</strong> <code>0.4.1</code> – <code>0.4.x</code>.</p>
+<hr />
+<h3 id="milestone-10-stable">Milestone 1.0 — Stable<a class="headerlink" href="#milestone-10-stable" title="Permanent link">&para;</a></h3>
+<p><strong>Goal:</strong> Stable public API contract declared. No breaking changes without a major version bump.</p>
+<p><strong>Exit criteria:</strong>
+- [ ] All Open Questions from the product spec resolved or explicitly deferred with rationale
+- [ ] API versioning policy documented (<code>/v1/</code> frozen; new features go to <code>/v2/</code>)
+- [ ] Non-profit foundation or fiscal sponsorship in place
+- [ ] Database at ≥10,000 disc entries
+- [ ] <code>ovid-client</code> at 1.0 on PyPI with stable API</p>
+<hr />
+<h2 id="documentation-release-plan">Documentation Release Plan<a class="headerlink" href="#documentation-release-plan" title="Permanent link">&para;</a></h2>
+<p>Each milestone ships documentation alongside the software. Documentation is never a trailing deliverable — it ships with the code that enables it, as a condition of the milestone exit criteria.</p>
+<h3 id="phase-0-v010">Phase 0 → v0.1.0<a class="headerlink" href="#phase-0-v010" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Location</th>
+<th>Audience</th>
+<th>Status at release</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fingerprint Algorithm Spec (OVID-DVD-1)</td>
+<td><code>docs/fingerprint-spec.md</code></td>
+<td>Developers, implementers</td>
+<td>Final</td>
+</tr>
+<tr>
+<td><code>ovid-client</code> API reference</td>
+<td>PyPI / README</td>
+<td>Developers</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Getting Started (developer)</td>
+<td><code>docs/getting-started-dev.md</code></td>
+<td>Contributors</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Docker Compose quick-start</td>
+<td><code>docs/docker-quickstart.md</code></td>
+<td>Contributors</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>CHANGELOG</td>
+<td><code>CHANGELOG.md</code></td>
+<td>All</td>
+<td>Initiated</td>
+</tr>
+<tr>
+<td>GitHub issue templates</td>
+<td><code>.github/ISSUE_TEMPLATE/</code></td>
+<td>Contributors</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>GitHub PR template</td>
+<td><code>.github/PULL_REQUEST_TEMPLATE.md</code></td>
+<td>Contributors</td>
+<td>Final</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="phase-1-v020">Phase 1 → v0.2.0<a class="headerlink" href="#phase-1-v020" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Location</th>
+<th>Audience</th>
+<th>Status at release</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fingerprint Algorithm Spec (OVID-BD-2, Tier 1 &amp; 2)</td>
+<td><code>docs/fingerprint-spec.md</code> (update)</td>
+<td>Developers</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Web UI user guide</td>
+<td><code>oviddb.org/docs/guide</code></td>
+<td>Home archivists</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Disc submission guide</td>
+<td><code>oviddb.org/docs/submit</code></td>
+<td>Community contributors</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>ARM integration guide</td>
+<td><code>docs/arm-integration.md</code> + ARM wiki</td>
+<td>ARM users</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>OAuth setup guide (for self-deployed instances)</td>
+<td><code>docs/auth-setup.md</code></td>
+<td>Operators</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Community Code of Conduct</td>
+<td><code>CODE_OF_CONDUCT.md</code></td>
+<td>All</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Contributing guide</td>
+<td><code>CONTRIBUTING.md</code></td>
+<td>Contributors</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Data licensing explainer (CC0 FAQ)</td>
+<td><code>docs/data-license.md</code></td>
+<td>All</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Press / announcement post</td>
+<td><code>oviddb.org/blog/announcing-ovid</code></td>
+<td>Public</td>
+<td>Publish at launch</td>
+</tr>
+<tr>
+<td>CHANGELOG</td>
+<td><code>CHANGELOG.md</code></td>
+<td>All</td>
+<td>Updated</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="phase-2-v030">Phase 2 → v0.3.0<a class="headerlink" href="#phase-2-v030" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Location</th>
+<th>Audience</th>
+<th>Status at release</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Self-hosted getting-started guide</td>
+<td><code>docs/self-hosting.md</code></td>
+<td>Home server operators</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Sync protocol specification</td>
+<td><code>docs/sync-spec.md</code></td>
+<td>Developers, implementers</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Moderation guide</td>
+<td><code>docs/moderation.md</code></td>
+<td>Editors, admins</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Data dump format reference</td>
+<td><code>docs/dump-format.md</code></td>
+<td>Developers</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Governance model</td>
+<td><code>docs/governance.md</code></td>
+<td>Community</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>CHANGELOG</td>
+<td><code>CHANGELOG.md</code></td>
+<td>All</td>
+<td>Updated</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="phase-3-v040">Phase 3 → v0.4.0<a class="headerlink" href="#phase-3-v040" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Location</th>
+<th>Audience</th>
+<th>Status at release</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TV series disc entry guide</td>
+<td><code>docs/tv-series.md</code></td>
+<td>Contributors</td>
+<td>Final</td>
+</tr>
+<tr>
+<td><code>ovid-client</code> Node.js API reference</td>
+<td>npm / README</td>
+<td>Developers</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Federated node operator guide</td>
+<td><code>docs/federation.md</code></td>
+<td>Node operators</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>CHANGELOG</td>
+<td><code>CHANGELOG.md</code></td>
+<td>All</td>
+<td>Updated</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="stable-v100">Stable → v1.0.0<a class="headerlink" href="#stable-v100" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Location</th>
+<th>Audience</th>
+<th>Status at release</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API stability and versioning policy</td>
+<td><code>docs/api-versioning.md</code></td>
+<td>Developers</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>Foundation / governance announcement</td>
+<td><code>oviddb.org/blog/</code></td>
+<td>Public</td>
+<td>Publish at launch</td>
+</tr>
+<tr>
+<td>Full API reference (OpenAPI / Swagger)</td>
+<td><code>api.oviddb.org/docs</code></td>
+<td>Developers</td>
+<td>Final (auto-generated)</td>
+</tr>
+<tr>
+<td>Migration guide: pre-1.0 → 1.0</td>
+<td><code>docs/migration-1.0.md</code></td>
+<td>All existing users</td>
+<td>Final</td>
+</tr>
+<tr>
+<td>CHANGELOG</td>
+<td><code>CHANGELOG.md</code></td>
+<td>All</td>
+<td>Updated</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="competitive-landscape">Competitive Landscape<a class="headerlink" href="#competitive-landscape" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Open?</th>
+<th>Disc Fingerprint?</th>
+<th>Layout Data?</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MusicBrainz</td>
+<td>Yes (CC0)</td>
+<td>Yes (audio CD TOC)</td>
+<td>Yes (track listing)</td>
+<td>Active</td>
+</tr>
+<tr>
+<td>TMDB</td>
+<td>Partial (free API)</td>
+<td>No</td>
+<td>No</td>
+<td>Active</td>
+</tr>
+<tr>
+<td>GD3 / GetDigitalData</td>
+<td>No (commercial)</td>
+<td>Unknown</td>
+<td>Partial</td>
+<td>Active (proprietary)</td>
+</tr>
+<tr>
+<td>DVDFab Meta Info</td>
+<td>No (proprietary)</td>
+<td>Unknown</td>
+<td>Partial</td>
+<td>Limited</td>
+</tr>
+<tr>
+<td>dvdid</td>
+<td>Yes (open source)</td>
+<td>Yes (DVD only)</td>
+<td>No database</td>
+<td>Unmaintained</td>
+</tr>
+<tr>
+<td><strong>OVID</strong></td>
+<td><strong>Yes (target: CC0)</strong></td>
+<td><strong>Yes (DVD + BD)</strong></td>
+<td><strong>Yes</strong></td>
+<td><strong>Proposed</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Document status: Draft v0.3 · Authors: Project founders · Last updated: 2026-04-01</em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
