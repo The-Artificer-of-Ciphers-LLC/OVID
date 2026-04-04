@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SubmitForm from "@/components/SubmitForm";
 import ProviderList from "@/components/ProviderList";
+import ChapterEditor from "@/components/ChapterEditor";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -46,6 +47,17 @@ const validFingerprint = JSON.stringify({
   format: "Blu-ray",
   structure: {
     playlists: [{ id: 1 }, { id: 2 }, { id: 3 }],
+  },
+});
+
+const fingerprintWithTitles = JSON.stringify({
+  fingerprint: "fp-titles-123",
+  format: "DVD",
+  structure: {
+    titles: [
+      { title_index: 1, duration_secs: 7200 },
+      { title_index: 2, duration_secs: 300 },
+    ],
   },
 });
 
@@ -251,6 +263,109 @@ describe("SubmitForm", () => {
     // The datalist test requires internal state change.
     // For now, verify the search input renders.
     expect(screen.getByTestId("set-search-input")).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ChapterEditor tests
+// ---------------------------------------------------------------------------
+
+describe("ChapterEditor", () => {
+  it("renders chapter editor for each title in submit form", async () => {
+    render(<SubmitForm />);
+
+    const input = screen.getByTestId("fp-file-input");
+    fireEvent.change(input, {
+      target: { files: [createMockFile(fingerprintWithTitles)] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("fp-preview")).toBeTruthy();
+    });
+
+    // Expand the chapter editors -- find the "Add chapters" buttons
+    const addChaptersButtons = screen.getAllByText("Add chapters");
+    expect(addChaptersButtons.length).toBe(2);
+
+    // Click to expand both
+    fireEvent.click(addChaptersButtons[0]);
+    fireEvent.click(addChaptersButtons[1]);
+
+    expect(screen.getByTestId("chapter-editor-1")).toBeTruthy();
+    expect(screen.getByTestId("chapter-editor-2")).toBeTruthy();
+  });
+
+  it("add chapter creates input row", async () => {
+    render(<SubmitForm />);
+
+    const input = screen.getByTestId("fp-file-input");
+    fireEvent.change(input, {
+      target: { files: [createMockFile(fingerprintWithTitles)] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("fp-preview")).toBeTruthy();
+    });
+
+    // Expand the first title's chapter editor
+    const addChaptersButtons = screen.getAllByText("Add chapters");
+    fireEvent.click(addChaptersButtons[0]);
+
+    // Click "Add chapter"
+    fireEvent.click(screen.getByTestId("chapter-add-1"));
+
+    // Verify a chapter name input appears
+    expect(screen.getByTestId("chapter-name-1-1")).toBeTruthy();
+  });
+
+  it("remove chapter removes input row", async () => {
+    render(<SubmitForm />);
+
+    const input = screen.getByTestId("fp-file-input");
+    fireEvent.change(input, {
+      target: { files: [createMockFile(fingerprintWithTitles)] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("fp-preview")).toBeTruthy();
+    });
+
+    // Expand and add two chapters
+    const addChaptersButtons = screen.getAllByText("Add chapters");
+    fireEvent.click(addChaptersButtons[0]);
+    fireEvent.click(screen.getByTestId("chapter-add-1"));
+    fireEvent.click(screen.getByTestId("chapter-add-1"));
+
+    // Verify two rows exist
+    expect(screen.getByTestId("chapter-name-1-1")).toBeTruthy();
+    expect(screen.getByTestId("chapter-name-1-2")).toBeTruthy();
+
+    // Remove the first chapter
+    fireEvent.click(screen.getByTestId("chapter-remove-1-1"));
+
+    // Only one row remains, re-indexed to 1
+    expect(screen.getByTestId("chapter-name-1-1")).toBeTruthy();
+    expect(screen.queryByTestId("chapter-name-1-2")).toBeNull();
+  });
+
+  it("chapter time parsing converts H:MM:SS to seconds", () => {
+    const chapters = [{ chapter_index: 1, name: null, start_time_secs: null }];
+    let updated: typeof chapters = [];
+    const onChange = (chs: typeof chapters) => { updated = chs; };
+
+    render(
+      <ChapterEditor titleIndex={1} chapters={chapters} onChange={onChange} />,
+    );
+
+    // Expand the editor
+    fireEvent.click(screen.getByText("Add chapters"));
+
+    const timeInput = screen.getByTestId("chapter-time-1-1");
+    fireEvent.change(timeInput, { target: { value: "1:23:45" } });
+    fireEvent.blur(timeInput);
+
+    // 1*3600 + 23*60 + 45 = 5025
+    expect(updated[0].start_time_secs).toBe(5025);
   });
 });
 

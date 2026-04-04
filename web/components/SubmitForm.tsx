@@ -2,9 +2,10 @@
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { submitDisc, ApiError, type DiscSubmitRequest, type TitleCreate, type DiscSetSearchResult } from "@/lib/api";
+import { submitDisc, ApiError, type DiscSubmitRequest, type TitleCreate, type ChapterCreate, type DiscSetSearchResult } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import SetSearchInput from "@/components/SetSearchInput";
+import ChapterEditor from "@/components/ChapterEditor";
 
 // ---------------------------------------------------------------------------
 // Types for the fingerprint JSON emitted by `ovid fingerprint --json`
@@ -50,6 +51,9 @@ export default function SubmitForm() {
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [selectedSetInfo, setSelectedSetInfo] = useState<DiscSetSearchResult | null>(null);
   const [isCreatingNewSet, setIsCreatingNewSet] = useState(false);
+
+  // Chapter state
+  const [titleChapters, setTitleChapters] = useState<Record<number, ChapterCreate[]>>({});
 
   // Submission state
   const [submitting, setSubmitting] = useState(false);
@@ -117,7 +121,19 @@ export default function SubmitForm() {
         year: releaseYear === "" ? null : releaseYear,
         content_type: contentType,
       },
-      titles: [] as TitleCreate[],
+      titles: ((fpData.structure?.titles ?? fpData.structure?.playlists ?? []) as { title_index?: number }[]).map((t: { title_index?: number }, i: number) => {
+        const tIdx = t.title_index ?? i + 1;
+        const chs = titleChapters[tIdx] || [];
+        return {
+          ...t,
+          title_index: tIdx,
+          chapters: chs.map((ch) => ({
+            chapter_index: ch.chapter_index,
+            name: ch.name,
+            start_time_secs: ch.start_time_secs,
+          })),
+        };
+      }) as TitleCreate[],
     };
 
     try {
@@ -349,6 +365,26 @@ export default function SubmitForm() {
                   <input id="total-discs" type="number" min={1} value={totalDiscs} onChange={(e) => setTotalDiscs(Number(e.target.value))} className={inputClass} />
                 </div>
               </div>
+            </fieldset>
+          )}
+
+          {/* Chapter editors per title */}
+          {fpData?.structure && (fpData.structure.titles || fpData.structure.playlists) && (
+            <fieldset className="mb-6 space-y-4">
+              <legend className="text-sm font-semibold mb-2">Chapters</legend>
+              {((fpData.structure.titles ?? fpData.structure.playlists ?? []) as { title_index?: number }[]).map((title: { title_index?: number }, i: number) => {
+                const tIdx = title.title_index ?? i + 1;
+                return (
+                  <div key={tIdx} className="mb-4">
+                    <div className="text-sm font-medium mb-1">Title {tIdx}</div>
+                    <ChapterEditor
+                      titleIndex={tIdx}
+                      chapters={titleChapters[tIdx] || []}
+                      onChange={(chapters) => setTitleChapters(prev => ({...prev, [tIdx]: chapters}))}
+                    />
+                  </div>
+                );
+              })}
             </fieldset>
           )}
 
