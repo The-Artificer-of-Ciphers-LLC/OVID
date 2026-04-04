@@ -33,12 +33,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Rate limiting enforces configured limits correctly across all API workers (not N times the limit)
   4. API startup fails fast with a clear error message if JWT secret or Apple private key is misconfigured
   5. Disc submission endpoint returns specific error messages for validation failures instead of swallowing exceptions
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md — Valkey/Redis infrastructure, rate limiting migration, startup validation
+- [ ] 01-02-PLAN.md — Mastodon hardening, bug fixes, error sanitization
+- [ ] 01-03-PLAN.md — Auth code exchange, cookie delivery, device flow, refresh rotation
 
 ### Phase 2: Multi-Disc Set Support
 **Goal**: Users can group related discs (box sets, multi-disc releases) and see sibling discs when looking up any disc in a set
@@ -157,7 +157,7 @@ Phases 4 and 5 can execute in parallel (sync and CLI have no mutual deps).
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Hardening & Infrastructure | 0/3 | Not started | - |
+| 1. Security Hardening & Infrastructure | 0/3 | Planned | - |
 | 2. Multi-Disc Set Support | 0/2 | Not started | - |
 | 3. Chapter Name Data | 0/2 | Not started | - |
 | 4. Sync Protocol & Mirror Hardening | 0/2 | Not started | - |
