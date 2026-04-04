@@ -53,9 +53,9 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 02-01-PLAN.md — Set schemas, routes, migration, disc submit/lookup integration (API layer)
+- [x] 02-01-PLAN.md — Set schemas, routes, migration, disc submit/lookup integration (API layer)
 - [ ] 02-02-PLAN.md — SiblingDiscs component, SetSearchInput, SubmitForm set toggle (Web UI)
-- [ ] 02-03-PLAN.md — CLI submit wizard set prompting, OVIDClient set methods
+- [x] 02-03-PLAN.md — CLI submit wizard set prompting, OVIDClient set methods
 
 ### Phase 3: Chapter Name Data
 **Goal**: OVID stores and returns chapter-level metadata for disc titles, and Blu-ray scans extract chapter timestamps and disc titles automatically
