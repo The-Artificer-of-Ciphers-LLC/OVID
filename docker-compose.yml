@@ -17,17 +17,36 @@ services:
     ports:
       - "5432:5432"
 
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    volumes:
+      - ovid_valkey:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "6379:6379"
+
   api:
     build: ./api
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      valkey:
+        condition: service_healthy
     environment:
-      DATABASE_URL:    postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}
-      OVID_SECRET_KEY: ${OVID_SECRET_KEY:-dev-secret-change-in-production}
-      OVID_MODE:       ${OVID_MODE:-standalone}
-      LOG_LEVEL:       ${LOG_LEVEL:-info}
+      DATABASE_URL:        postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}
+      OVID_SECRET_KEY:     ${OVID_SECRET_KEY:-dev-secret-change-in-production}
+      OVID_MODE:           ${OVID_MODE:-standalone}
+      LOG_LEVEL:           ${LOG_LEVEL:-info}
+      REDIS_URL:           ${REDIS_URL:-redis://valkey:6379/0}
+      SESSION_SECRET_KEY:  ${SESSION_SECRET_KEY:-dev-session-secret-change-in-production}
+      ALLOWED_ORIGINS:     ${ALLOWED_ORIGINS:-http://localhost:3000}
+      COOKIE_DOMAIN:       ${COOKIE_DOMAIN:-}
     ports:
       - "8000:8000"
     volumes:
@@ -63,3 +82,4 @@ services:
 
 volumes:
   ovid_pgdata:
+  ovid_valkey:

@@ -18,6 +18,10 @@ x-prod-note: >
 
 services:
 
+  valkey:
+    container_name: ovid-prod-valkey
+    command: valkey-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+
   db:
     container_name: ovid-prod-db
     # Don't expose PostgreSQL externally in production
@@ -48,6 +52,10 @@ services:
       APPLE_TEAM_ID:         ${APPLE_TEAM_ID}
       APPLE_KEY_ID:          ${APPLE_KEY_ID}
       APPLE_PRIVATE_KEY:     ${APPLE_PRIVATE_KEY}
+      REDIS_URL:             ${REDIS_URL:-redis://valkey:6379/0}
+      SESSION_SECRET_KEY:    ${SESSION_SECRET_KEY}
+      ALLOWED_ORIGINS:       ${ALLOWED_ORIGINS:-https://oviddb.org}
+      COOKIE_DOMAIN:         ${COOKIE_DOMAIN:-.oviddb.org}
 
   web:
     container_name: ovid-prod-web
