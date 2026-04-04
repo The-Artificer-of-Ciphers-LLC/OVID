@@ -1,5 +1,5 @@
 # Volume-mounted overlay for ARM's identify.py — adds OVID fingerprint lookup
-# before metadata_selector().
+# before ARM's standard metadata lookup (OMDB/TMDB).
 #
 # This file is bind-mounted into the ARM container at:
 #   /opt/arm/arm/ripper/identify.py
@@ -11,10 +11,14 @@
 #
 # The original identify.py is renamed to identify_original.py by the entrypoint
 # wrapper so this shim can import it without circular conflicts.
+#
+# CRITICAL: ARM's main.py (line ~94) calls `identify.identify(job)`.
+# This module MUST export `identify(job)` as its main entry point.
 
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import logging
 import os
 import sys
@@ -40,6 +44,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 _original_module = None
+
 
 def _load_original() -> Any:
     """Lazily load the original ARM identify module (identify_original.py)."""
@@ -71,11 +76,12 @@ def _load_original() -> Any:
 # OVID hook
 # ---------------------------------------------------------------------------
 
+
 def _try_ovid(job: Any, disc_path: str) -> bool:
     """Attempt an OVID fingerprint lookup for the disc at *disc_path*.
 
     On a high/medium-confidence hit, populates ``job.title``, ``job.year``,
-    and ``job.video_type`` and returns ``True``.
+    ``job.video_type``, sets ``job.hasnicetitle = True``, and returns ``True``.
 
     On miss, timeout, or any error, logs and returns ``False`` so ARM falls
     back to its normal OMDB / TMDB lookup.
@@ -92,12 +98,12 @@ def _try_ovid(job: Any, disc_path: str) -> bool:
         return False
 
     if result is None:
-        logging.info("OVID miss, falling back to OMDB")
+        logger.info("OVID miss, falling back to OMDB")
         return False
 
     confidence = result.get("confidence")
     if confidence not in ("high", "medium"):
-        logging.info(
+        logger.info(
             "OVID match confidence too low (%s), falling back to OMDB", confidence
         )
         return False
@@ -110,13 +116,46 @@ def _try_ovid(job: Any, disc_path: str) -> bool:
     if result.get("video_type"):
         job.video_type = result["video_type"]
 
-    logging.info("OVID lookup: %s", result["fingerprint"])
+    # Tell ARM the disc has a nice title so it skips fuzzy matching
+    job.hasnicetitle = True
+
+    logger.info("OVID lookup: %s", result.get("fingerprint", "unknown"))
     return True
 
 
 # ---------------------------------------------------------------------------
-# Public API — drop-in replacement for ARM's identify_disc()
+# Public API — identify(job) is what ARM's main.py calls
 # ---------------------------------------------------------------------------
+
+
+def identify(job: Any) -> Any:
+    """Identify a disc, trying OVID first then falling back to ARM's original.
+
+    This is the main entry point. ARM's main.py calls ``identify.identify(job)``
+    at line ~94. The job object carries all disc metadata ARM needs.
+    """
+    # ── Guard: OVID can be disabled via environment variable ──────────
+    ovid_enabled = os.environ.get("OVID_ENABLED", "true").lower() != "false"
+
+    if ovid_enabled:
+        # ARM mounts discs at job.mountpoint (e.g. /mnt/dev/sr0)
+        disc_path = getattr(job, "mountpoint", "") or getattr(job, "devpath", "")
+        if disc_path:
+            if _try_ovid(job, disc_path):
+                # OVID populated the job — skip OMDB entirely
+                return job
+
+    # ── Delegate to original ARM identify ─────────────────────────────
+    original = _load_original()
+    if original and hasattr(original, "identify"):
+        return original.identify(job)
+
+    logger.error(
+        "Cannot delegate to original identify — ARM's original module "
+        "is not available.  Job will continue with whatever metadata is set."
+    )
+    return job
+
 
 def identify_disc(
     job: Any,
@@ -125,38 +164,23 @@ def identify_disc(
     year: str = "",
     api: Any = None,
 ) -> Any:
-    """Identify a disc, trying OVID first then falling back to ARM's original.
+    """Backward-compat alias — delegates to identify(job).
 
-    This function is the main entry point that ARM's ripper module calls.
-    It mirrors the signature of the original ``identify_disc`` so it is a
-    transparent drop-in replacement.
+    The old S01 shim exported this, but ARM's main.py actually calls
+    identify(job). Kept for safety in case any secondary code path calls it.
     """
-    # ── Guard: OVID can be disabled via environment variable ──────────
-    ovid_enabled = os.environ.get("OVID_ENABLED", "true").lower() != "false"
-
-    if ovid_enabled:
-        disc_path = getattr(job, "devpath", None) or getattr(job, "mountpoint", "")
-        if disc_path:
-            if _try_ovid(job, disc_path):
-                # OVID populated the job — skip OMDB entirely
-                return job
-
-    # ── Delegate to original ARM identify_disc ────────────────────────
-    original = _load_original()
-    if original and hasattr(original, "identify_disc"):
-        return original.identify_disc(job, dvd_info, dvd_title, year, api)
-
-    logger.error(
-        "Cannot delegate to original identify_disc — ARM's original module "
-        "is not available.  Job will continue with whatever metadata is set."
-    )
-    return job
+    return identify(job)
 
 
-# Re-export everything from the original module so callers that do
-# ``from arm.ripper.identify import some_helper`` still work.
+# ---------------------------------------------------------------------------
+# Re-export all original ARM symbols so other imports still work
+# ---------------------------------------------------------------------------
+# ARM code elsewhere may do:
+#   from arm.ripper.identify import identify_dvd, identify_bluray, etc.
+# We re-export everything from the original module.
+
 _orig = _load_original()
 if _orig:
     for _name in dir(_orig):
-        if not _name.startswith("_") and _name != "identify_disc":
+        if not _name.startswith("_") and _name not in ("identify", "identify_disc"):
             globals()[_name] = getattr(_orig, _name)

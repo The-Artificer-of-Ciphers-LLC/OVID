@@ -2,25 +2,33 @@
 # ──────────────────────────────────────────────────────────────────
 # ARM container entrypoint wrapper — OVID integration
 # ──────────────────────────────────────────────────────────────────
-# This script runs *before* ARM's normal /init entrypoint.  It:
-#   1. Installs the ovid-client pip package (idempotently).
+# This script runs *before* ARM's normal /sbin/my_init entrypoint.  It:
+#   1. Installs the ovid-client package from a local wheel
+#      (mounted at /home/arm/ovid/ovid_client-0.1.0-py3-none-any.whl).
 #   2. Backs up the original identify.py so the OVID shim can
 #      delegate to it via identify_original.py.
 #   3. Hands off to the original CMD/entrypoint via exec "$@".
 #
 # Mount this into the container at /entrypoint_wrapper.sh and set
-# --entrypoint /entrypoint_wrapper.sh with the original entrypoint
-# (/init) as the CMD argument.
+# --entrypoint /entrypoint_wrapper.sh with /sbin/my_init as CMD.
 # ──────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 ARM_IDENTIFY="/opt/arm/arm/ripper/identify.py"
 ARM_IDENTIFY_BACKUP="/opt/arm/arm/ripper/identify_original.py"
+OVID_WHEEL="/home/arm/ovid/ovid_client-0.1.0-py3-none-any.whl"
 
-# ── Step 1: Install ovid-client if not already present ────────────
+# ── Step 1: Install ovid-client from local wheel if not already present ──
 if ! python3 -c "import ovid" 2>/dev/null; then
     echo "[ovid-entrypoint] Installing ovid-client..."
-    pip3 install --quiet ovid-client
+    if [ -f "$OVID_WHEEL" ]; then
+        pip3 install --quiet "$OVID_WHEEL"
+    else
+        echo "[ovid-entrypoint] WARNING: Wheel not found at $OVID_WHEEL"
+        echo "[ovid-entrypoint] Attempting install from git fallback..."
+        pip3 install --quiet "ovid-client @ git+https://github.com/yourusername/ovid.git#subdirectory=client" \
+            || echo "[ovid-entrypoint] WARNING: ovid-client install failed — OVID lookup will be disabled"
+    fi
 fi
 
 # ── Step 2: Back up original identify.py (once) ──────────────────
