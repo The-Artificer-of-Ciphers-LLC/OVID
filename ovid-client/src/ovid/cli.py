@@ -75,12 +75,12 @@ def submit(path: str, api_url: str | None, token: str | None) -> None:
     """
     from rich.console import Console
     from rich.prompt import IntPrompt, Prompt
-    from rich.table import Table
 
     from ovid.client import OVIDClient
     from ovid.tmdb import get_movie, search_movies
 
     console = Console()
+    client = OVIDClient(base_url=api_url, token=token)
 
     # ── Step 1: Parse disc ──────────────────────────────────────────
     try:
@@ -136,6 +136,82 @@ def submit(path: str, api_url: str | None, token: str | None) -> None:
     disc_number = IntPrompt.ask("Disc number", default=1)
     total_discs = IntPrompt.ask("Total discs", default=1)
 
+    # ── Step 3b: Set membership (D-12) ───────────────────────────────
+    disc_set_id = None
+    if click.confirm("Part of a multi-disc set?", default=False):
+        # Search for existing sets
+        search_query = click.prompt(
+            "Search for existing set (release title or edition)",
+            default="",
+            show_default=False,
+        )
+        if search_query.strip():
+            results = client.search_sets(search_query)
+            if results and results.get("results"):
+                console.print("[bold]Matching sets:[/bold]")
+                for i, s in enumerate(results["results"], 1):
+                    edition = s.get("edition_name") or "No edition"
+                    disc_count = len(s.get("discs", []))
+                    total = s.get("total_discs", 0)
+                    console.print(
+                        f"  {i}. {edition} ({disc_count}/{total} discs linked)"
+                    )
+                choice = click.prompt(
+                    "Select set number (or 0 to create new)",
+                    type=int,
+                    default=0,
+                )
+                if 1 <= choice <= len(results["results"]):
+                    selected = results["results"][choice - 1]
+                    disc_set_id = selected["id"]
+                    console.print(
+                        f"[green]Selected set: "
+                        f"{selected.get('edition_name', 'Unnamed')}[/green]"
+                    )
+            else:
+                console.print("[dim]No matching sets found.[/dim]")
+
+        if disc_set_id is None and click.confirm("Create a new set?", default=True):
+            # Derive release_id from search results when available
+            _release_id: str | None = None
+            if (
+                search_query.strip()
+                and results
+                and results.get("results")
+            ):
+                _release_id = results["results"][0].get("release_id")
+            if _release_id is None:
+                console.print(
+                    "[yellow]No release found — submit the disc first, "
+                    "then link it to a set.[/yellow]"
+                )
+            else:
+                new_edition = click.prompt(
+                    "Edition name (optional)",
+                    default="",
+                    show_default=False,
+                )
+                new_total = click.prompt(
+                    "Total discs in set", type=int, default=2
+                )
+                try:
+                    new_set = client.create_set(
+                        release_id=_release_id,
+                        edition_name=new_edition.strip() or None,
+                        total_discs=new_total,
+                    )
+                    disc_set_id = new_set["id"]
+                    console.print(
+                        f"[green]Created new set: "
+                        f"{new_edition or 'Unnamed'} "
+                        f"({new_total} discs)[/green]"
+                    )
+                except click.ClickException as exc:
+                    console.print(
+                        f"[yellow]Could not create set: "
+                        f"{exc.message}[/yellow]"
+                    )
+
     # ── Step 4: Build payload from Disc structure ───────────────────
     year_int: int | None = None
     if year:
@@ -154,10 +230,11 @@ def submit(path: str, api_url: str | None, token: str | None) -> None:
         disc_number=disc_number,
         total_discs=total_discs,
     )
+    if disc_set_id:
+        payload["disc_set_id"] = disc_set_id
 
     # ── Step 5: Submit ──────────────────────────────────────────────
     try:
-        client = OVIDClient(base_url=api_url, token=token)
         result = client.submit(payload)
         console.print(
             f"\n[green]✓[/green] Disc submitted — "
