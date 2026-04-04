@@ -54,7 +54,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Set schemas, routes, migration, disc submit/lookup integration (API layer)
-- [ ] 02-02-PLAN.md — SiblingDiscs component, SetSearchInput, SubmitForm set toggle (Web UI)
+- [x] 02-02-PLAN.md — SiblingDiscs component, SetSearchInput, SubmitForm set toggle (Web UI)
 - [x] 02-03-PLAN.md — CLI submit wizard set prompting, OVIDClient set methods
 
 ### Phase 3: Chapter Name Data
