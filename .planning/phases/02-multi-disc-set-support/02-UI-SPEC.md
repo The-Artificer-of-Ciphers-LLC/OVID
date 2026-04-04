@@ -33,15 +33,16 @@ Declared values (must be multiples of 4):
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| xs | 4px | Icon gaps, inline padding (`gap-1`, `py-0.5`, `px-2`) |
-| sm | 8px | Compact element spacing (`gap-2`, `py-2`, `mb-2`) |
+| xs | 4px | Icon gaps, inline padding (`gap-1`, `py-1`, `px-1`) |
+| sm | 8px | Compact element spacing (`gap-2`, `py-2`, `mb-2`, `px-2`) |
 | md | 16px | Default element spacing (`gap-4`, `px-4`, `mb-4`, `space-y-4`) |
 | lg | 24px | Section padding (`mb-6`, `py-6`) |
 | xl | 32px | Layout gaps (`py-8`, `mb-8`) |
 | 2xl | 48px | Not used in this phase |
 | 3xl | 64px | Not used in this phase |
 
-Exceptions: none
+Justified exceptions:
+- Toggle switch internal offsets (`after:top-[2px]`, `after:left-[2px]`) use 2px for sub-component positioning within the 20px (h-5) track. These are cosmetic interior offsets, not layout spacing, and are standard for toggle switch construction.
 
 Source: Extracted from existing `DiscCard.tsx`, `SubmitForm.tsx`, `page.tsx` Tailwind classes.
 
@@ -51,12 +52,14 @@ Source: Extracted from existing `DiscCard.tsx`, `SubmitForm.tsx`, `page.tsx` Tai
 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
-| Body | 14px (`text-sm`) | 400 (normal) | 1.5 (Tailwind default for `text-sm`) |
-| Label | 14px (`text-sm`) | 500 (`font-medium`) | 1.5 |
-| Heading | 18px (`text-lg`) | 600 (`font-semibold`) | 1.4 |
+| Body | 14px (`text-sm`) | 400 (`font-normal`) | 1.5 (Tailwind default for `text-sm`) |
+| Label | 14px (`text-sm`) | 400 (`font-normal`) | 1.5 |
+| Heading | 18px (`text-lg`) | 700 (`font-bold`) | 1.4 |
 | Display | 24px (`text-2xl`) | 700 (`font-bold`) | 1.33 |
 
-Source: Existing `DiscDetailPage` uses `text-2xl font-bold` for page title, `text-lg font-semibold` for section headings, `text-sm font-medium` for labels, `text-sm` for body text. This phase follows the same scale exactly.
+2 weights only: 400 (normal) for body and label text, 700 (bold) for headings and display text. No intermediate weights (500, 600) are used in this phase.
+
+Source: Existing `DiscDetailPage` uses `text-2xl font-bold` for page title, `text-lg` for section headings, `text-sm` for labels and body text. This phase normalizes to 2 weights.
 
 ---
 
@@ -105,19 +108,20 @@ interface SiblingDiscsProps {
 ```
 
 **Layout:**
-- Header line: "Part of: {edition_name} (Disc {N} of {total})" at `text-sm font-semibold`
+- Header line: "Part of: {edition_name} (Disc {N} of {total})" at `text-sm font-bold`
 - If `edition_name` is null, header reads: "Part of a {total}-disc set (Disc {N} of {total})"
-- Below header: horizontal scrollable row of sibling cards with `gap-3` (12px)
+- Below header: horizontal scrollable row of sibling cards with `gap-4` (16px)
 - Row uses `flex overflow-x-auto` for horizontal scroll on narrow viewports
 - Row wraps to grid on wider viewports: `flex flex-wrap` above 768px
 
 **Sibling Card Spec (each card):**
-- Container: `rounded-lg border border-neutral-200 bg-neutral-50 p-3 min-w-[180px] max-w-[220px]` (dark: `border-neutral-800 bg-neutral-900`)
+- Container: `rounded-lg border border-neutral-200 bg-neutral-50 p-4 min-w-[180px] max-w-[220px]` (dark: `border-neutral-800 bg-neutral-900`)
 - Current disc card: `border-blue-500 bg-blue-50` (dark: `border-blue-400 bg-blue-950`)
-- Disc number: `text-xs font-medium text-neutral-500` -- "Disc {N}"
-- Format badge: `text-xs rounded px-1.5 py-0.5` using existing `TYPE_COLORS` pattern but for format (DVD/Blu-ray/UHD)
-- Main title: `text-sm font-semibold truncate` -- main feature title or "Untitled"
+- Disc number: `text-xs font-normal text-neutral-500` -- "Disc {N}"
+- Format badge: `text-xs rounded px-2 py-1` using existing `TYPE_COLORS` pattern but for format (DVD/Blu-ray/UHD)
+- Main title: `text-sm font-bold truncate` -- main feature title or "Untitled"
 - Duration: `text-xs text-neutral-400` -- formatted as "2h 15m" or omitted if null
+- Track count: `text-xs text-neutral-400` -- formatted as "{N} tracks" or omitted if null (per D-06)
 - Entire card is a link to `/disc/{fingerprint}` via Next.js `Link`
 - Cards for discs not yet in the database (empty slots): show "Disc {N}" with `text-neutral-400` and dashed border `border-dashed`
 
@@ -148,9 +152,9 @@ interface SetSearchInputProps {
 - Uses existing `inputClass` styling from SubmitForm (matches project pattern)
 - Placeholder: "Search sets by release title or edition..."
 - Below input: dropdown results list (absolute positioned, `z-10`)
-- Each result row: `px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer text-sm`
+- Each result row: `px-4 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer text-sm`
 - Result row content: "{Release Title} -- {Edition Name} ({N}/{total_discs} discs linked)"
-- Bottom of dropdown: "Create new set" action row in `text-blue-600 font-medium`
+- Bottom of dropdown: "Create new set" action row in `text-blue-600 font-normal`
 - Empty search state: no dropdown shown
 - No results state: dropdown with single row: "No matching sets found" + "Create new set" action
 - Loading state: single row with "Searching..." at `text-neutral-400`
@@ -164,7 +168,7 @@ interface SetSearchInputProps {
 **Requirement:** SET-07
 **Changes:**
 - New toggle after "Disc Details" fieldset: "Part of a multi-disc set?" as a checkbox/toggle
-- Toggle label: `text-sm font-medium` with `data-testid="set-toggle"`
+- Toggle label: `text-sm font-normal` with `data-testid="set-toggle"`
 - When toggle is ON, reveal a `<fieldset>` with `data-testid="set-fields"`:
   - `SetSearchInput` component for existing set search
   - OR "New Set" sub-form with:
@@ -186,6 +190,8 @@ Extended Edition, Director's Cut, Theatrical, Criterion Collection, Special Edit
   <div className="w-9 h-5 bg-neutral-200 peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full dark:bg-neutral-700"></div>
 </label>
 ```
+
+Note: `after:top-[2px]` and `after:left-[2px]` are justified exceptions (see Spacing Scale section).
 
 #### 4. `DiscDetailPage` extension
 
