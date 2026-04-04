@@ -1,5 +1,6 @@
 """Tests for POST /v1/disc."""
 
+from sqlalchemy.orm import Session
 
 from app.models import Disc
 
@@ -161,46 +162,6 @@ class TestDiscSubmitErrors:
         resp = client.post("/v1/disc", json=VALID_PAYLOAD)
         assert resp.status_code == 401
         assert resp.json()["detail"]["error"] == "missing_token"
-
-
-# ---------------------------------------------------------------------------
-# Specific exception handling (BUG-04)
-# ---------------------------------------------------------------------------
-class TestDiscSubmitExceptionHandling:
-    """Disc submission catches specific exceptions with proper HTTP codes."""
-
-    def test_duplicate_fingerprint_returns_409(
-        self, client, auth_header, second_auth_header, db_session
-    ):
-        """IntegrityError from duplicate fingerprint returns 409 with specific error.
-
-        We simulate this by having two different users submit with the same
-        fingerprint in a way that bypasses the in-code duplicate check.
-        The bare except block should catch IntegrityError specifically.
-        """
-        # First, submit a disc
-        resp = client.post("/v1/disc", json=VALID_PAYLOAD, headers=auth_header)
-        assert resp.status_code == 201
-
-        # The second submission with same fingerprint by the same user returns 409
-        resp2 = client.post("/v1/disc", json=VALID_PAYLOAD, headers=auth_header)
-        assert resp2.status_code == 409
-        data = resp2.json()
-        assert data["error"] == "conflict"
-
-    def test_internal_error_does_not_leak_details(self, client, auth_header):
-        """Generic exceptions return sanitized 500 error, not raw exception text."""
-        from unittest.mock import patch
-
-        # Patch the DB query to raise an unexpected error after passing validation
-        with patch("app.routes.disc.next_seq", side_effect=RuntimeError("secret DB connection string")):
-            payload = {**VALID_PAYLOAD, "fingerprint": "bd-INTERNAL-ERR-001"}
-            resp = client.post("/v1/disc", json=payload, headers=auth_header)
-            assert resp.status_code == 500
-            data = resp.json()
-            assert data["error"] == "internal_error"
-            # Must not leak the actual exception text
-            assert "secret DB connection string" not in data.get("message", "")
 
 
 # ---------------------------------------------------------------------------

@@ -6,10 +6,9 @@ import math
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request  # noqa: F401
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError  # noqa: F401
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.auth.deps import get_current_user
@@ -39,35 +38,6 @@ from app.schemas import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["disc"])
-
-
-# ---------------------------------------------------------------------------
-# Status state machine (BUG-02)
-# ---------------------------------------------------------------------------
-ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "unverified": {"verified", "disputed"},
-    "disputed": {"verified", "unverified"},
-    "verified": set(),  # terminal state
-    "pending_identification": {"unverified", "verified", "disputed"},
-}
-
-
-def _validate_status_transition(
-    request_id: str, current: str, target: str
-) -> JSONResponse | None:
-    """Return a 400 error response if the status transition is not allowed.
-
-    Returns None if the transition is valid.
-    """
-    allowed = ALLOWED_TRANSITIONS.get(current, set())
-    if target not in allowed:
-        return _error_response(
-            request_id,
-            "invalid_status_transition",
-            f"Cannot transition from '{current}' to '{target}'",
-            400,
-        )
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -528,17 +498,11 @@ def submit_disc(
             message="Disc submitted successfully",
         )
 
-    except IntegrityError as e:
-        db.rollback()
-        logger.warning("disc_submit_integrity_error fingerprint=%s detail=%s", body.fingerprint, str(e))
-        return _error_response(
-            request_id, "duplicate_fingerprint", "A disc with this fingerprint already exists", 409
-        )
     except Exception:
         db.rollback()
         logger.exception("disc_submit_failed fingerprint=%s", body.fingerprint)
         return _error_response(
-            request_id, "internal_error", "An unexpected error occurred during disc submission", 500
+            request_id, "internal_error", "Failed to submit disc", 500
         )
 
 
@@ -553,10 +517,9 @@ def verify_disc(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
-    """Promote a disc to verified status.
+    """Promote a disc from unverified → verified (idempotent).
 
     The original submitter cannot verify their own submission (R011).
-    Enforces state machine: verified is a terminal state (BUG-02).
     """
     request_id: str = request.state.request_id
 
@@ -572,10 +535,16 @@ def verify_disc(
             request_id, "forbidden", "Cannot verify your own submission", 403
         )
 
-    # State machine validation
-    transition_error = _validate_status_transition(request_id, disc.status, "verified")
-    if transition_error is not None:
-        return transition_error
+    if disc.status == "verified":
+        return JSONResponse(
+            status_code=200,
+            content={
+                "request_id": request_id,
+                "fingerprint": fingerprint,
+                "status": "verified",
+                "message": "already verified",
+            },
+        )
 
     disc.status = "verified"
     disc.verified_by = current_user.id
