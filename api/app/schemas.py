@@ -129,6 +129,18 @@ class DiscSubmitResponse(BaseModel):
     message: str
 
 
+class DiscRegisterRequest(BaseModel):
+    """Register a disc fingerprint without release metadata.
+
+    Used by automated rippers (ARM) to record that a disc exists.
+    The disc is created with status ``pending_identification`` — a human
+    must later attach release metadata via the web UI or CLI.
+    """
+    fingerprint: str = Field(min_length=1)
+    format: str = Field(min_length=1)
+    disc_label: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Edit history schemas (R015)
 # ---------------------------------------------------------------------------

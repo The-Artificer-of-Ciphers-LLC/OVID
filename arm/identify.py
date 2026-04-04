@@ -252,36 +252,24 @@ def identify(job: Any) -> Any:
         )
         result = job
 
-    # ── Post-identify: submit to OVID on miss ─────────────────────────
-    # ARM's original identify has now populated job.title, job.year, etc.
-    # from OMDB.  Submit the fingerprint + metadata so the next insert
-    # of this disc gets an OVID hit.
+    # ── Post-identify: register fingerprint with OVID on miss ──────
+    # ARM's original identify has now run.  We don't send OMDB metadata
+    # — OVID only stores the fingerprint.  A human attaches release info
+    # later via the web UI.
     if ovid_enabled and ovid_fingerprint and submit_to_ovid is not None:
-        title = getattr(job, "title", "") or ""
-        year = getattr(job, "year", None)
         disc_format = getattr(job, "disctype", "") or ""
         disc_label = getattr(job, "label", "") or ""
-        video_type = getattr(job, "video_type", "") or ""
 
-        if title:
-            try:
-                api_url = os.environ.get("OVID_API_URL", "http://api:8000")
-                submit_to_ovid(
-                    fingerprint=ovid_fingerprint,
-                    title=title,
-                    year=year,
-                    disc_format=disc_format,
-                    disc_label=disc_label,
-                    video_type=video_type,
-                    api_url=api_url,
-                )
-            except Exception:  # noqa: BLE001
-                logger.warning("OVID auto-submit raised unexpectedly — ignoring")
-        else:
-            logger.info(
-                "OVID auto-submit skipped — no title from OMDB for %s",
-                ovid_fingerprint,
+        try:
+            api_url = os.environ.get("OVID_API_URL", "http://ovid-prod-api:8000")
+            submit_to_ovid(
+                fingerprint=ovid_fingerprint,
+                disc_format=disc_format,
+                disc_label=disc_label,
+                api_url=api_url,
             )
+        except Exception:  # noqa: BLE001
+            logger.warning("OVID auto-register raised unexpectedly — ignoring")
 
     return result
 

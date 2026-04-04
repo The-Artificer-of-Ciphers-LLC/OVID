@@ -21,6 +21,7 @@ from app.schemas import (
     DiscEditResponse,
     DiscEditsListResponse,
     DiscLookupResponse,
+    DiscRegisterRequest,
     DiscSubmitRequest,
     DiscSubmitResponse,
     DisputeResolveRequest,
@@ -270,6 +271,63 @@ def lookup_disc(
         )
 
     return _disc_to_response(disc, request_id)
+
+
+# ---------------------------------------------------------------------------
+# POST /v1/disc/register — fingerprint-only registration (no release metadata)
+# ---------------------------------------------------------------------------
+@router.post("/disc/register", response_model=DiscSubmitResponse, status_code=201)
+@limiter.limit(_dynamic_limit)
+def register_disc(
+    body: DiscRegisterRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Register a disc fingerprint without release metadata.
+
+    Used by automated rippers (ARM) to record that a disc exists.
+    Creates the disc with status ``pending_identification`` and no
+    associated release.  A human must later attach release metadata
+    via the web UI, CLI, or ``POST /v1/disc``.
+
+    Returns 409 if the fingerprint already exists (idempotent for ARM).
+    """
+    request_id: str = request.state.request_id
+
+    existing = db.query(Disc).filter(Disc.fingerprint == body.fingerprint).first()
+    if existing is not None:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "request_id": request_id,
+                "fingerprint": body.fingerprint,
+                "status": existing.status,
+                "message": "Disc already registered",
+            },
+        )
+
+    disc = Disc(
+        fingerprint=body.fingerprint,
+        format=body.format,
+        disc_label=body.disc_label,
+        status="pending_identification",
+        submitted_by=current_user.id,
+        seq_num=next_seq(db),
+    )
+    db.add(disc)
+    db.commit()
+    logger.info("disc_registered fingerprint=%s by=%s", body.fingerprint, current_user.id)
+
+    return JSONResponse(
+        status_code=201,
+        content={
+            "request_id": request_id,
+            "fingerprint": body.fingerprint,
+            "status": "pending_identification",
+            "message": "Disc registered — awaiting identification",
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
