@@ -116,54 +116,55 @@ describe("SiblingDiscs", () => {
     expect(screen.getByText("Not yet submitted")).toBeTruthy();
   });
 
-  it("formats duration as Xh Ym", () => {
+  it("formats duration as Xh Ym on sibling cards", () => {
     render(
       <SiblingDiscs
         editionName="Extended Edition"
         discNumber={1}
-        totalDiscs={2}
+        totalDiscs={3}
         siblings={siblings}
         currentFingerprint="fp-disc-1"
       />,
     );
-    // 8160 secs = 2h 16m
-    expect(screen.getByText("2h 16m")).toBeTruthy();
-    // 7920 secs = 2h 12m
+    // Current disc (1) shows "This disc", not duration
+    // Sibling disc 2: 7920 secs = 2h 12m
     expect(screen.getByText("2h 12m")).toBeTruthy();
   });
 
-  it("renders format badge text matching format string", () => {
+  it("renders format badge on sibling cards", () => {
     render(
       <SiblingDiscs
         editionName="Extended Edition"
         discNumber={1}
-        totalDiscs={2}
+        totalDiscs={3}
         siblings={siblings}
         currentFingerprint="fp-disc-1"
       />,
     );
+    // Current disc shows "Current" badge, sibling shows format badge
+    expect(screen.getByText("Current")).toBeTruthy();
     const badges = screen.getAllByText("Blu-ray");
-    expect(badges.length).toBe(2);
+    expect(badges.length).toBe(1);
   });
 
-  it("renders track count", () => {
+  it("renders track count on sibling cards", () => {
     render(
       <SiblingDiscs
         editionName="Extended Edition"
         discNumber={1}
-        totalDiscs={2}
+        totalDiscs={3}
         siblings={siblings}
         currentFingerprint="fp-disc-1"
       />,
     );
-    expect(screen.getByText("12 tracks")).toBeTruthy();
+    // Only sibling disc 2 shows track count (current disc shows "This disc")
     expect(screen.getByText("10 tracks")).toBeTruthy();
   });
 
   it("renders main title or Untitled fallback", () => {
     const noTitleSibling: SiblingDiscSummary = {
       fingerprint: "fp-disc-x",
-      disc_number: 1,
+      disc_number: 2,
       format: "DVD",
       main_title: null,
       duration_secs: null,
@@ -173,9 +174,9 @@ describe("SiblingDiscs", () => {
       <SiblingDiscs
         editionName={null}
         discNumber={1}
-        totalDiscs={1}
+        totalDiscs={2}
         siblings={[noTitleSibling]}
-        currentFingerprint="fp-disc-x"
+        currentFingerprint="fp-current"
       />,
     );
     expect(screen.getByText("Untitled")).toBeTruthy();

@@ -64,8 +64,28 @@ export default function SiblingDiscs({
       <h2 className="text-sm font-bold mb-3">{heading}</h2>
       <div className="flex flex-wrap gap-4">
         {slots.map((slotNum) => {
+          // Current disc slot — the API excludes the current disc from siblings,
+          // so check by slot number before falling through to the empty check.
+          if (slotNum === discNumber) {
+            return (
+              <div
+                key={slotNum}
+                className="rounded-lg border border-blue-500 bg-blue-50 p-4 min-w-[180px] max-w-[220px] dark:border-blue-400 dark:bg-blue-950"
+                aria-current="true"
+                data-testid="sibling-card-current"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-normal text-neutral-500">Disc {slotNum}</span>
+                  <span className="text-xs rounded px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                    Current
+                  </span>
+                </div>
+                <p className="text-sm font-bold truncate">This disc</p>
+              </div>
+            );
+          }
+
           const sibling = siblingByNumber.get(slotNum);
-          const isCurrent = sibling?.fingerprint === currentFingerprint;
 
           // Empty slot -- disc not yet submitted
           if (!sibling) {
@@ -87,8 +107,14 @@ export default function SiblingDiscs({
             FORMAT_COLORS[formatKey] ??
             "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
 
-          const cardContent = (
-            <>
+          return (
+            <Link
+              key={slotNum}
+              href={`/disc/${sibling.fingerprint}`}
+              aria-label={`View Disc ${sibling.disc_number}: ${sibling.main_title ?? "Untitled"}`}
+              className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 min-w-[180px] max-w-[220px] hover:border-neutral-300 hover:shadow-sm transition-all dark:border-neutral-800 dark:bg-neutral-900"
+              data-testid={`sibling-card-${sibling.disc_number}`}
+            >
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-normal text-neutral-500">Disc {sibling.disc_number}</span>
                 <span className={`text-xs rounded px-2 py-1 ${badgeColor}`}>
@@ -102,31 +128,6 @@ export default function SiblingDiscs({
               {sibling.track_count != null && (
                 <p className="text-xs text-neutral-400">{sibling.track_count} tracks</p>
               )}
-            </>
-          );
-
-          if (isCurrent) {
-            return (
-              <div
-                key={slotNum}
-                className="rounded-lg border border-blue-500 bg-blue-50 p-4 min-w-[180px] max-w-[220px] dark:border-blue-400 dark:bg-blue-950"
-                aria-current="true"
-                data-testid="sibling-card-current"
-              >
-                {cardContent}
-              </div>
-            );
-          }
-
-          return (
-            <Link
-              key={slotNum}
-              href={`/disc/${sibling.fingerprint}`}
-              aria-label={`View Disc ${sibling.disc_number}: ${sibling.main_title ?? "Untitled"}`}
-              className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 min-w-[180px] max-w-[220px] hover:border-neutral-300 hover:shadow-sm transition-all dark:border-neutral-800 dark:bg-neutral-900"
-              data-testid={`sibling-card-${sibling.disc_number}`}
-            >
-              {cardContent}
             </Link>
           );
         })}
