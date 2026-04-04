@@ -1,4 +1,5 @@
 import type { TitleResponse } from "@/lib/api";
+import ChapterList from "./ChapterList";
 
 function formatDuration(secs: number | null): string {
   if (secs == null) return "—";
@@ -57,7 +58,13 @@ export default function DiscStructure({ titles }: { titles: TitleResponse[] }) {
                 )}
               </td>
               <td className="py-2 pr-3 tabular-nums">{formatDuration(title.duration_secs)}</td>
-              <td className="py-2 pr-3 tabular-nums">{title.chapter_count ?? "—"}</td>
+              <td className="py-2 pr-3 tabular-nums">
+                {title.chapters && title.chapters.length > 0 ? (
+                  <ChapterList chapters={title.chapters} titleIndex={title.title_index} />
+                ) : (
+                  <>{title.chapter_count ?? "\u2014"}</>
+                )}
+              </td>
               <td className="py-2 pr-3 text-xs">{summarizeTracks(title.audio_tracks)}</td>
               <td className="py-2 text-xs">{summarizeTracks(title.subtitle_tracks)}</td>
             </tr>
