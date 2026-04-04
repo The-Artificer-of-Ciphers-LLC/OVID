@@ -4,7 +4,7 @@ import logging
 import uuid
 
 import jwt
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auth.jwt import decode_access_token
@@ -15,23 +15,26 @@ logger = logging.getLogger(__name__)
 
 
 def get_current_user(
-    authorization: str | None = Header(default=None),
+    request: Request,
     db: Session = Depends(get_db),
 ) -> User:
-    """Extract Bearer token, decode JWT, and return the User.
+    """Extract token from cookie or Authorization header, decode JWT, return User.
+
+    Cookie auth (ovid_token) is checked first for web clients.
+    Falls back to Authorization: Bearer header for CLI/API clients.
 
     Raises HTTPException(401) with a JSON body containing:
         {"detail": {"error": "missing_token" | "invalid_token" | "expired_token"}}
     """
-    if not authorization:
-        raise HTTPException(status_code=401, detail={"error": "missing_token"})
+    # Check ovid_token cookie first (web auth via HttpOnly cookie)
+    token = request.cookies.get("ovid_token")
 
-    # Expect "Bearer <token>"
-    parts = authorization.split(" ", 1)
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise HTTPException(status_code=401, detail={"error": "missing_token"})
+    # Fall back to Authorization: Bearer header (CLI / API auth)
+    if not token:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
 
-    token = parts[1].strip()
     if not token:
         raise HTTPException(status_code=401, detail={"error": "missing_token"})
 

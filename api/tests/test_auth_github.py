@@ -73,6 +73,7 @@ class TestGitHubCallback:
         assert resp.status_code == 200
         data = resp.json()
         assert "token" in data
+        assert "refresh_token" in data
         assert data["user"]["username"] == "github_12345"
         assert data["user"]["display_name"] == "Octocat"
 
@@ -218,7 +219,7 @@ class TestWebRedirectUri:
     """Test the web_redirect_uri flow for browser-based OAuth."""
 
     def test_login_stores_redirect_and_callback_returns_302(self, client: TestClient, db_session: Session):
-        """Login with web_redirect_uri stores value in session; callback returns 302 redirect with token."""
+        """Login with web_redirect_uri stores value in session; callback returns 302 redirect with auth code."""
         from starlette.responses import JSONResponse
 
         # Mock authorize_redirect to return a simple 200 (simulates redirect to GitHub)
@@ -234,8 +235,12 @@ class TestWebRedirectUri:
             )
         assert login_resp.status_code == 200
 
+        # Mock Redis for auth code storage
+        mock_redis = MagicMock()
+        mock_redis.setex = MagicMock()
+
         # Step 2: Call callback — the session still has web_redirect_uri
-        with _patch_oauth():
+        with _patch_oauth(), patch("app.auth.routes.get_redis", return_value=mock_redis):
             # follow_redirects=False so we can inspect the 302
             callback_resp = client.get(
                 "/v1/auth/github/callback",
@@ -245,7 +250,8 @@ class TestWebRedirectUri:
         assert callback_resp.status_code == 302
         location = callback_resp.headers["location"]
         assert location.startswith("http://localhost:3000/auth/callback?")
-        assert "token=" in location
+        assert "code=" in location
+        assert "token=" not in location
 
     def test_login_rejects_invalid_scheme(self, client: TestClient):
         """web_redirect_uri with javascript: scheme → 400."""
@@ -264,5 +270,6 @@ class TestWebRedirectUri:
         assert resp.status_code == 200
         data = resp.json()
         assert "token" in data
+        assert "refresh_token" in data
         assert "user" in data
         assert data["user"]["username"] == "github_12345"

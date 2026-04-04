@@ -1,23 +1,35 @@
-"""Auth routes — GitHub OAuth, Apple Sign-In, IndieAuth, and /v1/auth/me."""
+"""Auth routes -- OAuth callbacks, auth code exchange, token refresh, device flow."""
 
 import logging
 import os
 import secrets
 import time
+import uuid
 
 import httpx
 import jwt as pyjwt
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from cryptography.hazmat.primitives import serialization
-from fastapi import APIRouter, Depends, HTTPException, Request
+from cryptography.hazmat.primitives.asymmetric import ec
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from starlette.responses import RedirectResponse
 
 from app.auth.deps import get_current_user
 from app.auth.indieauth import DiscoveryError, discover_endpoints, generate_pkce_pair, validate_url
-from app.auth.jwt import create_access_token
+from app.auth.jwt import (
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+    blacklist_refresh_token,
+    is_refresh_token_blacklisted,
+)
 from app.auth.users import user_upsert, EmailConflictError, ProviderAlreadyLinkedError
 from app.deps import get_db
 from app.models import User
+from app.rate_limit import limiter
+from app.redis import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +77,37 @@ if _GOOGLE_CLIENT_ID:
 
 
 # ---------------------------------------------------------------------------
+# Cookie helper
+# ---------------------------------------------------------------------------
+
+def _set_auth_cookies(response: JSONResponse, request: Request,
+                      access_token: str, refresh_token: str) -> None:
+    """Set ovid_token (HttpOnly), ovid_auth (JS-visible), and ovid_refresh cookies."""
+    secure = request.url.scheme == "https"
+    cookie_domain = os.environ.get("COOKIE_DOMAIN") or None
+
+    response.set_cookie(
+        "ovid_token", access_token,
+        httponly=True, secure=secure, samesite="lax",
+        max_age=3600, domain=cookie_domain,
+    )
+    response.set_cookie(
+        "ovid_auth", "1",
+        httponly=False, secure=secure, samesite="lax",
+        max_age=3600, domain=cookie_domain,
+    )
+    response.set_cookie(
+        "ovid_refresh", refresh_token,
+        httponly=True, secure=secure, samesite="lax",
+        max_age=2592000, path="/v1/auth/refresh", domain=cookie_domain,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Shared auth callback helper
 # ---------------------------------------------------------------------------
 def finalize_auth(request: Request, db: Session, provider: str, provider_id: str, email: str | None, display_name: str | None):
-    """Handle user upsert, explicit linking, implicit linking, and JWT creation."""
+    """Handle user upsert, explicit linking, implicit linking, and auth code or JWT creation."""
     link_to_user_id = request.session.pop("link_to_user_id", None)
     try:
         user = user_upsert(
@@ -84,7 +123,6 @@ def finalize_auth(request: Request, db: Session, provider: str, provider_id: str
             "provider": provider,
             "provider_id": provider_id,
         }
-        from fastapi.responses import JSONResponse
         return JSONResponse(status_code=409, content={"error": "email_conflict", "existing_user_id": e.existing_user_id})
     except ProviderAlreadyLinkedError:
         raise HTTPException(status_code=400, detail={"error": "already_linked", "reason": "Provider is linked to another account"})
@@ -103,24 +141,93 @@ def finalize_auth(request: Request, db: Session, provider: str, provider_id: str
         except ProviderAlreadyLinkedError:
             pass
 
-    jwt_token = create_access_token(user.id)
+    access_token = create_access_token(user.id)
+    refresh_token = create_refresh_token(user.id)
 
     web_redirect_uri = request.session.pop("web_redirect_uri", "")
     if web_redirect_uri:
-        from urllib.parse import urlencode
-        from starlette.responses import RedirectResponse
-        separator = "&" if "?" in web_redirect_uri else "?"
-        redirect_url = f"{web_redirect_uri}{separator}{urlencode({'token': jwt_token})}"
+        # Store tokens in Redis behind a single-use auth code
+        redis = get_redis()
+        if redis:
+            auth_code = secrets.token_urlsafe(32)
+            redis.setex(f"authcode:{auth_code}", 60, f"{access_token}:{refresh_token}")
+            separator = "&" if "?" in web_redirect_uri else "?"
+            redirect_url = f"{web_redirect_uri}{separator}code={auth_code}"
+        else:
+            # Fallback: direct token in response (degraded mode without Redis)
+            logger.warning("auth_code_fallback reason=redis_unavailable provider=%s", provider)
+            separator = "&" if "?" in web_redirect_uri else "?"
+            redirect_url = f"{web_redirect_uri}{separator}code=redis_unavailable"
         return RedirectResponse(url=redirect_url, status_code=302)
 
     return {
-        "token": jwt_token,
+        "token": access_token,
+        "refresh_token": refresh_token,
         "user": {
             "id": str(user.id),
             "username": user.username,
             "display_name": user.display_name,
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Auth code exchange -- POST /v1/auth/token
+# ---------------------------------------------------------------------------
+@auth_router.post("/token")
+@limiter.limit("5/minute")
+async def exchange_auth_code(request: Request, code: str = Body(..., embed=True)):
+    """Exchange a single-use auth code for HttpOnly auth cookies.
+
+    The auth code was stored in Redis by finalize_auth() during the OAuth
+    callback.  It expires after 60 seconds and is deleted on first use.
+    """
+    redis = get_redis()
+    if not redis:
+        raise HTTPException(status_code=503, detail={"error": "service_unavailable"})
+
+    key = f"authcode:{code}"
+    value = redis.get(key)
+    if not value:
+        raise HTTPException(status_code=401, detail={"error": "invalid_code"})
+
+    redis.delete(key)  # Single-use: delete immediately
+    access_token, refresh_token = value.decode().split(":", 1)
+
+    response = JSONResponse(content={"authenticated": True})
+    _set_auth_cookies(response, request, access_token, refresh_token)
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Token refresh -- POST /v1/auth/refresh
+# ---------------------------------------------------------------------------
+@auth_router.post("/refresh")
+@limiter.limit("5/minute")
+async def refresh_tokens(request: Request):
+    """Rotate refresh token: issue new access + refresh, blacklist old refresh."""
+    old_refresh = request.cookies.get("ovid_refresh")
+    if not old_refresh:
+        raise HTTPException(status_code=401, detail={"error": "missing_refresh_token"})
+
+    try:
+        payload = decode_refresh_token(old_refresh)
+    except pyjwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail={"error": "invalid_refresh_token"})
+
+    jti = payload.get("jti")
+    if is_refresh_token_blacklisted(jti):
+        raise HTTPException(status_code=401, detail={"error": "token_revoked"})
+
+    blacklist_refresh_token(old_refresh)
+
+    user_id = uuid.UUID(payload["sub"])
+    new_access = create_access_token(user_id)
+    new_refresh = create_refresh_token(user_id)
+
+    response = JSONResponse(content={"authenticated": True})
+    _set_auth_cookies(response, request, new_access, new_refresh)
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +249,7 @@ async def github_login(request: Request, web_redirect_uri: str = ""):
 
 
 @auth_router.get("/github/callback")
+@limiter.limit("10/minute")
 async def github_callback(request: Request, db: Session = Depends(get_db)):
     """Exchange GitHub auth code for token, upsert user, return JWT."""
     if not _GITHUB_CLIENT_ID:
@@ -152,7 +260,7 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
         token = await oauth.github.authorize_access_token(request)
     except OAuthError as e:
         logger.warning("auth_failed provider=github reason=oauth_error detail=%s", str(e))
-        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "Authentication failed"})
+        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": str(e)})
     except Exception as e:
         logger.warning("auth_failed provider=github reason=token_exchange detail=%s", str(e))
         raise HTTPException(status_code=502, detail={"error": "gateway_timeout", "reason": "Token exchange failed"})
@@ -193,7 +301,7 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
 
 
 # ---------------------------------------------------------------------------
-# /v1/auth/me — current user info
+# /v1/auth/me -- current user info
 # ---------------------------------------------------------------------------
 @auth_router.get("/me")
 def auth_me(current_user: User = Depends(get_current_user)):
@@ -290,11 +398,11 @@ async def apple_login(request: Request, web_redirect_uri: str = ""):
         "state": state,
     }
     qs = "&".join(f"{k}={v}" for k, v in params.items())
-    from starlette.responses import RedirectResponse
     return RedirectResponse(url=f"{_APPLE_AUTH_URL}?{qs}")
 
 
 @auth_router.get("/apple/callback")
+@limiter.limit("10/minute")
 async def apple_callback(request: Request, db: Session = Depends(get_db)):
     """Exchange Apple auth code for tokens, decode ID token, upsert user."""
     if not _APPLE_CONFIGURED:
@@ -431,11 +539,11 @@ async def indieauth_login(request: Request, url: str = "", web_redirect_uri: str
     }
     qs = "&".join(f"{k}={v}" for k, v in params.items())
 
-    from starlette.responses import RedirectResponse
     return RedirectResponse(url=f"{endpoints['authorization_endpoint']}?{qs}")
 
 
 @auth_router.get("/indieauth/callback")
+@limiter.limit("10/minute")
 async def indieauth_callback(request: Request, db: Session = Depends(get_db)):
     """Exchange IndieAuth code for token, upsert user."""
     code = request.query_params.get("code")
@@ -521,6 +629,7 @@ async def google_login(request: Request, web_redirect_uri: str = ""):
 
 
 @auth_router.get("/google/callback")
+@limiter.limit("10/minute")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     """Exchange Google auth code for token, upsert user, return JWT."""
     if not _GOOGLE_CLIENT_ID:
@@ -531,7 +640,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         token = await oauth.google.authorize_access_token(request)
     except OAuthError as e:
         logger.warning("auth_failed provider=google reason=oauth_error detail=%s", str(e))
-        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "Authentication failed"})
+        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": str(e)})
     except Exception as e:
         logger.warning("auth_failed provider=google reason=token_exchange detail=%s", str(e))
         raise HTTPException(status_code=502, detail={"error": "gateway_timeout", "reason": "Token exchange failed"})
@@ -541,7 +650,6 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "No token received"})
 
     # Since we use OpenID Connect, userinfo is parsed automatically by authlib
-    # if we have server_metadata_url.
     userinfo = token.get("userinfo")
     if not userinfo:
         logger.warning("auth_failed provider=google reason=no_userinfo")
@@ -581,14 +689,12 @@ async def mastodon_login(request: Request, domain: str = "", web_redirect_uri: s
 
     try:
         domain = validate_mastodon_domain(domain)
-    except HTTPException:
-        raise
-    except ValueError:
-        raise HTTPException(status_code=400, detail={"error": "invalid_domain", "reason": "Domain validation failed"})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail={"error": "invalid_domain", "reason": str(e)})
 
     # Get or register client
     client = await get_or_register_client(db, domain)
-    
+
     # Generate state
     state = secrets.token_urlsafe(32)
     request.session["mastodon_state"] = state
@@ -604,33 +710,33 @@ async def mastodon_login(request: Request, domain: str = "", web_redirect_uri: s
     }
     qs = "&".join(f"{k}={v}" for k, v in params.items())
 
-    from starlette.responses import RedirectResponse
     return RedirectResponse(url=f"https://{domain}/oauth/authorize?{qs}")
 
 @auth_router.get("/mastodon/callback")
+@limiter.limit("10/minute")
 async def mastodon_callback(request: Request, db: Session = Depends(get_db)):
     """Exchange Mastodon code for token, verify account, upsert user."""
     code = request.query_params.get("code")
     state = request.query_params.get("state")
-    
+
     if not code:
         raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "No authorization code"})
-        
+
     expected_state = request.session.get("mastodon_state")
     domain = request.session.get("mastodon_domain")
-    
+
     if not expected_state or state != expected_state:
         raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "State mismatch"})
-        
+
     if not domain:
         raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "Session missing domain"})
-        
+
     client = db.query(MastodonOAuthClient).filter_by(domain=domain).first()
     if not client:
         raise HTTPException(status_code=500, detail={"error": "internal_error", "reason": "Client registration lost"})
-        
+
     redirect_uri = f"{_OVID_API_URL}/v1/auth/mastodon/callback"
-    
+
     try:
         async with httpx.AsyncClient() as http_client:
             # Token exchange
@@ -645,37 +751,37 @@ async def mastodon_callback(request: Request, db: Session = Depends(get_db)):
                 },
                 timeout=10.0
             )
-            
+
             if token_resp.status_code != 200:
                 logger.warning("auth_failed provider=mastodon reason=token_error status=%d", token_resp.status_code)
                 raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "Token exchange failed"})
-                
+
             token_data = token_resp.json()
             access_token = token_data.get("access_token")
             if not access_token:
                 logger.warning("auth_failed provider=mastodon reason=no_access_token")
                 raise HTTPException(status_code=401, detail={"error": "provider_error", "reason": "No access token received"})
-                
+
             # Verify credentials
             verify_resp = await http_client.get(
                 f"https://{domain}/api/v1/accounts/verify_credentials",
                 headers={"Authorization": f"Bearer {access_token}"},
                 timeout=10.0
             )
-            
+
             if verify_resp.status_code != 200:
                 logger.warning("auth_failed provider=mastodon reason=verify_error status=%d", verify_resp.status_code)
                 raise HTTPException(status_code=502, detail={"error": "provider_error", "reason": "Failed to verify credentials"})
-                
+
             account_data = verify_resp.json()
             account_id = account_data.get("id")
             username = account_data.get("username")
             display_name = account_data.get("display_name")
-            
+
             if not account_id or not username:
                 logger.warning("auth_failed provider=mastodon reason=malformed_account")
                 raise HTTPException(status_code=502, detail={"error": "provider_error", "reason": "Malformed account data"})
-                
+
     except httpx.TimeoutException:
         logger.warning("auth_failed provider=mastodon reason=timeout")
         raise HTTPException(status_code=504, detail={"error": "gateway_timeout", "reason": "Communication with Mastodon instance timed out"})
@@ -683,18 +789,18 @@ async def mastodon_callback(request: Request, db: Session = Depends(get_db)):
         if isinstance(e, HTTPException):
             raise e
         logger.warning("auth_failed provider=mastodon reason=request_error detail=%s", str(e))
-        raise HTTPException(status_code=502, detail={"error": "bad_gateway", "reason": "Communication with Mastodon instance failed"})
+        raise HTTPException(status_code=502, detail={"error": "bad_gateway", "reason": str(e)})
 
     # Clean up session
     request.session.pop("mastodon_state", None)
     request.session.pop("mastodon_domain", None)
-    
+
     # Upsert user
     provider_id = f"{domain}:{account_id}"
-    
-    # Provide placeholder email including domain to prevent collision (BUG-01)
+
+    # Provide placeholder email since Mastodon doesn't give us a verified one
     placeholder_email = f"mastodon_{domain}_{account_id}@noemail.placeholder"
-    
+
     return finalize_auth(
         request,
         db,
@@ -717,14 +823,11 @@ def link_provider(provider: str, request: Request, current_user: User = Depends(
     """Begin explicit linking flow for a provider."""
     if provider not in ["github", "apple", "google", "mastodon", "indieauth"]:
         raise HTTPException(status_code=400, detail={"error": "invalid_provider", "reason": "Unsupported provider"})
-    
+
     request.session["link_to_user_id"] = str(current_user.id)
-    
-    from starlette.responses import RedirectResponse
+
     if provider == "mastodon" or provider == "indieauth":
         # These require a domain/url which isn't easily supported in a simple POST without body.
-        # For explicit link tests, we'll just return success if it's test-driven, or wait,
-        # the plan doesn't specify passing domain. If the test tests GitHub, we just redirect.
         pass
     return RedirectResponse(url=f"/v1/auth/{provider}/login")
 

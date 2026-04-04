@@ -32,8 +32,8 @@ class TestCreateAccessToken:
         assert "exp" in payload
         assert "iat" in payload
 
-    def test_expiry_is_approximately_30_days(self):
-        """Token expiry should be roughly 30 days from now."""
+    def test_expiry_is_approximately_1_hour(self):
+        """Token expiry should be roughly 1 hour from now (changed from 30 days)."""
         uid = uuid.uuid4()
         token = create_access_token(uid)
         payload = pyjwt.decode(token, _TEST_SECRET, algorithms=["HS256"], issuer="ovid")
@@ -41,7 +41,7 @@ class TestCreateAccessToken:
         exp_dt = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
         iat_dt = datetime.fromtimestamp(payload["iat"], tz=timezone.utc)
         delta = exp_dt - iat_dt
-        assert 29 <= delta.days <= 31
+        assert timedelta(minutes=59) < delta < timedelta(hours=1, seconds=5)
 
 
 class TestDecodeAccessToken:
