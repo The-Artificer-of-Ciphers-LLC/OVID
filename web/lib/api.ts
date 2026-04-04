@@ -1,4 +1,4 @@
-// OVID API client — typed fetch wrapper for both server and client components.
+// OVID API client -- typed fetch wrapper for both server and client components.
 
 // ---------------------------------------------------------------------------
 // Base URL resolution
@@ -20,6 +20,7 @@ async function apiFetch<T>(
   const url = `${getBaseUrl()}${path}`;
   const res = await fetch(url, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -242,39 +243,27 @@ export function getDiscEdits(fingerprint: string): Promise<DiscEditsListResponse
 
 export function submitDisc(
   data: DiscSubmitRequest,
-  token: string,
 ): Promise<DiscSubmitResponse> {
   return apiFetch<DiscSubmitResponse>("/v1/disc", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     body: JSON.stringify(data),
   });
 }
 
-export function getMe(token: string): Promise<UserResponse> {
-  return apiFetch<UserResponse>("/v1/auth/me", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export function getMe(): Promise<UserResponse> {
+  return apiFetch<UserResponse>("/v1/auth/me");
 }
 
-export function getProviders(token: string): Promise<ProvidersResponse> {
-  return apiFetch<ProvidersResponse>("/v1/auth/providers", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export function getProviders(): Promise<ProvidersResponse> {
+  return apiFetch<ProvidersResponse>("/v1/auth/providers");
 }
 
 export function unlinkProvider(
   provider: string,
-  token: string,
 ): Promise<{ status: string; provider: string }> {
   return apiFetch<{ status: string; provider: string }>(
     `/v1/auth/unlink/${encodeURIComponent(provider)}`,
-    {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    },
+    { method: "DELETE" },
   );
 }
 
@@ -287,11 +276,9 @@ export function getDisputedDiscs(limit = 50, offset = 0): Promise<DisputedDiscsR
 export function resolveDispute(
   fingerprint: string,
   action: "verify" | "reject",
-  token: string,
 ): Promise<ResolveDisputeResponse> {
   return apiFetch<ResolveDisputeResponse>(`/v1/disc/${encodeURIComponent(fingerprint)}/resolve`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ action }),
   });
 }

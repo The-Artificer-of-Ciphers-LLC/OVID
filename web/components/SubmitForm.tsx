@@ -30,7 +30,7 @@ function parseTitleCount(data: FingerprintJson): number {
 
 export default function SubmitForm() {
   const router = useRouter();
-  const { token } = useAuth();
+  const { user } = useAuth();
 
   // Parsed fingerprint data
   const [fpData, setFpData] = useState<FingerprintJson | null>(null);
@@ -87,7 +87,7 @@ export default function SubmitForm() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!fpData || !token) return;
+    if (!fpData || !user) return;
 
     const trimmedTitle = releaseTitle.trim();
     if (!trimmedTitle) {
@@ -113,7 +113,7 @@ export default function SubmitForm() {
     };
 
     try {
-      const result = await submitDisc(payload, token);
+      const result = await submitDisc(payload);
       setSubmitSuccess(result.message ?? "Disc submitted successfully.");
       // Redirect to disc detail page after a short delay so the user sees the success message
       setTimeout(() => {

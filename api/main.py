@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 
 from app.auth.config import SECRET_KEY
+from app.auth.device_flow import device_router
 from app.auth.routes import auth_router
 from app.auth.session import RedisSessionMiddleware
 from app.middleware import MirrorModeMiddleware, RequestIdMiddleware
@@ -80,6 +81,7 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.include_router(disc_router)
 app.include_router(sync_router)
 app.include_router(auth_router)
+app.include_router(device_router)
 
 
 @app.get("/health")

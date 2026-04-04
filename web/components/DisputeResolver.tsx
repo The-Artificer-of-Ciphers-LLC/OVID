@@ -13,7 +13,7 @@ interface Props {
 const TRUSTED_ROLES = new Set(["trusted", "editor", "admin"]);
 
 export default function DisputeResolver({ fingerprint, conflictData }: Props) {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,11 +21,11 @@ export default function DisputeResolver({ fingerprint, conflictData }: Props) {
   if (!user || !TRUSTED_ROLES.has(user.role ?? "")) return null;
 
   async function handleResolve(action: "verify" | "reject") {
-    if (!token) return;
+    if (!user) return;
     setLoading(true);
     setError(null);
     try {
-      await resolveDispute(fingerprint, action, token);
+      await resolveDispute(fingerprint, action);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resolution failed");

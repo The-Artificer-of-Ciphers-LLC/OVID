@@ -60,7 +60,6 @@ describe("SubmitForm", () => {
   beforeEach(() => {
     mockUseAuth.mockReturnValue({
       user: { id: "u1", username: "testuser", display_name: "Test", role: "user", email: "test@example.com", email_verified: true },
-      token: "test-token",
       loading: false,
       logout: vi.fn(),
     });

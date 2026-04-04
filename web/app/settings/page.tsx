@@ -7,7 +7,7 @@ import { getProviders, unlinkProvider, ApiError } from "@/lib/api";
 import ProviderList from "@/components/ProviderList";
 
 export default function SettingsPage() {
-  const { user, token, loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   const [providers, setProviders] = useState<string[]>([]);
@@ -24,31 +24,31 @@ export default function SettingsPage() {
 
   // Fetch linked providers
   const fetchProviders = useCallback(async () => {
-    if (!token) return;
+    if (!user) return;
     setProvidersLoading(true);
     try {
-      const res = await getProviders(token);
+      const res = await getProviders();
       setProviders(res.providers);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load providers.");
     } finally {
       setProvidersLoading(false);
     }
-  }, [token]);
+  }, [user]);
 
   useEffect(() => {
-    if (token) {
+    if (user) {
       fetchProviders();
     }
-  }, [token, fetchProviders]);
+  }, [user, fetchProviders]);
 
   // Unlink a provider
   async function handleUnlink(provider: string) {
-    if (!token) return;
+    if (!user) return;
     setUnlinking(provider);
     setError(null);
     try {
-      await unlinkProvider(provider, token);
+      await unlinkProvider(provider);
       await fetchProviders();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to unlink provider.");

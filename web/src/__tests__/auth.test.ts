@@ -1,54 +1,94 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
-import { getToken, setToken, clearToken, useAuth } from "@/lib/auth";
+import { isAuthenticated, clearAuth, useAuth, exchangeAuthCode } from "@/lib/auth";
 
 // ---------------------------------------------------------------------------
-// localStorage mock
+// document.cookie mock
 // ---------------------------------------------------------------------------
-const storage: Record<string, string> = {};
-const localStorageMock = {
-  getItem: vi.fn((key: string) => storage[key] ?? null),
-  setItem: vi.fn((key: string, value: string) => {
-    storage[key] = value;
-  }),
-  removeItem: vi.fn((key: string) => {
-    delete storage[key];
-  }),
-  clear: vi.fn(() => {
-    for (const k of Object.keys(storage)) delete storage[k];
-  }),
-  get length() {
-    return Object.keys(storage).length;
+let cookieStore: Record<string, string> = {};
+
+Object.defineProperty(document, "cookie", {
+  get: () =>
+    Object.entries(cookieStore)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("; "),
+  set: (value: string) => {
+    const [pair] = value.split(";");
+    const [key, val] = pair.split("=");
+    if (value.includes("expires=Thu, 01 Jan 1970")) {
+      delete cookieStore[key.trim()];
+    } else {
+      cookieStore[key.trim()] = val?.trim() ?? "";
+    }
   },
-  key: vi.fn((_i: number) => null),
-};
-
-Object.defineProperty(globalThis, "localStorage", { value: localStorageMock });
+});
 
 // ---------------------------------------------------------------------------
-// Token helper tests
+// Cookie helper tests
 // ---------------------------------------------------------------------------
 
-describe("Token helpers", () => {
+describe("Cookie auth helpers", () => {
   beforeEach(() => {
-    localStorageMock.clear();
+    cookieStore = {};
     vi.clearAllMocks();
   });
 
-  it("getToken returns null when no token is stored", () => {
-    expect(getToken()).toBeNull();
+  it("isAuthenticated returns false when no ovid_auth cookie", () => {
+    expect(isAuthenticated()).toBe(false);
   });
 
-  it("setToken / getToken round-trip", () => {
-    setToken("test-jwt-123");
-    expect(getToken()).toBe("test-jwt-123");
+  it("isAuthenticated returns true when ovid_auth cookie is 1", () => {
+    cookieStore["ovid_auth"] = "1";
+    expect(isAuthenticated()).toBe(true);
   });
 
-  it("clearToken removes the token", () => {
-    setToken("test-jwt-123");
-    expect(getToken()).toBe("test-jwt-123");
-    clearToken();
-    expect(getToken()).toBeNull();
+  it("clearAuth removes ovid_auth cookie", () => {
+    cookieStore["ovid_auth"] = "1";
+    clearAuth();
+    expect(isAuthenticated()).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// exchangeAuthCode tests
+// ---------------------------------------------------------------------------
+
+describe("exchangeAuthCode", () => {
+  beforeEach(() => {
+    cookieStore = {};
+    vi.clearAllMocks();
+    vi.restoreAllMocks();
+  });
+
+  it("posts code to /v1/auth/token and returns true on success", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ authenticated: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const result = await exchangeAuthCode("test-code");
+    expect(result).toBe(true);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/auth/token"),
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+      }),
+    );
+  });
+
+  it("returns false when exchange fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "invalid_code" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const result = await exchangeAuthCode("bad-code");
+    expect(result).toBe(false);
   });
 });
 
@@ -58,12 +98,12 @@ describe("Token helpers", () => {
 
 describe("useAuth", () => {
   beforeEach(() => {
-    localStorageMock.clear();
+    cookieStore = {};
     vi.clearAllMocks();
     vi.restoreAllMocks();
   });
 
-  it("returns loading=false with null user when no token is stored", async () => {
+  it("returns loading=false with null user when not authenticated", async () => {
     const { result } = renderHook(() => useAuth());
 
     await waitFor(() => {
@@ -71,10 +111,9 @@ describe("useAuth", () => {
     });
 
     expect(result.current.user).toBeNull();
-    expect(result.current.token).toBeNull();
   });
 
-  it("fetches user from /v1/auth/me when token exists", async () => {
+  it("fetches user from /v1/auth/me when ovid_auth cookie is set", async () => {
     const mockUser = {
       id: "user-1",
       username: "testuser",
@@ -91,7 +130,7 @@ describe("useAuth", () => {
       }),
     );
 
-    setToken("valid-token");
+    cookieStore["ovid_auth"] = "1";
 
     const { result } = renderHook(() => useAuth());
 
@@ -100,10 +139,9 @@ describe("useAuth", () => {
     });
 
     expect(result.current.user).toEqual(mockUser);
-    expect(result.current.token).toBe("valid-token");
   });
 
-  it("clears token and returns null user when /v1/auth/me fails", async () => {
+  it("clears auth and returns null user when /v1/auth/me fails", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({ error: "unauthorized" }), {
         status: 401,
@@ -111,7 +149,7 @@ describe("useAuth", () => {
       }),
     );
 
-    setToken("expired-token");
+    cookieStore["ovid_auth"] = "1";
 
     const { result } = renderHook(() => useAuth());
 
@@ -120,11 +158,9 @@ describe("useAuth", () => {
     });
 
     expect(result.current.user).toBeNull();
-    expect(result.current.token).toBeNull();
-    expect(getToken()).toBeNull(); // localStorage cleared
   });
 
-  it("logout clears user and token", async () => {
+  it("logout clears user", async () => {
     const mockUser = {
       id: "user-1",
       username: "testuser",
@@ -141,7 +177,7 @@ describe("useAuth", () => {
       }),
     );
 
-    setToken("valid-token");
+    cookieStore["ovid_auth"] = "1";
 
     const { result } = renderHook(() => useAuth());
 
@@ -156,7 +192,5 @@ describe("useAuth", () => {
     });
 
     expect(result.current.user).toBeNull();
-    expect(result.current.token).toBeNull();
-    expect(getToken()).toBeNull();
   });
 });
