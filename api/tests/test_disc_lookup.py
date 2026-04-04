@@ -101,6 +101,8 @@ class TestDiscLookupSetIntegration:
 
     def test_lookup_disc_in_set(self, client, db_session: Session, seeded_disc):
         """GET disc in a set returns disc_set with id, edition_name, total_discs, siblings."""
+        from app.models import DiscTitle, DiscTrack
+        from tests.conftest import seed_test_disc_set
         set_id = seed_test_disc_set(db_session, seeded_disc["release_id"], total_discs=2)
 
         # Link the seeded disc to the set
@@ -117,6 +119,7 @@ class TestDiscLookupSetIntegration:
             disc_number=2,
         )
         db_session.add(sibling)
+        db_session.flush()
         sibling_title = DiscTitle(
             disc_id=sibling.id,
             title_index=1,

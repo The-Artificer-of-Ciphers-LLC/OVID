@@ -27,7 +27,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import Base  # noqa: E402
 from app.deps import get_db  # noqa: E402
-from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, GlobalSeq, Release, SyncState, User  # noqa: E402
+from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, GlobalSeq, Release, User  # noqa: E402
 from app.auth.jwt import create_access_token  # noqa: E402
 
 
@@ -309,3 +309,26 @@ def trusted_auth_header(trusted_user: User) -> dict[str, str]:
     """Return an Authorization header dict with a valid JWT for the trusted user."""
     token = create_access_token(trusted_user.id)
     return {"Authorization": f"Bearer {token}"}
+
+
+
+# ---------------------------------------------------------------------------
+# Disc set helpers (Phase 2)
+# ---------------------------------------------------------------------------
+def seed_test_disc_set(
+    db: Session,
+    release_id: uuid.UUID,
+    edition_name: str = "Extended Edition",
+    total_discs: int = 4,
+) -> uuid.UUID:
+    """Create a disc set and return its UUID."""
+    from app.models import DiscSet
+    disc_set = DiscSet(
+        release_id=release_id,
+        edition_name=edition_name,
+        total_discs=total_discs,
+    )
+    db.add(disc_set)
+    db.commit()
+    db.refresh(disc_set)
+    return disc_set.id

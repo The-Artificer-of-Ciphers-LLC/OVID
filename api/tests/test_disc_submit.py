@@ -282,6 +282,7 @@ class TestDiscSubmitSetIntegration:
 
     def test_explicit_set_linking(self, client, db_session, auth_header, seeded_disc):
         """POST with valid disc_set_id links disc to existing set (D-03)."""
+        from tests.conftest import seed_test_disc_set
         set_id = seed_test_disc_set(db_session, seeded_disc["release_id"], total_discs=3)
         payload = {
             **VALID_PAYLOAD,
@@ -300,6 +301,7 @@ class TestDiscSubmitSetIntegration:
 
     def test_disc_number_exceeds_total_returns_422(self, client, db_session, auth_header, seeded_disc):
         """POST with disc_number > total_discs returns 422."""
+        from tests.conftest import seed_test_disc_set
         set_id = seed_test_disc_set(db_session, seeded_disc["release_id"], total_discs=2)
         payload = {
             **VALID_PAYLOAD,
@@ -314,6 +316,7 @@ class TestDiscSubmitSetIntegration:
 
     def test_duplicate_disc_number_returns_409(self, client, db_session, auth_header, seeded_disc):
         """POST with disc_set_id and duplicate disc_number returns 409 (D-08)."""
+        from tests.conftest import seed_test_disc_set
         set_id = seed_test_disc_set(db_session, seeded_disc["release_id"], total_discs=3)
         # Submit first disc in slot 1
         payload1 = {
@@ -340,6 +343,7 @@ class TestDiscSubmitSetIntegration:
 
     def test_nonexistent_set_returns_404(self, client, auth_header):
         """POST with disc_set_id pointing to non-existent set returns 404."""
+        import uuid
         payload = {
             **VALID_PAYLOAD,
             "fingerprint": "bd-SET-NOEXIST-001",

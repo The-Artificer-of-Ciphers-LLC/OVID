@@ -9,12 +9,21 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request  # noqa: F401
 from fastapi.responses import JSONResponse
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError  # noqa: F401
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.auth.deps import get_current_user
 from app.deps import get_db
-from app.models import Disc, DiscEdit, DiscRelease, DiscTitle, DiscTrack, Release, User
+from app.models import (
+    Disc,
+    DiscEdit,
+    DiscRelease,
+    DiscSet,
+    DiscTitle,
+    DiscTrack,
+    Release,
+    User,
+)
 from app.rate_limit import _dynamic_limit, limiter
 from app.sync import next_seq
 from app.schemas import (
@@ -23,6 +32,7 @@ from app.schemas import (
     DiscEditsListResponse,
     DiscLookupResponse,
     DiscRegisterRequest,
+    DiscSetNested,
     DiscSubmitRequest,
     DiscSubmitResponse,
     DisputeResolveRequest,
@@ -31,6 +41,7 @@ from app.schemas import (
     ReleaseResponse,
     SearchResponse,
     SearchResultRelease,
+    SiblingDiscSummary,
     TitleResponse,
     TrackResponse,
     UpcLookupResponse,
@@ -132,6 +143,39 @@ def _build_title_response(title: DiscTitle) -> TitleResponse:
     )
 
 
+def _build_disc_set_nested(disc: Disc) -> DiscSetNested | None:
+    """Build a DiscSetNested response if the disc belongs to a set."""
+    if disc.disc_set is None:
+        return None
+    ds = disc.disc_set
+    siblings = []
+    for sibling in ds.discs:
+        if sibling.id == disc.id:
+            continue
+        main_title_name = None
+        main_duration = None
+        track_count = 0
+        for t in sibling.titles:
+            track_count += len(t.tracks) if hasattr(t, "tracks") else 0
+            if t.is_main_feature:
+                main_title_name = t.display_name
+                main_duration = t.duration_secs
+        siblings.append(SiblingDiscSummary(
+            fingerprint=sibling.fingerprint,
+            disc_number=sibling.disc_number,
+            format=sibling.format,
+            main_title=main_title_name,
+            duration_secs=main_duration,
+            track_count=track_count,
+        ))
+    return DiscSetNested(
+        id=str(ds.id),
+        edition_name=ds.edition_name,
+        total_discs=ds.total_discs,
+        siblings=siblings,
+    )
+
+
 def _disc_to_response(disc: Disc, request_id: str) -> DiscLookupResponse:
     """Convert a Disc ORM object to a DiscLookupResponse schema."""
     confidence = STATUS_CONFIDENCE.get(disc.status, "low")
@@ -148,6 +192,7 @@ def _disc_to_response(disc: Disc, request_id: str) -> DiscLookupResponse:
         )
 
     titles_resp = [_build_title_response(t) for t in disc.titles]
+    disc_set_resp = _build_disc_set_nested(disc)
 
     return DiscLookupResponse(
         request_id=request_id,
@@ -164,6 +209,7 @@ def _disc_to_response(disc: Disc, request_id: str) -> DiscLookupResponse:
         verified_by=str(disc.verified_by) if disc.verified_by else None,
         release=release_resp,
         titles=titles_resp,
+        disc_set=disc_set_resp,
     )
 
 
@@ -290,6 +336,10 @@ def lookup_disc(
         .options(
             joinedload(Disc.titles).joinedload(DiscTitle.tracks),
             selectinload(Disc.releases),
+            joinedload(Disc.disc_set)
+            .selectinload(DiscSet.discs)
+            .joinedload(Disc.titles)
+            .joinedload(DiscTitle.tracks),
         )
         .filter(Disc.fingerprint == fingerprint)
         .first()
@@ -377,7 +427,7 @@ def submit_disc(
     # Duplicate check — auto-verify or dispute logic
     existing = db.query(Disc).filter(Disc.fingerprint == body.fingerprint).first()
     if existing is not None:
-        # Same user submitting again → conflict
+        # Same user submitting again -> conflict
         if existing.submitted_by is not None and str(existing.submitted_by) == str(current_user.id):
             return _error_response(
                 request_id,
@@ -385,7 +435,7 @@ def submit_disc(
                 "Disc already submitted by this user",
                 409,
             )
-        # Different user — check if release metadata matches
+        # Different user -- check if release metadata matches
         if _releases_match(existing, body.release, db):
             existing.status = "verified"
             existing.verified_by = current_user.id
@@ -460,7 +510,7 @@ def submit_disc(
         db.add(disc)
         db.flush()
 
-        # Link disc ↔ release
+        # Link disc <-> release
         db.execute(
             DiscRelease.__table__.insert().values(
                 disc_id=disc.id, release_id=release.id
@@ -502,6 +552,46 @@ def submit_disc(
                     channels=st.channels,
                     is_default=st.is_default,
                 ))
+
+        # --- Set integration (Phase 2: D-01, D-03, D-08, D-14) ---
+        if body.disc_set_id is not None:
+            try:
+                set_uuid = uuid.UUID(body.disc_set_id)
+            except ValueError:
+                db.rollback()
+                return _error_response(request_id, "validation_error", "Invalid disc_set_id format", 422)
+            existing_set = db.query(DiscSet).filter(DiscSet.id == set_uuid).first()
+            if existing_set is None:
+                db.rollback()
+                return _error_response(request_id, "not_found", "Disc set not found", 404)
+            if body.disc_number > existing_set.total_discs:
+                db.rollback()
+                return _error_response(
+                    request_id, "validation_error",
+                    f"Disc number {body.disc_number} exceeds total disc count ({existing_set.total_discs})",
+                    422,
+                )
+            disc.disc_set_id = existing_set.id
+            try:
+                db.flush()
+            except IntegrityError:
+                db.rollback()
+                return _error_response(
+                    request_id, "conflict",
+                    f"Disc {body.disc_number} is already assigned in this set. Choose a different disc number or dispute the existing entry.",
+                    409,
+                )
+        elif body.total_discs > 1:
+            # D-01: implicit set creation
+            new_set = DiscSet(
+                release_id=release.id,
+                edition_name=body.edition_name,
+                total_discs=body.total_discs,
+                seq_num=next_seq(db),
+            )
+            db.add(new_set)
+            db.flush()
+            disc.disc_set_id = new_set.id
 
         # Assign sync sequence numbers so mirrors can track this change
         seq = next_seq(db)

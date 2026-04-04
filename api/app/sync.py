@@ -120,6 +120,7 @@ def build_sync_disc(disc: Disc) -> SyncDiffRecord:
         edition_name=disc.edition_name,
         disc_number=disc.disc_number,
         total_discs=disc.total_discs,
+        disc_set_id=str(disc.disc_set_id) if disc.disc_set_id else None,
         titles=titles,
         release=release_resp,
     )
