@@ -17,8 +17,9 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Disc, DiscTitle, DiscTrack, GlobalSeq
+from app.models import Disc, DiscChapter, DiscTitle, DiscTrack, GlobalSeq
 from app.schemas import (
+    SyncChapterRecord,
     SyncDiffRecord,
     SyncReleaseRecord,
     SyncTitleRecord,
@@ -79,8 +80,20 @@ def build_sync_track(track: DiscTrack) -> SyncTrackRecord:
     )
 
 
+def build_sync_chapter(chapter: DiscChapter) -> SyncChapterRecord:
+    return SyncChapterRecord(
+        chapter_index=chapter.chapter_index,
+        name=chapter.name,
+        start_time_secs=chapter.start_time_secs,
+    )
+
+
 def build_sync_title(title: DiscTitle) -> SyncTitleRecord:
     tracks = [build_sync_track(t) for t in title.tracks]
+    chapters = [
+        build_sync_chapter(ch)
+        for ch in sorted(title.chapters, key=lambda c: c.chapter_index)
+    ]
     return SyncTitleRecord(
         title_index=title.title_index,
         is_main_feature=title.is_main_feature,
@@ -89,6 +102,7 @@ def build_sync_title(title: DiscTitle) -> SyncTitleRecord:
         duration_secs=title.duration_secs,
         chapter_count=title.chapter_count,
         tracks=tracks,
+        chapters=chapters,
     )
 
 

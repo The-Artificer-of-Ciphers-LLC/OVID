@@ -368,3 +368,106 @@ class TestDiscSubmitSetIntegration:
         get_resp = client.get("/v1/disc/bd-NOSET-001")
         data = get_resp.json()
         assert data["disc_set"] is None
+
+
+# ---------------------------------------------------------------------------
+# Chapter integration tests (Phase 3)
+# ---------------------------------------------------------------------------
+class TestDiscSubmitChapters:
+    """Disc submission with chapter data nested in titles."""
+
+    def test_submit_with_chapters(self, client, auth_header):
+        """POST with chapters in a title -> 201, lookup returns chapters."""
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-CHAP-001",
+            "titles": [
+                {
+                    "title_index": 0,
+                    "title_type": "main_feature",
+                    "duration_secs": 7200,
+                    "chapter_count": 2,
+                    "is_main_feature": True,
+                    "display_name": "Main Feature",
+                    "audio_tracks": [],
+                    "subtitle_tracks": [],
+                    "chapters": [
+                        {"chapter_index": 1, "name": "Opening", "start_time_secs": 0},
+                        {"chapter_index": 2, "name": None, "start_time_secs": 120},
+                    ],
+                }
+            ],
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 201
+
+        get_resp = client.get("/v1/disc/bd-CHAP-001")
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        chapters = data["titles"][0]["chapters"]
+        assert len(chapters) == 2
+        assert chapters[0]["chapter_index"] == 1
+        assert chapters[0]["name"] == "Opening"
+        assert chapters[0]["start_time_secs"] == 0
+        assert chapters[1]["chapter_index"] == 2
+        assert chapters[1]["name"] is None
+        assert chapters[1]["start_time_secs"] == 120
+
+    def test_submit_without_chapters_backward_compat(self, client, auth_header):
+        """POST without chapters field -> 201, titles have empty chapters list."""
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-NOCHAP-001",
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 201
+
+        get_resp = client.get("/v1/disc/bd-NOCHAP-001")
+        data = get_resp.json()
+        assert data["titles"][0]["chapters"] == []
+
+    def test_submit_too_many_chapters(self, client, auth_header):
+        """POST with >999 chapters in one title -> 400."""
+        chapters = [{"chapter_index": i} for i in range(1, 1001)]
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-TOOMANYCHAP-001",
+            "titles": [
+                {
+                    "title_index": 0,
+                    "title_type": "main_feature",
+                    "duration_secs": 7200,
+                    "is_main_feature": True,
+                    "audio_tracks": [],
+                    "subtitle_tracks": [],
+                    "chapters": chapters,
+                }
+            ],
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 400
+        assert "Maximum 999 chapters per title" in resp.json()["message"]
+
+    def test_submit_duplicate_chapter_index(self, client, auth_header):
+        """POST with duplicate chapter_index in one title -> 400."""
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-DUPCHAP-001",
+            "titles": [
+                {
+                    "title_index": 0,
+                    "title_type": "main_feature",
+                    "duration_secs": 7200,
+                    "is_main_feature": True,
+                    "audio_tracks": [],
+                    "subtitle_tracks": [],
+                    "chapters": [
+                        {"chapter_index": 1, "name": "Ch1", "start_time_secs": 0},
+                        {"chapter_index": 1, "name": "Ch1 dup", "start_time_secs": 60},
+                    ],
+                }
+            ],
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 400
+        assert "Duplicate chapter_index" in resp.json()["message"]

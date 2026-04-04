@@ -1,11 +1,10 @@
 """Tests for sync feed endpoints — GET /v1/sync/head, /v1/sync/diff, /v1/sync/snapshot."""
 
-import uuid
 from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import Disc, DiscRelease, DiscTitle, DiscTrack, GlobalSeq, Release, SyncState
+from app.models import Disc, DiscChapter, DiscRelease, DiscTitle, DiscTrack, GlobalSeq, Release, SyncState
 
 
 # ---------------------------------------------------------------------------
@@ -329,3 +328,85 @@ class TestSyncSnapshot:
         assert resp.status_code == 404
         data = resp.json()
         assert "missing keys" in data["detail"]
+
+
+# ---------------------------------------------------------------------------
+# Sync diff chapter tests (Phase 3)
+# ---------------------------------------------------------------------------
+class TestSyncDiffChapters:
+    """Sync diff includes chapter data in title records."""
+
+    def test_sync_diff_includes_chapters(self, client, db_session):
+        """Seed disc with chapters, verify sync diff includes chapter data."""
+        disc = Disc(
+            fingerprint="fp-chap-sync",
+            format="BD",
+            status="unverified",
+            seq_num=1,
+        )
+        db_session.add(disc)
+        db_session.flush()
+
+        release = Release(
+            title="Chapter Sync Film",
+            year=2024,
+            content_type="movie",
+        )
+        db_session.add(release)
+        db_session.flush()
+        db_session.execute(
+            DiscRelease.__table__.insert().values(
+                disc_id=disc.id, release_id=release.id
+            )
+        )
+
+        t = DiscTitle(
+            disc_id=disc.id,
+            title_index=1,
+            title_type="main_feature",
+            duration_secs=5400,
+            chapter_count=2,
+            is_main_feature=True,
+            display_name="Main Feature",
+        )
+        db_session.add(t)
+        db_session.flush()
+
+        db_session.add(DiscChapter(
+            disc_title_id=t.id,
+            chapter_index=1,
+            name="Opening",
+            start_time_secs=0,
+        ))
+        db_session.add(DiscChapter(
+            disc_title_id=t.id,
+            chapter_index=2,
+            name=None,
+            start_time_secs=120,
+        ))
+        db_session.commit()
+
+        resp = client.get("/v1/sync/diff", params={"since": 0})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["records"]) == 1
+
+        title = data["records"][0]["titles"][0]
+        assert len(title["chapters"]) == 2
+        assert title["chapters"][0]["chapter_index"] == 1
+        assert title["chapters"][0]["name"] == "Opening"
+        assert title["chapters"][0]["start_time_secs"] == 0
+        assert title["chapters"][1]["chapter_index"] == 2
+        assert title["chapters"][1]["name"] is None
+        assert title["chapters"][1]["start_time_secs"] == 120
+
+    def test_sync_diff_no_chapters_backward_compat(self, client, db_session):
+        """Disc without chapters returns empty chapters list in sync diff."""
+        _seed_disc_with_seq(
+            db_session, "fp-nochap-sync", seq_num=1, with_titles=True
+        )
+
+        resp = client.get("/v1/sync/diff", params={"since": 0})
+        data = resp.json()
+        title = data["records"][0]["titles"][0]
+        assert title["chapters"] == []

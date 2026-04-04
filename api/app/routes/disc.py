@@ -16,6 +16,7 @@ from app.auth.deps import get_current_user
 from app.deps import get_db
 from app.models import (
     Disc,
+    DiscChapter,
     DiscEdit,
     DiscRelease,
     DiscSet,
@@ -28,6 +29,7 @@ from app.rate_limit import _dynamic_limit, limiter
 from app.sync import next_seq
 from app.schemas import (
     STATUS_CONFIDENCE,
+    ChapterResponse,
     DiscEditResponse,
     DiscEditsListResponse,
     DiscLookupResponse,
@@ -131,6 +133,14 @@ def _build_title_response(title: DiscTitle) -> TitleResponse:
     subs = [
         _build_track_response(t) for t in title.tracks if t.track_type == "subtitle"
     ]
+    chapters = [
+        ChapterResponse(
+            chapter_index=ch.chapter_index,
+            name=ch.name,
+            start_time_secs=ch.start_time_secs,
+        )
+        for ch in sorted(title.chapters, key=lambda c: c.chapter_index)
+    ]
     return TitleResponse(
         title_index=title.title_index,
         is_main_feature=title.is_main_feature,
@@ -140,6 +150,7 @@ def _build_title_response(title: DiscTitle) -> TitleResponse:
         chapter_count=title.chapter_count,
         audio_tracks=audio,
         subtitle_tracks=subs,
+        chapters=chapters,
     )
 
 
@@ -231,6 +242,7 @@ def lookup_disc_by_upc(
         .filter(Disc.upc == upc)
         .options(
             joinedload(Disc.titles).joinedload(DiscTitle.tracks),
+            joinedload(Disc.titles).joinedload(DiscTitle.chapters),
             selectinload(Disc.releases),
         )
         .all()
@@ -257,6 +269,7 @@ async def list_disputed_discs(
     discs = (
         q.options(
             joinedload(Disc.titles).joinedload(DiscTitle.tracks),
+            joinedload(Disc.titles).joinedload(DiscTitle.chapters),
             selectinload(Disc.releases),
         )
         .offset(offset)
@@ -335,11 +348,16 @@ def lookup_disc(
         db.query(Disc)
         .options(
             joinedload(Disc.titles).joinedload(DiscTitle.tracks),
+            joinedload(Disc.titles).joinedload(DiscTitle.chapters),
             selectinload(Disc.releases),
             joinedload(Disc.disc_set)
             .selectinload(DiscSet.discs)
             .joinedload(Disc.titles)
             .joinedload(DiscTitle.tracks),
+            joinedload(Disc.disc_set)
+            .selectinload(DiscSet.discs)
+            .joinedload(Disc.titles)
+            .joinedload(DiscTitle.chapters),
         )
         .filter(Disc.fingerprint == fingerprint)
         .first()
@@ -517,7 +535,23 @@ def submit_disc(
             )
         )
 
-        # Create titles and tracks
+        # Validate chapter data before any DB writes
+        for tc in body.titles:
+            if len(tc.chapters) > 999:
+                db.rollback()
+                return _error_response(
+                    request_id, "validation_error",
+                    "Maximum 999 chapters per title", 400,
+                )
+            chapter_indices = [ch.chapter_index for ch in tc.chapters]
+            if len(set(chapter_indices)) != len(chapter_indices):
+                db.rollback()
+                return _error_response(
+                    request_id, "validation_error",
+                    "Duplicate chapter_index in title", 400,
+                )
+
+        # Create titles, tracks, and chapters
         for tc in body.titles:
             title = DiscTitle(
                 disc_id=disc.id,
@@ -551,6 +585,14 @@ def submit_disc(
                     codec=st.codec,
                     channels=st.channels,
                     is_default=st.is_default,
+                ))
+
+            for ch_data in tc.chapters:
+                db.add(DiscChapter(
+                    disc_title_id=title.id,
+                    chapter_index=ch_data.chapter_index,
+                    name=ch_data.name,
+                    start_time_secs=ch_data.start_time_secs,
                 ))
 
         # --- Set integration (Phase 2: D-01, D-03, D-08, D-14) ---
