@@ -62,13 +62,13 @@ ovid fingerprint /path/to/VIDEO_TS --json
 ### Look up a disc in the OVID database
 
 ```bash
-ovid lookup <fingerprint> --api-url https://holodeck.nomorestars.com
+ovid lookup <fingerprint> --api-url https://api.oviddb.org
 ```
 
 ### Submit a disc
 
 ```bash
-ovid submit /path/to/VIDEO_TS --api-url https://holodeck.nomorestars.com --token YOUR_JWT
+ovid submit /path/to/VIDEO_TS --api-url https://api.oviddb.org --token YOUR_JWT
 ```
 
 The `submit` command runs an interactive wizard: fingerprint → TMDB search → pick release → edition/disc number → submit.
@@ -87,7 +87,7 @@ print(len(disc.titles))   # number of titles on the disc
 ```python
 from ovid.client import OVIDClient
 
-client = OVIDClient(base_url="https://holodeck.nomorestars.com")
+client = OVIDClient(base_url="https://api.oviddb.org")
 result = client.lookup("ovid-dvd1-a1b2c3d4...")
 ```
 

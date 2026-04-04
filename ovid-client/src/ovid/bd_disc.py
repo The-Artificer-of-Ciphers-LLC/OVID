@@ -103,8 +103,38 @@ class BDDisc:
                 "All MPLS files in BDMV/PLAYLIST are malformed or unreadable"
             )
 
-        # Filter out obfuscation playlists (< 60s) for the final disc object
-        # so they don't appear in JSON or submit payloads
+        # Detect UHD from any playlist's version header (check before filtering
+        # so discs with only short playlists can still be classified)
+        is_uhd = any(
+            pl.header.version == "0300" for _, pl in parsed_playlists
+        )
+        format_type = "uhd" if is_uhd else "bluray"
+        logger.info("Detected format: %s", format_type)
+
+        # Try AACS Tier 1 first — this does NOT require playlist filtering
+        # because the fingerprint comes from Unit_Key_RO.inf, not MPLS data.
+        tier1_fp = cls._try_aacs_tier1(reader, is_uhd)
+        if tier1_fp is not None:
+            logger.info("Using AACS Tier 1 fingerprint")
+            # Filter playlists for metadata (best effort — empty list is OK
+            # for Tier 1 since the fingerprint doesn't depend on playlists)
+            filtered_playlists = [
+                (fname, pl)
+                for fname, pl in parsed_playlists
+                if sum(pi.duration_seconds for pi in pl.play_items) >= 60.0
+            ]
+            return cls(
+                fingerprint=tier1_fp,
+                tier=1,
+                format_type=format_type,
+                canonical_string="",
+                source_type=source_type,
+                playlists=[pl for _, pl in filtered_playlists],
+            )
+
+        # Filter out obfuscation playlists (< 60s) for Tier 2 structure hash.
+        # Tier 2 requires at least one playlist to build the canonical string.
+        logger.info("AACS Tier 1 unavailable, falling back to Tier 2 structure hash")
         filtered_playlists = []
         for fname, pl in parsed_playlists:
             total_dur = sum(pi.duration_seconds for pi in pl.play_items)
@@ -116,28 +146,7 @@ class BDDisc:
                 f"No valid playlists after 60-second filter (had {len(parsed_playlists)} playlist(s), all under 60.0s)"
             )
 
-        # Detect UHD from first valid playlist's version header
-        is_uhd = any(
-            pl.header.version == "0300" for _, pl in filtered_playlists
-        )
-        format_type = "uhd" if is_uhd else "bluray"
-        logger.info("Detected format: %s", format_type)
-
-        # Try AACS Tier 1
-        tier1_fp = cls._try_aacs_tier1(reader, is_uhd)
-        if tier1_fp is not None:
-            logger.info("Using AACS Tier 1 fingerprint")
-            return cls(
-                fingerprint=tier1_fp,
-                tier=1,
-                format_type=format_type,
-                canonical_string="",
-                source_type=source_type,
-                playlists=[pl for _, pl in filtered_playlists],
-            )
-
         # Fall back to Tier 2 structure hash
-        logger.info("AACS Tier 1 unavailable, falling back to Tier 2 structure hash")
         canonical = build_bd_canonical_string(filtered_playlists, is_uhd)
         fp = compute_bd_structure_fingerprint(canonical, is_uhd)
 

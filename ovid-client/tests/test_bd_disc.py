@@ -272,7 +272,7 @@ class TestBDDiscNegative:
             BDDisc.from_path(str(root))
 
     def test_all_playlists_under_60s(self, tmp_path):
-        """All playlists under 60 seconds → ValueError from structure hash."""
+        """All playlists under 60 seconds, no AACS → ValueError from structure hash."""
         root = _make_bd_dir(
             tmp_path,
             mpls_files={
@@ -282,6 +282,29 @@ class TestBDDiscNegative:
         )
         with pytest.raises(ValueError, match="No valid playlists"):
             BDDisc.from_path(str(root))
+
+    def test_all_playlists_under_60s_with_aacs_uses_tier1(self, tmp_path):
+        """All playlists under 60 seconds but AACS present → Tier 1 succeeds.
+
+        Regression test: previously the 60-second filter ran before the AACS
+        check, causing a ValueError even when a Tier 1 fingerprint was available.
+        """
+        unit_key = b"aacs_key_for_short_playlist_disc"
+        root = _make_bd_dir(
+            tmp_path,
+            mpls_files={
+                "00001.mpls": _make_long_playlist(duration_seconds=30.0),
+                "00002.mpls": _make_long_playlist(duration_seconds=45.0),
+            },
+            aacs_files={"Unit_Key_RO.inf": unit_key},
+        )
+
+        disc = BDDisc.from_path(str(root))
+        assert disc.tier == 1
+        assert disc.fingerprint.startswith("bd1-aacs-")
+        assert disc.format_type == "bluray"
+        # All playlists filtered out — playlists list is empty for Tier 1
+        assert disc.playlists == []
 
     def test_mixed_valid_and_malformed(self, tmp_path):
         """Some MPLS files malformed, some valid → succeeds with valid ones."""
