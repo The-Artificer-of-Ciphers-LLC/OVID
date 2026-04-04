@@ -27,7 +27,7 @@ All environments run on **holodeck.nomorestars.com**, but on different port rang
 | Requirement | Notes |
 |---|---|
 | Docker Engine | 24.0+ recommended |
-| `docker-compose` binary | Use the **hyphenated** standalone binary, not `docker compose` plugin. See [K006]. |
+| `docker compose` plugin | Use the **plugin** subcommand (`docker compose`), not the legacy hyphenated `docker-compose` binary. See [K006]. |
 
 ### Setup
 
@@ -41,7 +41,7 @@ cp .env.example .env
 ### Run
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
 Services are available directly on the LAN:
@@ -55,7 +55,7 @@ The dev stack uses volume mounts and `--reload` for hot-reloading during develop
 ### Migrations
 
 ```bash
-docker-compose run --rm api alembic upgrade head
+docker compose run --rm api alembic upgrade head
 ```
 
 ---
@@ -73,7 +73,7 @@ Internet → Cloudflare → redshirt (reverse proxy) → holodeck:8100/3100
 | Requirement | Notes |
 |---|---|
 | Docker Engine 24.0+ | On holodeck |
-| `docker-compose` binary | Hyphenated standalone binary |
+| `docker compose` plugin | v2 plugin subcommand |
 | SSH access to redshirt | For reverse proxy configuration |
 | Cloudflare account | DNS management for oviddb.org |
 
@@ -96,10 +96,10 @@ Fill in all values in `.env`:
 
 ```bash
 # Pull pre-built images (if published to GHCR):
-docker-compose pull
+docker compose pull
 
 # Or build locally:
-docker-compose build
+docker compose build
 ```
 
 ### 3. Run Database Migrations
@@ -107,13 +107,13 @@ docker-compose build
 **Run this before every deploy**, including the first one:
 
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api alembic upgrade head
+docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api alembic upgrade head
 ```
 
 ### 4. Start the Stack
 
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
 The production services start with container name prefixes (`ovid-prod-*`) and on separate ports from dev:
@@ -345,17 +345,17 @@ The dev, prod, and test stacks can run side-by-side on holodeck because they use
 
 ```bash
 # Dev stack (ports 8000/3000/5432) — from ~/ovid/
-docker-compose up -d
+docker compose up -d
 
 # Prod stack (ports 8100/3100, DB not exposed) — from ~/ovid/
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # Test stack (ports 8200/3200/5434) — from ~/OVID-test/
 cd ~/OVID-test
 docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test -p ovid-test up -d
 ```
 
-Note: dev and prod share the same `docker-compose.yml` base directory, so they share Docker volumes by default. The test stack uses a separate directory (`~/OVID-test/`) with its own volume, ensuring full data isolation.
+Note: dev and prod use the same `docker-compose.yml` base directory, but the prod override sets `name: ovid-prod` to ensure separate Docker volumes (`ovid-prod_ovid_pgdata` vs `ovid_ovid_pgdata`). The test stack uses a separate directory (`~/OVID-test/`) with its own volume, ensuring full data isolation across all three environments.
 
 ---
 
@@ -385,13 +385,13 @@ To deploy a new version to production:
 
 ```bash
 # Pull latest images
-docker-compose pull
+docker compose pull
 
 # Run any new migrations
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api alembic upgrade head
+docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api alembic upgrade head
 
 # Restart with production overrides
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
 ---
@@ -402,23 +402,23 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ```bash
 # All services (prod)
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
 
 # Single service
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml logs -f api
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f api
 ```
 
 ### Database Connection Issues
 
 If the API can't reach PostgreSQL, check:
 
-1. The `db` healthcheck is passing: `docker-compose ps`
+1. The `db` healthcheck is passing: `docker compose ps`
 2. `OVID_DB_PASSWORD` in `.env` matches what PostgreSQL was initialised with
-3. If the password was changed after first run, delete the volume: `docker-compose down -v` (⚠️ destroys data)
+3. If the password was changed after first run, delete the volume: `docker compose down -v` (⚠️ destroys data)
 
 ### Migration Failures
 
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api alembic current
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api alembic history
+docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api alembic current
+docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api alembic history
 ```

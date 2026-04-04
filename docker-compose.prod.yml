@@ -1,5 +1,5 @@
 # Production overrides — merge with base:
-#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #
 # This file targets the canonical production environment:
 #   API:  https://api.oviddb.org  (reverse-proxied via redshirt, host port 8100)
@@ -8,11 +8,13 @@
 #
 # See docs/deployment.md for full deployment instructions.
 
+name: ovid-prod
+
 x-prod-note: >
   This file is a Docker Compose override. It is NOT standalone.
   Always run with both files:
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-  Use the docker-compose binary (hyphenated), not 'docker compose' plugin.
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+  Use the 'docker compose' plugin (v2), not the legacy hyphenated 'docker-compose' binary.
 
 services:
 
@@ -34,9 +36,10 @@ services:
     environment:
       DATABASE_URL:          postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}
       SECRET_KEY:            ${OVID_SECRET_KEY}
-      OVID_MODE:             ${OVID_MODE:-canonical}
+      OVID_MODE:             canonical
       LOG_LEVEL:             ${LOG_LEVEL:-info}
       CORS_ORIGINS:          ${CORS_ORIGINS:-https://oviddb.org}
+      OVID_API_URL:          https://api.oviddb.org
       GITHUB_CLIENT_ID:      ${GITHUB_CLIENT_ID}
       GITHUB_CLIENT_SECRET:  ${GITHUB_CLIENT_SECRET}
       GOOGLE_CLIENT_ID:      ${GOOGLE_CLIENT_ID}
@@ -48,6 +51,10 @@ services:
 
   web:
     container_name: ovid-prod-web
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: 'https://api.oviddb.org'
     # Expose on 3100 to avoid conflict with dev stack on 3000
     ports:
       - "3100:3000"
