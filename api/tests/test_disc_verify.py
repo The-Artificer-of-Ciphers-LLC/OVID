@@ -117,7 +117,7 @@ class TestVerifyStateMachine:
         assert resp.status_code == 400
         data = resp.json()
         assert data["error"] == "invalid_status_transition"
-        assert "verified" in data["current_status"]
+        assert "verified" in data["message"]
 
     def test_unverified_to_verified_allowed(
         self, client, db_session, seeded_disc, auth_header
