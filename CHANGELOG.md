@@ -86,57 +86,89 @@ This project uses [Semantic Versioning](https://semver.org/) in the form `0.MILE
 - DriveReader on macOS requires a mounted volume or ISO — direct /dev/diskN not tested on real hardware
 - Not published to PyPI yet (planned for v0.2.0)
 
-## [0.2.0] — Unreleased
+## [0.2.0] — 2026-04-04
 
-**Full Format Support, Web UI & Auth** — Adds Blu-ray and 4K UHD fingerprinting, a Next.js web UI, multi-provider OAuth with account linking, community verification workflow, and production deployment support.
+**Soft Launch** — oviddb.org is live. Adds Blu-ray/UHD fingerprinting, a Next.js web UI, five OAuth providers with account linking, sync/mirror protocol, rate limiting, dispute resolution, ARM integration, and public production deployment via Cloudflare.
 
 ### Added
 
 #### Blu-ray & UHD Fingerprinting (`ovid-client`)
-- OVID-BD-1 fingerprint algorithm: SHA-256 of canonical structural string from MPLS playlist data
+- OVID-BD-1 fingerprint algorithm: two-tier approach — AACS key file (Tier 1) with MPLS structure hash fallback (Tier 2)
 - Pure-Python MPLS binary parser — no native dependencies required
-- BD folder reader for BDMV directory structures
-- Support for 4K UHD discs (same OVID-BD-1 algorithm)
-- Obfuscation playlist filtering — identifies and skips fake playlists used as copy protection
-- `ovid fingerprint /path/to/BDMV` CLI support for Blu-ray and UHD discs
-- JSON output mode: `ovid fingerprint --json` returns structured disc data
+- BD folder reader for BDMV directory structures with case-insensitive lookup
+- 4K UHD disc support via `uhd1-aacs-*` / `uhd2-*` fingerprint prefixes
+- Obfuscation playlist filtering — skips fake playlists (< 60 s) used as copy protection
+- `ovid fingerprint /path/to/BDMV` CLI support with Tier metadata in JSON output
+- AACS Tier 1 attempted before 60-second playlist filter — handles discs with all-short playlists
 
 #### OAuth & Account Linking
 - Google OAuth login/callback
 - Mastodon OAuth login/callback with per-instance dynamic client registration
-- Account linking: multiple OAuth providers can be linked to a single user account (matched by email)
+- Account linking: multiple OAuth providers per user, matched by email
 - `GET /v1/auth/providers` — list linked OAuth providers for the current user
-- `DELETE /v1/auth/providers/{provider}` — unlink a provider (prevents unlinking the last one)
+- `DELETE /v1/auth/providers/{provider}` — unlink a provider (cannot unlink the last one)
 - Apple Sign-In JWKS verification — tokens validated against Apple's published JSON Web Key Set
+- Shared `finalize_auth()` convergence point handling user upsert, linking, and JWT creation for all five providers
 
 #### API Enhancements
-- CORS middleware with configurable allowed origins via `CORS_ORIGINS` env var
-- Community verification workflow: second contributor submitting matching fingerprint auto-promotes disc to verified status
-- Metadata conflict detection: conflicting submissions flagged as disputed
+- CORS middleware with configurable allowed origins via `CORS_ORIGINS` env var (positioned before SessionMiddleware)
+- Community verification workflow: second contributor with matching fingerprint auto-promotes disc to verified
+- Metadata conflict detection: conflicting submissions flagged as disputed, surfaced via `GET /v1/disc/disputed`
+- `POST /v1/disc/{fingerprint}/resolve` — dispute resolution endpoint
 - `GET /v1/disc/{fingerprint}/edits` — edit history endpoint
+- `GET /v1/disc/upc/{upc}` — UPC barcode lookup endpoint
 - `submitted_by` tracking on all disc submissions
 
+#### Sync & Mirror Protocol
+- `GET /v1/sync/head` — returns current global sequence number and timestamp
+- `GET /v1/sync/diff?since={seq}` — returns all disc records since a given sequence
+- `GET /v1/sync/snapshot` — full CC0 database snapshot dump
+- `scripts/sync.py` polling daemon with upsert logic for mirror operators
+- `GlobalSeq` single-row counter table with per-disc `seq_num` columns for incremental sync
+- Mirror mode middleware (`OVID_MODE=mirror`) — read-only API that proxies writes to upstream
+
+#### Rate Limiting
+- Per-endpoint rate limits via `slowapi` decorator pattern (not SlowAPIMiddleware)
+- Auth-aware thresholds: 100/min authenticated, 20/min anonymous
+- Returns 429 with `Retry-After` header on limit breach
+
 #### Next.js Web UI (`web/`)
-- Server-rendered disc browsing and search interface
-- Disc detail pages showing full structure (titles, tracks, chapters) for DVD and Blu-ray
-- Google OAuth login flow via the web UI
+- Server-rendered disc browsing and search via `GET /v1/search`
+- Disc detail pages: full structure (titles, tracks, chapters) for DVD and Blu-ray
+- All five OAuth provider login flows via the web UI (`/auth/callback` token handler)
 - Fingerprint JSON file upload for disc submission
 - Account settings page with linked provider management
+- Dispute resolution UI at `/disputes`
+- `Suspense` wrapper on all `useSearchParams()` usages (Next.js 16 App Router requirement)
 
-#### Deployment & Infrastructure
-- PyPI publishing via trusted publishing (OIDC) in release workflow
-- Web Docker image (`ovid-web`) build in release workflow
-- Web test job in CI workflow
-- Production Docker Compose override file
-- Deployment runbook for holodeck.nomorestars.com
+#### ARM Integration (`arm/`)
+- `arm/identify.py` shim: OVID-first fingerprint lookup with importlib delegation to original ARM identify
+- `arm/identify_ovid.py`: never-raise wrapper — catches all exceptions, hard 5-second timeout on API calls
+- `arm/entrypoint_wrapper.sh`: extracts original `identify.py` from Docker image before overlay mounts shadow it
+- `arm/start_arm_container.sh`: bridge-primary / ovid_default-secondary dual-network setup for ARM
+- `_ensure_mounted()` with retry loop (6× @ 2 s) and `findmnt -M` verification — handles optical drive spinup race condition
+
+#### Production Deployment
+- TLS certificates for oviddb.org and api.oviddb.org via Let's Encrypt (ECDSA, valid through 2026-06-30)
+- Cloudflare proxy (orange cloud) routing to redshirt nginx via Full (strict) TLS
+- redshirt nginx vhosts proxying to holodeck production stack (ports 3100/8100)
+- `docker-compose.prod.yml` override with `!override` port replacement and source-mount removal
+- All five OAuth providers configured with `https://api.oviddb.org` callback URLs
+- oviddb.org is publicly accessible — soft launch
 
 ### Fixed
-- CLI binary builds now include Blu-ray module hidden imports for PyInstaller
+- CLI binary builds include Blu-ray module hidden imports for PyInstaller
+- `arm/identify.py` mount race condition: retry loop + `findmnt` verification replaces single blind `mount` call
+- Docker Compose override files use `ports: !override` to prevent base + override port merge
+- `docker-compose.prod.yml` `OVID_API_URL` and web build arg gaps
 
 ### Known Limitations
 - Search uses SQL `ilike` — adequate at current scale, needs full-text search index at volume
-- DriveReader on macOS requires a mounted volume or ISO — direct /dev/diskN not tested on real hardware
+- DriveReader on macOS requires a mounted volume or ISO — direct `/dev/diskN` not tested on real hardware
+- Google OAuth requires HTTPS; not available until M005 (production TLS) — now resolved
+- Apple Sign-In not yet tested end-to-end in production (returns 501)
 
 [0.2.0]: https://github.com/The-Artificer-of-Ciphers-LLC/OVID/releases/tag/v0.2.0
+[0.1.2]: https://github.com/The-Artificer-of-Ciphers-LLC/OVID/releases/tag/v0.1.2
 [0.1.1]: https://github.com/The-Artificer-of-Ciphers-LLC/OVID/releases/tag/v0.1.1
 [0.1.0]: https://github.com/The-Artificer-of-Ciphers-LLC/OVID/releases/tag/v0.1.0

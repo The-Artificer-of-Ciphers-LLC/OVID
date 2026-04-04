@@ -128,37 +128,70 @@ def _try_ovid(job: Any, disc_path: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _ensure_mounted(job: Any) -> bool:
+def _ensure_mounted(job: Any, retries: int = 6, retry_delay: float = 2.0) -> bool:
     """Mount the disc at job.mountpoint if not already mounted.
 
     ARM's original identify() does this too, but we need the disc
     filesystem visible *before* OVID fingerprinting so we can read
     VIDEO_TS (DVD) or BDMV (Blu-ray) structures.
 
-    Returns True if the disc is mounted after this call.
+    Optical drives take several seconds to spin up after disc insertion.
+    We retry the mount + findmnt verification up to *retries* times with
+    *retry_delay* seconds between attempts.  ARM's identify code explicitly
+    documents that ``mount`` can return 0 yet fail to mount the drive —
+    so we always verify with ``findmnt -M`` as ARM does.
+
+    Returns True if the disc is confirmed mounted after this call.
     """
+    import time
+
     mountpoint = getattr(job, "mountpoint", "")
     if not mountpoint:
         return False
 
-    # Already mounted?
-    if os.path.ismount(mountpoint):
+    # Already mounted? Verify with findmnt (not just os.path.ismount —
+    # that checks filesystem device IDs, which can be unreliable here).
+    if os.system(f"findmnt -M {mountpoint} >/dev/null 2>&1") == 0:
+        logger.info("OVID: disc already mounted at %s", mountpoint)
         return True
 
-    # Create mountpoint if needed
+    # Create mountpoint directory if needed
     if not os.path.exists(mountpoint):
         try:
             os.makedirs(mountpoint)
         except OSError as exc:
-            logger.warning("Could not create mountpoint %s: %s", mountpoint, exc)
+            logger.warning("OVID: could not create mountpoint %s: %s", mountpoint, exc)
             return False
 
-    rc = os.system(f"mount {mountpoint}")
-    if rc == 0:
-        logger.info("OVID pre-mount of %s succeeded", mountpoint)
-        return True
+    for attempt in range(1, retries + 1):
+        mount_rc = os.system(f"mount {mountpoint} >/dev/null 2>&1")
+        findmnt_rc = os.system(f"findmnt -M {mountpoint} >/dev/null 2>&1")
 
-    logger.warning("OVID pre-mount of %s failed (rc=%d)", mountpoint, rc)
+        if findmnt_rc == 0:
+            logger.info(
+                "OVID: pre-mount of %s succeeded (attempt %d/%d)",
+                mountpoint,
+                attempt,
+                retries,
+            )
+            return True
+
+        logger.info(
+            "OVID: pre-mount attempt %d/%d failed (mount_rc=%d, findmnt_rc=%d) — "
+            "disc may still be spinning up, retrying in %.0fs",
+            attempt,
+            retries,
+            mount_rc,
+            findmnt_rc,
+            retry_delay,
+        )
+        time.sleep(retry_delay)
+
+    logger.warning(
+        "OVID: pre-mount of %s failed after %d attempts — skipping OVID fingerprint",
+        mountpoint,
+        retries,
+    )
     return False
 
 
@@ -181,9 +214,11 @@ def identify(job: Any) -> Any:
         # ARM mounts discs at job.mountpoint (e.g. /mnt/dev/sr0)
         disc_path = getattr(job, "mountpoint", "") or getattr(job, "devpath", "")
         if disc_path:
-            # Ensure disc is mounted so OVID can read VIDEO_TS / BDMV
-            _ensure_mounted(job)
-            if _try_ovid(job, disc_path):
+            # Ensure disc is mounted so OVID can read VIDEO_TS / BDMV.
+            # Only attempt fingerprinting if mount succeeds — avoids
+            # wasting time on an empty directory (which produces misleading
+            # "No VIDEO_TS directory found" errors instead of the real cause).
+            if _ensure_mounted(job) and _try_ovid(job, disc_path):
                 # OVID populated the job — skip OMDB entirely
                 return job
 
