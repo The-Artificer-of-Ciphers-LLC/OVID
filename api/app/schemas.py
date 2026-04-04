@@ -1,5 +1,7 @@
 """Pydantic request/response schemas for OVID API — tech spec §4."""
 
+from __future__ import annotations
+
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -59,6 +61,7 @@ class DiscLookupResponse(BaseModel):
     verified_by: str | None = None
     release: ReleaseResponse | None = None
     titles: list[TitleResponse] = Field(default_factory=list)
+    disc_set: "DiscSetNested | None" = None  # Phase 2: null when not in a set
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +121,7 @@ class DiscSubmitRequest(BaseModel):
     edition_name: str | None = None
     disc_number: int = Field(default=1, ge=1)
     total_discs: int = Field(default=1, ge=1)
+    disc_set_id: str | None = None  # Phase 2: optional link to existing set
     release: ReleaseCreate
     titles: list[TitleCreate] = Field(default_factory=list)
 
@@ -235,6 +239,7 @@ class SyncDiffRecord(BaseModel):
     edition_name: str | None = None
     disc_number: int = 1
     total_discs: int = 1
+    disc_set_id: str | None = None  # Phase 2: set link for sync
     titles: list[SyncTitleRecord] = Field(default_factory=list)
     release: SyncReleaseRecord | None = None
 
@@ -262,6 +267,57 @@ class SyncSnapshotResponse(BaseModel):
     size_bytes: int
     record_count: int
     sha256: str
+
+
+# ---------------------------------------------------------------------------
+# Disc Set schemas (Phase 2)
+# ---------------------------------------------------------------------------
+class SiblingDiscSummary(BaseModel):
+    fingerprint: str
+    disc_number: int
+    format: str
+    main_title: str | None = None
+    duration_secs: int | None = None
+    track_count: int | None = None
+
+
+class DiscSetNested(BaseModel):
+    id: str
+    edition_name: str | None = None
+    total_discs: int
+    siblings: list[SiblingDiscSummary] = Field(default_factory=list)
+
+
+class DiscSetCreate(BaseModel):
+    release_id: str = Field(min_length=1)
+    edition_name: str | None = None
+    total_discs: int = Field(ge=1)
+
+
+class DiscSetResponse(BaseModel):
+    request_id: str
+    id: str
+    release_id: str
+    edition_name: str | None = None
+    total_discs: int
+    created_at: str
+
+
+class DiscSetDetailResponse(BaseModel):
+    request_id: str
+    id: str
+    release_id: str
+    edition_name: str | None = None
+    total_discs: int
+    discs: list[SiblingDiscSummary] = Field(default_factory=list)
+
+
+class DiscSetSearchResponse(BaseModel):
+    request_id: str
+    results: list[DiscSetDetailResponse] = Field(default_factory=list)
+    page: int = 1
+    total_pages: int = 0
+    total_results: int = 0
 
 
 # ---------------------------------------------------------------------------

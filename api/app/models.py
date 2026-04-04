@@ -116,6 +116,7 @@ class Disc(Base):
             postgresql_where="disc_label IS NOT NULL",
         ),
         Index("idx_discs_status", "status"),
+        UniqueConstraint("disc_set_id", "disc_number", name="uq_disc_set_disc_number"),
     )
 
 
