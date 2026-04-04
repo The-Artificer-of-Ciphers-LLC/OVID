@@ -43,6 +43,12 @@ if [ ! -f "$OVID_DIR/identify_ovid.py" ]; then
     exit 1
 fi
 
+if [ ! -f "$OVID_DIR/identify_original.py" ]; then
+    echo "ERROR: $OVID_DIR/identify_original.py not found."
+    echo "Extract the original ARM identify.py from the Docker image and save it as identify_original.py."
+    exit 1
+fi
+
 if [ ! -f "$OVID_DIR/entrypoint_wrapper.sh" ]; then
     echo "ERROR: $OVID_DIR/entrypoint_wrapper.sh not found."
     exit 1
@@ -71,8 +77,8 @@ docker run -d \
     --privileged \
     --cpuset-cpus=2-7 \
     \
-    `# ── Network: join OVID compose network ──` \
-    --network ovid_default \
+    `# ── Network: start on default bridge for LAN port binding ──` \
+    `# ovid_default is connected post-start so ARM can reach OVID API` \
     \
     `# ── Ports ──` \
     -p 8080:8080 \
@@ -97,8 +103,9 @@ docker run -d \
     -v /home/arm/config:/etc/arm/config \
     \
     `# ── OVID volume mounts ──` \
-    -v "$OVID_DIR/identify_ovid.py:/opt/arm/arm/ripper/identify_ovid.py:ro" \
-    -v "$OVID_DIR/identify.py:/opt/arm/arm/ripper/identify.py:ro" \
+    -v "$OVID_DIR/identify_ovid.py:/opt/arm/arm/ripper/identify_ovid.py" \
+    -v "$OVID_DIR/identify.py:/opt/arm/arm/ripper/identify.py" \
+    -v "$OVID_DIR/identify_original.py:/opt/arm/arm/ripper/identify_original.py" \
     -v "$OVID_DIR/entrypoint_wrapper.sh:/entrypoint_wrapper.sh:ro" \
     -v "$OVID_DIR/ovid_client-0.1.0-py3-none-any.whl:/home/arm/ovid/ovid_client-0.1.0-py3-none-any.whl:ro" \
     \
@@ -107,14 +114,14 @@ docker run -d \
     "$ARM_IMAGE" \
     /sbin/my_init
 
-# ── Post-start: connect bridge network for LAN access ────────────
-echo "Connecting $CONTAINER_NAME to bridge network for LAN accessibility..."
-docker network connect bridge "$CONTAINER_NAME" 2>/dev/null \
-    || echo "WARNING: Could not connect bridge network (may already be connected)"
+# ── Post-start: connect OVID network for API access ──────────────
+echo "Connecting $CONTAINER_NAME to ovid_default network for OVID API access..."
+docker network connect ovid_default "$CONTAINER_NAME" 2>/dev/null \
+    || echo "WARNING: Could not connect ovid_default network (may already be connected)"
 
 echo ""
 echo "✅ $CONTAINER_NAME started with OVID integration"
-echo "   Network:  ovid_default (OVID API) + bridge (LAN)"
-echo "   OVID API: http://api:8000"
+echo "   Network:  bridge (LAN) + ovid_default (OVID API)"
+echo "   OVID API: http://api:8000 (via ovid_default)"
 echo "   ARM UI:   http://holodeck:8080"
 echo "   Verify:   docker exec $CONTAINER_NAME python3 -c 'from identify_ovid import lookup_ovid; print(\"OK\")'"

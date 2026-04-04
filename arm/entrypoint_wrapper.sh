@@ -31,10 +31,14 @@ if ! python3 -c "import ovid" 2>/dev/null; then
     fi
 fi
 
-# ── Step 2: Back up original identify.py (once) ──────────────────
-if [ -f "$ARM_IDENTIFY" ] && [ ! -f "$ARM_IDENTIFY_BACKUP" ]; then
-    echo "[ovid-entrypoint] Backing up original identify.py → identify_original.py"
-    cp "$ARM_IDENTIFY" "$ARM_IDENTIFY_BACKUP"
+# ── Step 2: Verify original identify.py backup exists ────────────
+# The original identify_original.py is deployed alongside identify.py
+# (mounted from the host).  We no longer copy at runtime because the
+# bind-mount replaces identify.py before the entrypoint runs — a cp
+# here would just duplicate the OVID shim.
+if [ ! -f "$ARM_IDENTIFY_BACKUP" ]; then
+    echo "[ovid-entrypoint] WARNING: identify_original.py not found at $ARM_IDENTIFY_BACKUP"
+    echo "[ovid-entrypoint] OVID shim will not be able to fall back to ARM's native identify."
 fi
 
 echo "[ovid-entrypoint] OVID integration ready — handing off to ARM"
