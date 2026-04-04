@@ -93,7 +93,7 @@ docker run -d \
     \
     `# ── OVID environment ──` \
     -e OVID_ENABLED=true \
-    -e OVID_API_URL=http://api:8000 \
+    -e OVID_API_URL=http://ovid-prod-api:8000 \
     -e OVID_API_TOKEN="${OVID_API_TOKEN:-}" \
     \
     `# ── ARM standard mounts (holodeck paths) ──` \
@@ -115,14 +115,14 @@ docker run -d \
     "$ARM_IMAGE" \
     /sbin/my_init
 
-# ── Post-start: connect OVID network for API access ──────────────
-echo "Connecting $CONTAINER_NAME to ovid_default network for OVID API access..."
-docker network connect ovid_default "$CONTAINER_NAME" 2>/dev/null \
-    || echo "WARNING: Could not connect ovid_default network (may already be connected)"
+# ── Post-start: connect OVID prod network for API access ─────────
+echo "Connecting $CONTAINER_NAME to ovid-prod_default network for OVID API access..."
+docker network connect ovid-prod_default "$CONTAINER_NAME" 2>/dev/null \
+    || echo "WARNING: Could not connect ovid-prod_default network (may already be connected)"
 
 echo ""
 echo "✅ $CONTAINER_NAME started with OVID integration"
-echo "   Network:  bridge (LAN) + ovid_default (OVID API)"
-echo "   OVID API: http://api:8000 (via ovid_default)"
+echo "   Network:  bridge (LAN) + ovid-prod_default (OVID prod API)"
+echo "   OVID API: http://ovid-prod-api:8000 (via ovid-prod_default)"
 echo "   ARM UI:   http://holodeck:8080"
 echo "   Verify:   docker exec $CONTAINER_NAME python3 -c 'from identify_ovid import lookup_ovid; print(\"OK\")'"
