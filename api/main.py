@@ -17,6 +17,7 @@ from app.middleware import MirrorModeMiddleware, RequestIdMiddleware
 from app.rate_limit import UNAUTH_LIMIT, limiter, rate_limit_exceeded_handler
 from app.redis import get_redis, init_redis
 from app.routes.disc import router as disc_router
+from app.routes.set import router as set_router
 from app.routes.sync import router as sync_router
 
 
@@ -79,6 +80,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 app.include_router(disc_router)
+app.include_router(set_router)
 app.include_router(sync_router)
 app.include_router(auth_router)
 app.include_router(device_router)

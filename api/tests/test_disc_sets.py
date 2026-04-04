@@ -70,7 +70,7 @@ def test_create_set_allocates_seq_num(client, db_session, auth_header, seeded_di
     )
     assert resp.status_code == 201
     set_id = resp.json()["id"]
-    disc_set = db_session.query(DiscSet).filter(DiscSet.id == set_id).first()
+    disc_set = db_session.query(DiscSet).filter(DiscSet.id == uuid.UUID(set_id)).first()
     assert disc_set is not None
     assert disc_set.seq_num is not None
     assert disc_set.seq_num > 0
