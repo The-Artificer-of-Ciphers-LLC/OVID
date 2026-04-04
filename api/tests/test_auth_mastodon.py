@@ -77,11 +77,12 @@ class TestMastodonPlaceholderEmail:
         """Mastodon placeholder email includes domain to prevent collision."""
         mock_dns.return_value = "8.8.8.8"
 
-        # Seed client
+        # Seed client with valid expiry
         db_session.add(MastodonOAuthClient(
             domain="mastodon.social",
             client_id="cid",
             client_secret="csec",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=15),
         ))
         db_session.commit()
 
