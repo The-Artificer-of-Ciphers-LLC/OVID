@@ -2,18 +2,32 @@
 
 import os
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 
 from slowapi.errors import RateLimitExceeded
 
 from app.auth.config import SECRET_KEY
 from app.auth.routes import auth_router
+from app.auth.session import RedisSessionMiddleware
 from app.middleware import MirrorModeMiddleware, RequestIdMiddleware
 from app.rate_limit import UNAUTH_LIMIT, limiter, rate_limit_exceeded_handler
+from app.redis import get_redis, init_redis
 from app.routes.disc import router as disc_router
 from app.routes.sync import router as sync_router
+
+
+# ---------------------------------------------------------------------------
+# Lifespan — startup / shutdown hooks
+# ---------------------------------------------------------------------------
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize shared resources at startup."""
+    init_redis()
+    yield
+
 
 app = FastAPI(
     title="OVID API",
@@ -21,20 +35,34 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
-# CORS — must be added before SessionMiddleware so preflight OPTIONS
-# requests get proper headers without hitting the session layer.
+# ---------------------------------------------------------------------------
+# CORS — parse ALLOWED_ORIGINS (preferred) falling back to CORS_ORIGINS
+# ---------------------------------------------------------------------------
+_origins = os.environ.get(
+    "ALLOWED_ORIGINS",
+    os.environ.get("CORS_ORIGINS", "http://localhost:3000"),
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(","),
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# SessionMiddleware is required for OAuth state (CSRF protection).
-# Must be added before route handlers that use request.session.
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
+# ---------------------------------------------------------------------------
+# Session middleware — Redis-backed, separate secret key (D-06)
+# ---------------------------------------------------------------------------
+_session_secret = os.environ.get("SESSION_SECRET_KEY") or SECRET_KEY
+app.add_middleware(
+    RedisSessionMiddleware,
+    secret_key=_session_secret,
+    redis_getter=get_redis,
+)
 app.add_middleware(RequestIdMiddleware)
 
 # Mirror-mode guard — when OVID_MODE=mirror, reject all write methods.

@@ -1,11 +1,13 @@
 """Rate limiting configuration — slowapi with auth-aware key function.
 
-Uses in-memory storage (per-process). With gunicorn -w N, each worker
-has independent counters — effective rate limit is up to Nx the nominal
-value. Upgrade path: switch storage_uri to a Redis URL for shared state.
+Uses Redis storage when REDIS_URL is set for shared counters across
+gunicorn workers.  Falls back to in-memory storage (per-process) when
+REDIS_URL is unset.  When Redis becomes unavailable at runtime, requests
+are permitted (fail-open) rather than rejected.
 """
 
 import logging
+import os
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -21,6 +23,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 UNAUTH_LIMIT = "100/minute"
 AUTH_LIMIT = "500/minute"
+
+
+def _get_storage_uri() -> str:
+    """Return the rate limiter storage URI based on REDIS_URL.
+
+    Returns the REDIS_URL value when set, otherwise ``"memory://"``.
+    Extracted as a function so tests can verify the selection logic.
+    """
+    return os.environ.get("REDIS_URL") or "memory://"
 
 
 def _auth_aware_key(request: Request) -> str:
@@ -65,7 +76,7 @@ def _dynamic_limit(key: str) -> str:
 limiter = Limiter(
     key_func=_auth_aware_key,
     default_limits=[UNAUTH_LIMIT],
-    storage_uri="memory://",
+    storage_uri=_get_storage_uri(),
 )
 
 
