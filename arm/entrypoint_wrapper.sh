@@ -19,15 +19,16 @@ ARM_IDENTIFY_BACKUP="/opt/arm/arm/ripper/identify_original.py"
 OVID_WHEEL="/home/arm/ovid/ovid_client-0.1.0-py3-none-any.whl"
 
 # ── Step 1: Install ovid-client from local wheel if not already present ──
-if ! python3 -c "import ovid" 2>/dev/null; then
+# NOTE: Cannot use `python3 -c "import ovid"` here because /home/arm/ovid/
+# directory creates a namespace package that falsely satisfies the import.
+# Use pip3 show to check if the *real* wheel-installed package is present.
+if ! pip3 show ovid-client >/dev/null 2>&1; then
     echo "[ovid-entrypoint] Installing ovid-client..."
     if [ -f "$OVID_WHEEL" ]; then
-        pip3 install --quiet "$OVID_WHEEL"
+        pip3 install --quiet --root-user-action=ignore "$OVID_WHEEL"
     else
         echo "[ovid-entrypoint] WARNING: Wheel not found at $OVID_WHEEL"
-        echo "[ovid-entrypoint] Attempting install from git fallback..."
-        pip3 install --quiet "ovid-client @ git+https://github.com/yourusername/ovid.git#subdirectory=client" \
-            || echo "[ovid-entrypoint] WARNING: ovid-client install failed — OVID lookup will be disabled"
+        echo "[ovid-entrypoint] WARNING: ovid-client install failed — OVID lookup will be disabled"
     fi
 fi
 

@@ -128,11 +128,51 @@ def _try_ovid(job: Any, disc_path: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def _ensure_mounted(job: Any) -> bool:
+    """Mount the disc at job.mountpoint if not already mounted.
+
+    ARM's original identify() does this too, but we need the disc
+    filesystem visible *before* OVID fingerprinting so we can read
+    VIDEO_TS (DVD) or BDMV (Blu-ray) structures.
+
+    Returns True if the disc is mounted after this call.
+    """
+    mountpoint = getattr(job, "mountpoint", "")
+    if not mountpoint:
+        return False
+
+    # Already mounted?
+    if os.path.ismount(mountpoint):
+        return True
+
+    # Create mountpoint if needed
+    if not os.path.exists(mountpoint):
+        try:
+            os.makedirs(mountpoint)
+        except OSError as exc:
+            logger.warning("Could not create mountpoint %s: %s", mountpoint, exc)
+            return False
+
+    rc = os.system(f"mount {mountpoint}")
+    if rc == 0:
+        logger.info("OVID pre-mount of %s succeeded", mountpoint)
+        return True
+
+    logger.warning("OVID pre-mount of %s failed (rc=%d)", mountpoint, rc)
+    return False
+
+
 def identify(job: Any) -> Any:
     """Identify a disc, trying OVID first then falling back to ARM's original.
 
     This is the main entry point. ARM's main.py calls ``identify.identify(job)``
     at line ~94. The job object carries all disc metadata ARM needs.
+
+    Strategy: mount the disc first so OVID can read the disc filesystem
+    (VIDEO_TS for DVD, BDMV for Blu-ray), attempt OVID fingerprint lookup,
+    and if it hits with high/medium confidence, populate the job and skip
+    ARM's OMDB/TMDB lookup entirely.  On miss, delegate to the original
+    ARM identify which will re-use the existing mount.
     """
     # ── Guard: OVID can be disabled via environment variable ──────────
     ovid_enabled = os.environ.get("OVID_ENABLED", "true").lower() != "false"
@@ -141,6 +181,8 @@ def identify(job: Any) -> Any:
         # ARM mounts discs at job.mountpoint (e.g. /mnt/dev/sr0)
         disc_path = getattr(job, "mountpoint", "") or getattr(job, "devpath", "")
         if disc_path:
+            # Ensure disc is mounted so OVID can read VIDEO_TS / BDMV
+            _ensure_mounted(job)
             if _try_ovid(job, disc_path):
                 # OVID populated the job — skip OMDB entirely
                 return job
