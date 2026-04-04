@@ -129,6 +129,14 @@ class BDFolderReader(DiscReader):
         """Return True if an AACS directory exists at the disc root."""
         return self._aacs_dir is not None
 
+    def meta_path(self) -> str:
+        """Return path to BDMV/META/DL directory.
+
+        The META/DL directory contains bdmt_*.xml disc metadata files.
+        The directory may not exist on all discs (~60% lack it).
+        """
+        return os.path.join(self._bdmv, "META", "DL")
+
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
