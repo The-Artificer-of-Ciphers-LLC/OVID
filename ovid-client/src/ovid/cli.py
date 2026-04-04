@@ -539,6 +539,14 @@ def _build_dvd_submit_payload(
             })
 
         for pgc in vts.pgc_list:
+            chapters = [
+                {
+                    "chapter_index": i + 1,
+                    "name": None,
+                    "start_time_secs": int(round(t)),
+                }
+                for i, t in enumerate(pgc.chapter_start_times)
+            ]
             titles.append({
                 "title_index": title_index,
                 "is_main_feature": first_title,
@@ -546,6 +554,7 @@ def _build_dvd_submit_payload(
                 "chapter_count": pgc.chapter_count,
                 "audio_tracks": audio_tracks,
                 "subtitle_tracks": subtitle_tracks,
+                "chapters": chapters,
             })
             title_index += 1
             first_title = False
@@ -590,6 +599,10 @@ def _build_bd_submit_payload(
     Each playlist becomes a title entry. The first playlist with the
     longest duration is marked as the main feature.
     """
+    from pathlib import Path
+
+    from ovid.bdmt_parser import extract_bd_chapters, find_bdmt_file, parse_bdmt
+
     fmt = "UHD" if bd_disc.format_type == "uhd" else "Blu-ray"
 
     titles: list[dict] = []
@@ -607,6 +620,7 @@ def _build_bd_submit_payload(
     for i, pl in enumerate(bd_disc.playlists):
         total_duration = sum(pi.duration_seconds for pi in pl.play_items)
         chapter_count = len([m for m in pl.chapter_marks if m.mark_type == 1])
+        chapters = extract_bd_chapters(pl.chapter_marks)
 
         audio_tracks = []
         for ai, stream in enumerate(pl.audio_streams):
@@ -631,8 +645,21 @@ def _build_bd_submit_payload(
             "chapter_count": chapter_count,
             "audio_tracks": audio_tracks,
             "subtitle_tracks": subtitle_tracks,
+            "chapters": chapters,
         })
         title_index += 1
+
+    # Attempt bdmt parsing for disc title (D-08: silent skip on missing)
+    disc_title = None
+    try:
+        meta_dir = Path(bd_disc.reader.meta_path())
+        bdmt_path = find_bdmt_file(meta_dir)
+        if bdmt_path is not None:
+            bdmt_data = parse_bdmt(bdmt_path)
+            if bdmt_data is not None:
+                disc_title = bdmt_data.get("disc_title")
+    except (AttributeError, OSError):
+        pass
 
     release: dict = {
         "title": title,

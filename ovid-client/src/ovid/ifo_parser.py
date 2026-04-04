@@ -46,6 +46,7 @@ class PGCInfo:
     """A single Program Chain: playback duration and chapter count."""
     duration_seconds: int
     chapter_count: int
+    chapter_start_times: list[float] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -291,7 +292,37 @@ def _parse_pgci(data: bytes, pgci_offset: int) -> list[PGCInfo]:
         time_bytes = data[pgc_abs_offset + 0x04: pgc_abs_offset + 0x08]
         duration = decode_bcd_time(time_bytes)
 
-        pgcs.append(PGCInfo(duration_seconds=duration, chapter_count=chapter_count))
+        # Extract chapter start times from program map + cell playback info.
+        # Program map offset at PGC+0xE6 (2 bytes BE, relative to PGC start).
+        # Cell playback info offset at PGC+0xE8 (2 bytes BE, relative to PGC start).
+        chapter_start_times: list[float] = []
+        try:
+            if pgc_abs_offset + 0xEA <= len(data) and nr_of_programs > 0:
+                pgm_map_rel = struct.unpack_from(">H", data, pgc_abs_offset + 0xE6)[0]
+                cell_pb_rel = struct.unpack_from(">H", data, pgc_abs_offset + 0xE8)[0]
+
+                pgm_map_abs = pgc_abs_offset + pgm_map_rel
+                cell_pb_abs = pgc_abs_offset + cell_pb_rel
+
+                for p in range(nr_of_programs):
+                    if pgm_map_abs + p + 1 > len(data):
+                        break
+                    # Program map entry: 1-based cell index (1 byte each)
+                    cell_index = data[pgm_map_abs + p]
+                    # Cell playback info: 24 bytes per cell, BCD time at bytes 0-3
+                    cell_entry_abs = cell_pb_abs + (cell_index - 1) * 24
+                    if cell_entry_abs + 4 > len(data):
+                        break
+                    cell_time_bytes = data[cell_entry_abs: cell_entry_abs + 4]
+                    chapter_start_times.append(float(decode_bcd_time(cell_time_bytes)))
+        except (struct.error, IndexError, ValueError):
+            chapter_start_times = []
+
+        pgcs.append(PGCInfo(
+            duration_seconds=duration,
+            chapter_count=chapter_count,
+            chapter_start_times=chapter_start_times,
+        ))
 
     return pgcs
 

@@ -319,7 +319,7 @@ class TestChapterPayloads:
         pgc1 = PGCInfo(
             duration_seconds=7200,
             chapter_count=3,
-            chapter_start_times=[0.0, 300.5, 1200.0],
+            chapter_start_times=[0.0, 300.7, 1200.0],
         )
         vts1 = VTSInfo(
             pgc_list=[pgc1],
