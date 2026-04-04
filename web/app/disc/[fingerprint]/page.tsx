@@ -4,6 +4,7 @@ import { getDisc, getDiscEdits, ApiError } from "@/lib/api";
 import DiscStructure from "@/components/DiscStructure";
 import EditHistory from "@/components/EditHistory";
 import DisputeResolver from "@/components/DisputeResolver";
+import SiblingDiscs from "@/components/SiblingDiscs";
 
 type Props = {
   params: Promise<{ fingerprint: string }>;
@@ -146,6 +147,17 @@ export default async function DiscDetailPage({ params }: Props) {
           </>
         )}
       </div>
+
+      {/* Sibling discs (multi-disc set) */}
+      {disc.disc_set && (
+        <SiblingDiscs
+          editionName={disc.disc_set.edition_name}
+          discNumber={disc.disc_number}
+          totalDiscs={disc.disc_set.total_discs}
+          siblings={disc.disc_set.siblings}
+          currentFingerprint={disc.fingerprint}
+        />
+      )}
 
       {/* Disc structure (titles) */}
       <section className="mb-8">

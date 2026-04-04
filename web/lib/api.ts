@@ -81,6 +81,43 @@ export interface ReleaseResponse {
   imdb_id: string | null;
 }
 
+// --- Disc Set types (Phase 2) ---
+
+export interface SiblingDiscSummary {
+  fingerprint: string;
+  disc_number: number;
+  format: string;
+  main_title: string | null;
+  duration_secs: number | null;
+  track_count: number | null;
+}
+
+export interface DiscSetNested {
+  id: string;
+  edition_name: string | null;
+  total_discs: number;
+  siblings: SiblingDiscSummary[];
+}
+
+export interface DiscSetSearchResult {
+  request_id: string;
+  id: string;
+  release_id: string;
+  edition_name: string | null;
+  total_discs: number;
+  discs: SiblingDiscSummary[];
+}
+
+export interface DiscSetSearchResponse {
+  request_id: string;
+  results: DiscSetSearchResult[];
+  page: number;
+  total_pages: number;
+  total_results: number;
+}
+
+// ---------------------------------------------------------------------------
+
 export interface DiscLookupResponse {
   request_id: string;
   fingerprint: string;
@@ -96,6 +133,7 @@ export interface DiscLookupResponse {
   verified_by: string | null;
   release: ReleaseResponse | null;
   titles: TitleResponse[];
+  disc_set: DiscSetNested | null;
 }
 
 // Request types
@@ -136,6 +174,7 @@ export interface DiscSubmitRequest {
   edition_name?: string | null;
   disc_number: number;
   total_discs: number;
+  disc_set_id?: string | null;
   release: ReleaseCreate;
   titles: TitleCreate[];
 }
@@ -285,4 +324,18 @@ export function resolveDispute(
 
 export function lookupByUpc(upc: string): Promise<UpcLookupResponse> {
   return apiFetch<UpcLookupResponse>(`/v1/disc/upc/${encodeURIComponent(upc)}`);
+}
+
+// ---------------------------------------------------------------------------
+// Disc Set functions (Phase 2)
+// ---------------------------------------------------------------------------
+
+export function searchSets(q: string, page?: number): Promise<DiscSetSearchResponse> {
+  const params = new URLSearchParams({ q });
+  if (page != null) params.set("page", String(page));
+  return apiFetch<DiscSetSearchResponse>(`/v1/set?${params.toString()}`);
+}
+
+export function createSet(data: { release_id: string; edition_name?: string | null; total_discs: number }): Promise<{ request_id: string; id: string; release_id: string; edition_name: string | null; total_discs: number; created_at: string }> {
+  return apiFetch(`/v1/set`, { method: "POST", body: JSON.stringify(data) });
 }
