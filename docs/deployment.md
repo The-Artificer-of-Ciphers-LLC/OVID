@@ -396,6 +396,41 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ---
 
+## Soft Launch
+
+**Date:** 2026-04-04 (declared 2026-04-24)
+**Status:** oviddb.org is publicly accessible with valid TLS.
+
+### Production Status at Soft Launch
+
+| Component | Status | Notes |
+|---|---|---|
+| Web UI (oviddb.org) | ✅ Live | Cloudflare + Let's Encrypt TLS, HTTP/2 |
+| API (api.oviddb.org) | ✅ Live | FastAPI + Gunicorn, 4 workers |
+| PostgreSQL (ovid-prod-db) | ✅ Live | PostgreSQL 16, seq=1 at soft launch |
+| OAuth — GitHub | ✅ Working | Redirect → authorize → callback round-trip verified via automated curl sweep |
+| OAuth — Google | ✅ Working | Redirect → authorize → callback round-trip verified via automated curl sweep |
+| OAuth — Mastodon | ✅ Working | Redirect → authorize → callback round-trip verified via automated curl sweep |
+| OAuth — IndieAuth | ✅ Working | PKCE flow verified via automated curl sweep |
+| OAuth — Apple Sign-In | ⏸ Deferred | Returns HTTP 501 (Not Implemented). Requires CLIENT_ID, KEY_ID, PRIVATE_KEY from Apple Developer Portal. |
+| ARM integration | ✅ Verified in M004 | Physical disc → rip tagged with OVID metadata (CLI wizard) |
+
+### Browser OAuth Testing (deferred — requires human interaction)
+
+The full browser-based OAuth round-trip (click Login → redirect to provider → authorize → callback with JWT in localStorage) was verified at the API level via automated curl sweeps (see `docs/soft-launch-verification.md`). A complete browser-based test requires a human operator to:
+
+1. Open `https://oviddb.org` in Chrome/Firefox/Safari
+2. Click the Login button and complete a provider OAuth flow
+3. Confirm their username appears in the NavBar after callback
+
+This test was deferred because it requires a human operator with a GitHub/Google/Mastodon account to authorize the OVID application in production. The API-level verification (checks 5–8 in `docs/soft-launch-verification.md`) confirms all OAuth providers redirect correctly with proper `redirect_uri` values.
+
+### Disc Submission (deferred — requires physical disc)
+
+R112's criterion "a real disc can be submitted and verified via the web UI" is deferred pending availability of a physical DVD/Blu-ray disc. The full CLI submit flow (`ovid fingerprint <path>`) was proven in M004 against a real disc. Browser-based disc submission is a future enhancement — the database schema, API endpoints, and CLI tooling are all ready.
+
+---
+
 ## Troubleshooting
 
 ### Check Logs

@@ -61,3 +61,56 @@ $ curl -s https://api.oviddb.org/health
 | API responds after restart | `{"status":"ok"}` | `{"status":"ok"}` | ✅ PASS |
 
 **Conclusion:** The production stack survives a full Docker Compose restart. All containers recover within 30 seconds, the database passes its healthcheck, and the API immediately responds to health checks. No data loss or corruption observed.
+
+## Browser OAuth Round-Trip — 2026-04-24 (Auto-mode deferred)
+
+**Status:** API-level verification complete; full browser round-trip requires human operator.
+
+### What was verified (automated curl sweep)
+
+All five OAuth providers were tested at the API level via automated GET requests (see checks 5–8 in the main table above):
+
+| Provider | Redirect URL | Callback URL | Status |
+|---|---|---|---|
+| GitHub | `https://github.com/login/oauth/authorize?...` | `https://api.oviddb.org/v1/auth/github/callback` | ✅ 302 redirect correct |
+| Google | `https://accounts.google.com/o/oauth2/v2/auth?...` | `https://api.oviddb.org/v1/auth/google/callback` | ✅ 302 redirect correct |
+| Mastodon | `https://mastodon.social/oauth/authorize?...` | `https://api.oviddb.org/v1/auth/mastodon/callback` | ✅ 307 redirect correct |
+| IndieAuth | `https://aaronparecki.com/auth?...` (PKCE) | `https://api.oviddb.org/v1/auth/indieauth/callback` | ✅ 307 redirect correct |
+| Apple | `https://api.oviddb.org/v1/auth/apple` | — | ⏸ 501 (Not Implemented) — expected |
+
+Session cookie (`Set-Cookie: session=...; httponly; samesite=lax`) is present on OAuth initiation (check 10).
+
+### What requires a human operator (deferred)
+
+A complete browser-based OAuth round-trip was not performed during this auto-mode execution because it requires:
+
+1. A human to open `https://oviddb.org` in a browser
+2. Click the Login button and authorize OVID with a real provider account (GitHub/Google/Mastodon)
+3. Confirm the callback returns to `https://oviddb.org` with a JWT stored in localStorage
+4. Confirm the NavBar displays the user's username
+
+This is a **soft launch** — the infrastructure is fully functional and verified at the API level. A human operator can perform the browser test by following these steps:
+
+1. Open `https://oviddb.org` in Chrome, Firefox, or Safari
+2. Click "Login" in the NavBar (top-right)
+3. Select a provider (GitHub recommended for first test)
+4. Authorize OVID on the provider's consent screen
+5. Confirm redirect back to `https://oviddb.org` with your username in the NavBar
+6. Check browser console (F12) for any errors
+
+### Expected behavior on success
+
+- Browser shows `https://oviddb.org` (no cert warnings, padlock icon visible)
+- NavBar shows logged-in username instead of "Login" button
+- No console errors (no CORS errors, no 401/500 responses)
+- JWT stored in localStorage under `ovid_token` key
+
+### Expected failure modes and diagnostics
+
+| Symptom | Likely cause | How to check |
+|---|---|---|
+| CORS error in console | Missing `Access-Control-Allow-Origin` on callback response | `curl -sI https://api.oviddb.org/health | grep access-control-allow-origin` |
+| Redirect to login page after OAuth callback | `redirect_uri` mismatch between GitHub app settings and API config | Check GitHub OAuth app: https://github.com/settings/developers → "Edit" → Callback URL matches `https://api.oviddb.org/v1/auth/github/callback` |
+| NavBar still shows "Login" after callback | JWT not stored in localStorage, or web UI build is stale | Open DevTools → Application → Local Storage → check for `ovid_token` key |
+| 502/504 from browser | Cloudflare/nginx proxy not forwarding to container | `curl https://api.oviddb.org/health` from terminal — if this fails, it's a proxy issue |
+| 501 on Apple Sign-In | Expected — CLIENT_ID, KEY_ID, PRIVATE_KEY not configured | This is intentional; Apple OAuth returns 501 gracefully (check 9 in main table) |
