@@ -70,8 +70,8 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 03-01-PLAN.md — DiscChapter model, schemas, migration, submit/lookup/sync chapter integration (API layer)
-- [ ] 03-02-PLAN.md — MPLS chapter extraction, bdmt parser, DVD IFO timestamps, CLI chapter payload (Client extraction)
+- [x] 03-01-PLAN.md — DiscChapter model, schemas, migration, submit/lookup/sync chapter integration (API layer)
+- [x] 03-02-PLAN.md — MPLS chapter extraction, bdmt parser, DVD IFO timestamps, CLI chapter payload (Client extraction)
 - [ ] 03-03-PLAN.md — ChapterList display, ChapterEditor entry, DiscStructure/SubmitForm integration (Web UI)
 
 ### Phase 4: Sync Protocol & Mirror Hardening

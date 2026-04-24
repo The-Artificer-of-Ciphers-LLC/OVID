@@ -1,0 +1,60 @@
+{
+  "learnings": [
+    {
+      "timestamp": "2026-04-06T19:49:23.336Z",
+      "observationType": "gotcha",
+      "summary": "When a GSD executor subagent is dispatched with a worktree path (e.g., `.claude/",
+      "wasteTokens": 418,
+      "sourceEventCount": 500,
+      "explanation": "Events 1-9 show the agent repeatedly failing to read files from a worktree path that didn't exist, then recovering by checking the main project directory. This is a recurring risk when GSD executor agents are dispatched with worktree paths that may have been cleaned up.",
+      "occurrences": 1
+    },
+    {
+      "timestamp": "2026-04-06T19:49:23.336Z",
+      "observationType": "pattern",
+      "summary": "Web tests run via `npx vitest run <path> --reporter=verbose` in the `web/` direc",
+      "wasteTokens": 418,
+      "sourceEventCount": 500,
+      "explanation": "Events 33 and 44-45 show the test commands that work in this project — useful for future sessions to know the exact invocation pattern.",
+      "occurrences": 1
+    },
+    {
+      "timestamp": "2026-04-06T19:49:23.336Z",
+      "observationType": "pattern",
+      "summary": "When adding new TypeScript interfaces to `web/lib/api.ts`, place `*Response` int",
+      "wasteTokens": 418,
+      "sourceEventCount": 500,
+      "explanation": "Events 26-27 show the pattern of placing new interfaces before the interfaces that reference them in api.ts — this ordering convention prevents forward-reference issues and matches the existing codebase pattern.",
+      "occurrences": 1
+    }
+  ],
+  "sessions": [
+    {
+      "timestamp": "2026-04-06T19:49:23.336Z",
+      "sessionId": "88208190-ceec-4272-b62a-dc8b29470658",
+      "eventCount": 500,
+      "failureCount": 25,
+      "promptCount": 8,
+      "wasteSeconds": 107,
+      "hadLearningsAvailable": false,
+      "learningsCount": 0,
+      "newLearningsProduced": 3,
+      "taskCount": 2,
+      "taskSuccessCount": 2,
+      "taskCorrectionCount": 0,
+      "taskFailureCount": 0
+    }
+  ],
+  "totals": {
+    "totalWasteTokens": 1254,
+    "totalWasteSeconds": 107,
+    "totalSessionsWithLearnings": 0,
+    "totalSessionsWithoutLearnings": 1,
+    "totalFailuresWithLearnings": 0,
+    "totalFailuresWithoutLearnings": 25,
+    "estimatedSavingsTokens": 0,
+    "estimatedSavingsSeconds": 0,
+    "firstSessionTimestamp": "2026-04-06T19:49:23.336Z",
+    "lastSessionTimestamp": "2026-04-06T19:49:23.336Z"
+  }
+}

@@ -33,3 +33,8 @@ site/
 scripts/test-jwt.txt
 scripts/t02-verification.txt
 scripts/t03-verification.txt
+
+# ── GSD baseline (auto-generated) ──
+.gsd-id
+.mcp.json
+.bg-shell/
