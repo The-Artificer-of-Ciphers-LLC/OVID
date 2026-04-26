@@ -101,7 +101,7 @@ OVID is an open, community-driven database that uniquely identifies physical DVD
 ## Overview
 ## Web (Next.js/TypeScript)
 ### Naming Patterns
-- Components: PascalCase, e.g. `NavBar.tsx`, `DiscCard.tsx`, `SubmitForm.tsx`
+- Components: PascalCase, e.g. `NavBar.tsx`, `DiscCard.tsx`, `SubmitForm.tsx`, `ChapterEditor.tsx`, `ChapterList.tsx`
 - Pages: lowercase with hyphens for routes, e.g. `app/page.tsx`, `app/auth/callback/page.tsx`, `app/disc/[fingerprint]/page.tsx`
 - Utilities/lib: camelCase, e.g. `lib/api.ts`, `lib/auth.ts`
 - Tests: `{name}.test.ts` or `{name}.test.tsx`, located in `src/__tests__/`
@@ -113,7 +113,7 @@ OVID is an open, community-driven database that uniquely identifies physical DVD
 - UPPERCASE for constants: `TOKEN_KEY`, `API_URL`, `TYPE_COLORS`
 - Structured constants as maps: `TYPE_COLORS: Record<string, string>`
 - PascalCase for interfaces and types: `AuthState`, `DiscLookupResponse`, `UserResponse`
-- Suffix `Response` for API response schemas: `DiscLookupResponse`, `ReleaseResponse`, `TrackResponse`
+- Suffix `Response` for API response schemas: `DiscLookupResponse`, `ReleaseResponse`, `TrackResponse`, `ChapterResponse`
 - Suffix `Create` for request/input schemas: `DiscSubmitRequest`, `ReleaseCreate`, `TitleCreate`
 - Suffix `Props` or leave unnamed for React component props
 ### Code Style
@@ -174,7 +174,7 @@ OVID is an open, community-driven database that uniquely identifies physical DVD
 - Async endpoint functions: `async def lookup_disc_by_upc()`, `async def submit_disc()`
 - PascalCase for models and exceptions: `User`, `Disc`, `ApiError`
 - Suffix `Response` or `Request` for schemas: `DiscLookupResponse`, `DiscSubmitRequest`
-- SQLAlchemy models use table names: `User`, `Disc`, `DiscEdit`
+- SQLAlchemy models use table names: `User`, `Disc`, `DiscEdit`, `DiscChapter`
 - snake_case: `user_id`, `disc_fingerprint`, `request_id`
 - UPPERCASE for module-level constants: `TOKEN_KEY`, `SECTOR_SIZE`, `JWT_EXPIRY_DAYS`
 ### Code Style
@@ -217,7 +217,7 @@ OVID is an open, community-driven database that uniquely identifies physical DVD
 - Middleware in `app/middleware.py`
 ## ovid-client (Python CLI/Library)
 ### Naming Patterns
-- Modules: lowercase_with_underscores: `fingerprint.py`, `bd_disc.py`, `ifo_parser.py`, `cli.py`
+- Modules: lowercase_with_underscores: `fingerprint.py`, `bd_disc.py`, `ifo_parser.py`, `bdmt_parser.py`, `cli.py`
 - Test files: `test_*.py` in `tests/`
 - Readers: `readers/base.py`, `readers/drive.py`, `readers/iso.py`, `readers/bd_folder.py`, `readers/folder.py`
 - snake_case: `build_canonical_string()`, `compute_fingerprint()`, `encode_bcd_time()`
@@ -267,7 +267,7 @@ OVID is an open, community-driven database that uniquely identifies physical DVD
 ## Layers
 - Purpose: Parse physical disc formats (DVD, Blu-ray, UHD) and compute stable hash fingerprints
 - Location: `ovid-client/src/ovid/`
-- Contains: Disc readers (folder, ISO, drive), IFO/MPLS parsers, fingerprint algorithms
+- Contains: Disc readers (folder, ISO, drive), IFO/MPLS parsers, BDMT parser, fingerprint algorithms
 - Depends on: `libdvdread`/`libbluray` (system libraries)
 - Used by: CLI (`ovid fingerprint`), web submit UI, ARM integration
 - Purpose: Repository for disc fingerprints, metadata, community verification, and mirroring
@@ -282,7 +282,7 @@ OVID is an open, community-driven database that uniquely identifies physical DVD
 - Used by: End users, contributors, verifiers
 - Purpose: Persistent storage for disc registry, user accounts, edit history, sync state
 - Location: `api/alembic/` (migrations)
-- Schema: 9 core tables + 3 supporting tables
+- Schema: 10 core tables + 3 supporting tables
 - Primary keys: UUID v4 throughout
 ## Data Flow
 ```
@@ -302,6 +302,10 @@ OVID is an open, community-driven database that uniquely identifies physical DVD
 - Examples: `api/app/models.py:DiscTitle`, `ovid-client/src/ovid/ifo_parser.py:VTSInfo`
 - Contains: Title index, duration, chapter count, track list
 - Relationship: 1..* from Disc
+- Purpose: Named chapter timestamp within a title
+- Examples: `api/app/models.py:DiscChapter`
+- Metadata: Chapter index, name (optional), timestamp in milliseconds
+- Relationship: 1..* from DiscTitle
 - Purpose: Audio, subtitle, or video stream within a title
 - Examples: `api/app/models.py:DiscTrack`
 - Metadata: Language, codec, channels, is_default flag
@@ -317,7 +321,7 @@ OVID is an open, community-driven database that uniquely identifies physical DVD
 - Purpose: Stateless HTTP wrapper for API calls from CLI and web
 - Examples: `ovid-client/src/ovid/client.py:OVIDClient`
 - Pattern: Dependency injection of base_url and token (OAuth JWT)
-- Methods: lookup(), submit() with error translation to ClickException
+- Methods: lookup() and submit() with error translation to ClickException
 ## Entry Points
 - Location: `ovid-client/src/ovid/cli.py:main()`
 - Triggers: `pip install -e ovid-client/ && ovid fingerprint <path>`
@@ -355,13 +359,9 @@ OVID is an open, community-driven database that uniquely identifies physical DVD
 - Response: 429 JSON with Retry-After header
 <!-- GSD:architecture-end -->
 
-<!-- GSD:skills-start source:skills/ -->
 ## Project Skills
 
 No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, or `.github/skills/` with a `SKILL.md` index file.
-<!-- GSD:skills-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
 ## GSD Workflow Enforcement
 
 Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
@@ -372,13 +372,50 @@ Use these entry points:
 - `/gsd-execute-phase` for planned phase work
 
 Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-
-
-<!-- GSD:profile-start -->
 ## Developer Profile
 
 > Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
 > This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
+
+<!-- caliber:managed:pre-commit -->
+## Before Committing
+
+**IMPORTANT:** Before every git commit, you MUST ensure Caliber syncs agent configs with the latest code changes.
+
+First, check if the pre-commit hook is already installed:
+```bash
+grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "hook-active" || echo "no-hook"
+```
+
+- If **hook-active**: the hook handles sync automatically — just commit normally. Tell the user: "Caliber will sync your agent configs automatically via the pre-commit hook."
+- If **no-hook**: run Caliber manually before committing:
+  1. Tell the user: "Caliber: Syncing agent configs with your latest changes..."
+  2. Run: `/opt/homebrew/bin/caliber refresh && git add CLAUDE.md .claude/ .cursor/ .cursorrules .github/copilot-instructions.md .github/instructions/ AGENTS.md CALIBER_LEARNINGS.md .agents/ .opencode/ 2>/dev/null`
+  3. After it completes, briefly tell the user what Caliber updated. Then proceed with the commit.
+
+If `/opt/homebrew/bin/caliber` is not found, tell the user: "This project uses Caliber for agent config sync. Run /setup-caliber to get set up."
+<!-- /caliber:managed:pre-commit -->
+
+<!-- caliber:managed:learnings -->
+## Session Learnings
+
+Read `CALIBER_LEARNINGS.md` for patterns and anti-patterns learned from previous sessions.
+These are auto-extracted from real tool usage — treat them as project-specific rules.
+<!-- /caliber:managed:learnings -->
+
+<!-- caliber:managed:model-config -->
+## Model Configuration
+
+Recommended default: `claude-sonnet-4-6` with high effort (stronger reasoning; higher cost and latency than smaller models).
+Smaller/faster models trade quality for speed and cost — pick what fits the task.
+Pin your choice (`/model` in Claude Code, or `CALIBER_MODEL` when using Caliber with an API provider) so upstream default changes do not silently change behavior.
+
+<!-- /caliber:managed:model-config -->
+
+<!-- caliber:managed:sync -->
+## Context Sync
+
+This project uses [Caliber](https://github.com/caliber-ai-org/ai-setup) to keep AI agent configs in sync across Claude Code, Cursor, Copilot, and Codex.
+Configs update automatically before each commit via `/opt/homebrew/bin/caliber refresh`.
+If the pre-commit hook is not set up, run `/setup-caliber` to configure everything automatically.
+<!-- /caliber:managed:sync -->
