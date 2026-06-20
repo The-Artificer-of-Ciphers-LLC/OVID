@@ -11,7 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ovid.fingerprint import build_canonical_string, compute_fingerprint
+from ovid.disc_identity import DiscIdentitySet, identify_dvd
+from ovid.fingerprint import build_canonical_string
 from ovid.ifo_parser import VMGInfo, VTSInfo, parse_vmg, parse_vts
 from ovid.readers import DiscReader, open_reader
 
@@ -29,6 +30,7 @@ class Disc:
     title_count: int
     _vmg: VMGInfo = field(repr=False)
     _vts_list: list[VTSInfo] = field(repr=False)
+    _identity_set: DiscIdentitySet | None = field(default=None, repr=False)
 
     @classmethod
     def from_path(cls, path: str) -> "Disc":
@@ -79,7 +81,8 @@ class Disc:
                 vts_list.append(parse_vts(vts_data))
 
             canonical = build_canonical_string(vmg, vts_list)
-            fp = compute_fingerprint(canonical)
+            identity_set = identify_dvd(path, canonical)
+            fp = identity_set.primary.fingerprint
 
             return cls(
                 fingerprint=fp,
@@ -89,6 +92,7 @@ class Disc:
                 title_count=vmg.title_count,
                 _vmg=vmg,
                 _vts_list=vts_list,
+                _identity_set=identity_set,
             )
         finally:
             reader.close()

@@ -47,9 +47,9 @@ class TestRealDiscFingerprint:
         )
 
     def test_fingerprint_length(self, real_disc):
-        # dvd1- (5 chars) + 64-char SHA-256 hex = 69 chars
-        assert len(real_disc.fingerprint) == 69, (
-            f"Expected 69-char fingerprint, got {len(real_disc.fingerprint)}: "
+        # dvd1- (5 chars) + 40-char truncated SHA-256 hex = 45 chars
+        assert len(real_disc.fingerprint) == 45, (
+            f"Expected 45-char fingerprint, got {len(real_disc.fingerprint)}: "
             f"{real_disc.fingerprint}"
         )
 
@@ -64,6 +64,10 @@ class TestRealDiscFingerprint:
         assert real_disc.canonical_string.startswith("OVID-DVD-1|"), (
             f"Expected OVID-DVD-1| prefix in canonical string"
         )
+
+    def test_identity_selection_has_diagnostics(self, real_disc):
+        assert real_disc._identity_set is not None
+        assert real_disc._identity_set.diagnostics
 
 
 class TestRealDiscStructure:

@@ -25,6 +25,10 @@ ovid fingerprint <path>
 
 **Output:** Prints the fingerprint string to stdout.
 
+For DVDs, the current public output remains the `dvd1-*` OVID-DVD-1 fingerprint.
+The client may also compute a `dvdread1-*` libdvdread Disc ID internally, but
+that value is not printed until API Lookup Alias support exists.
+
 **Examples:**
 
 ```bash

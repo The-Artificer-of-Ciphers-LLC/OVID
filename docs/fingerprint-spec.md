@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **Status:** Final (v0.1.0)
-**Last updated:** 2026-04-01
+**Last updated:** 2026-06-20
 
 ---
 
@@ -11,6 +11,12 @@
 OVID-DVD-1 is a deterministic algorithm for generating a unique fingerprint from the structural layout of a DVD disc. The fingerprint is derived entirely from the logical structure stored in IFO files — title sets, program counts, durations, chapter counts, and audio/subtitle stream metadata. No filesystem timestamps, file sizes, or file dates are used.
 
 The resulting fingerprint is a 45-character string in the format `dvd1-{40 hex chars}`.
+
+OVID is also introducing the libdvdread Disc ID method as the distinct
+`dvdread1-*` Fingerprint Version. During the staged migration, OVID-DVD-1
+remains the public DVD fingerprint returned by `ovid fingerprint`; libdvdread
+identities are collected internally as Lookup Aliases until API and database
+alias support is available.
 
 ## Design Goals
 
@@ -141,7 +147,8 @@ The frame rate flag and frame count are **not** included in the duration — onl
 
 | Prefix | Format | Algorithm |
 |--------|--------|-----------|
-| `dvd1-` | DVD | OVID-DVD-1 (this spec) |
+| `dvd1-` | DVD | OVID-DVD-1 structural hash (this spec) |
+| `dvdread1-` | DVD | libdvdread Disc ID |
 | `bd1-aacs-` | Blu-ray | AACS Disc ID (planned, v0.2.0) |
 | `bd2-` | Blu-ray | BDMV structure hash (planned, v0.2.0) |
 | `uhd1-aacs-` | 4K UHD | AACS Disc ID (planned, v0.2.0) |
@@ -158,7 +165,9 @@ The reference implementation is in `ovid-client` (Python):
 
 ## Versioning
 
-The algorithm version is embedded in the canonical string prefix (`OVID-DVD-1`). If the algorithm changes in a way that produces different fingerprints for the same disc, a new version (`OVID-DVD-2`) will be defined. Both versions can coexist in the database — lookup tries the current version first.
+The algorithm version is embedded in the canonical string prefix (`OVID-DVD-1`). If the algorithm changes in a way that produces different fingerprints for the same disc, a new Fingerprint Version is defined.
+
+`dvdread1-*` is the Fingerprint Version for libdvdread Disc ID values. It is not a replacement meaning for `dvd1-*`; the prefixes identify different Disc Identity Methods. Both versions can coexist through Lookup Aliases once the API supports alias storage and lookup.
 
 ## License
 

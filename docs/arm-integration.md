@@ -103,7 +103,7 @@ cd OVID/ovid-client
 pip install -e .
 ```
 
-**System dependencies:** `ovid-client` uses `libdvdread` (for DVD fingerprinting) and optionally `libaacs` (for Blu-ray). These are typically already installed on ARM setups since they're required for ripping.
+**System dependencies:** `ovid-client` prefers `libdvdread` when it is available, and falls back to the OVID-DVD-1 structural hash when it is not. In the current migration phase, `Disc.from_path(...).fingerprint` still returns the `dvd1-*` OVID-DVD-1 fingerprint so lookups and submissions remain compatible. `libaacs` is optional for Blu-ray.
 
 ---
 
@@ -113,6 +113,7 @@ OVID is designed to be non-blocking — if it's unavailable, ARM continues norma
 
 | Scenario | Behavior |
 |----------|----------|
+| `libdvdread` unavailable | DVD fingerprinting falls back to OVID-DVD-1. ARM does not need to branch on this condition. |
 | OVID API unreachable | `OVIDClient.lookup()` times out (default: 5 seconds) and returns `None`. ARM falls back to TMDB/OMDb. |
 | Disc not in OVID database | API returns `404`. ARM falls back to TMDB/OMDb. |
 | Low confidence match | ARM ignores the result and falls back to TMDB/OMDb. |
