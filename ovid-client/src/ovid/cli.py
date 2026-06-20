@@ -11,7 +11,9 @@ from typing import Any, Union
 
 import click
 
+from ovid.disc_structure import normalize_disc_structure, to_fingerprint_json
 from ovid.disc import Disc
+from ovid.submission import ContributorMetadata, build_submit_payload
 
 
 @click.group()
@@ -144,15 +146,17 @@ def submit(path: str, api_url: str | None, token: str | None) -> None:
         except ValueError:
             year_int = None
 
-    payload = _build_submit_payload(
-        disc=disc,
-        title=title,
-        year=year_int,
-        tmdb_id=tmdb_id,
-        imdb_id=imdb_id,
-        edition_name=edition_name or None,
-        disc_number=disc_number,
-        total_discs=total_discs,
+    payload = build_submit_payload(
+        normalize_disc_structure(disc),
+        ContributorMetadata(
+            title=title,
+            year=year_int,
+            tmdb_id=tmdb_id,
+            imdb_id=imdb_id,
+            edition_name=edition_name or None,
+            disc_number=disc_number,
+            total_discs=total_discs,
+        ),
     )
 
     # ── Step 5: Submit ──────────────────────────────────────────────
@@ -214,111 +218,8 @@ def _detect_and_fingerprint(path: str) -> dict:
 
     For Blu-ray/UHD, ``tier`` is also included (1 or 2).
     """
-    if _is_bd_path(path):
-        from ovid.bd_disc import BDDisc
-        bd = BDDisc.from_path(path)
-        fmt = "UHD" if bd.format_type == "uhd" else "Blu-ray"
-        return {
-            "fingerprint": bd.fingerprint,
-            "format": fmt,
-            "tier": bd.tier,
-            "source_type": bd.source_type,
-            "structure": _bd_structure(bd),
-        }
-
-    disc = Disc.from_path(path)
-    return {
-        "fingerprint": disc.fingerprint,
-        "format": "DVD",
-        "source_type": disc.source_type,
-        "structure": _dvd_structure(disc),
-    }
-
-
-def _bd_structure(bd: Any) -> dict:
-    """Build the JSON-serialisable structure dict for a Blu-ray disc."""
-    playlists = []
-    for pl in bd.playlists:
-        play_items = []
-        for pi in pl.play_items:
-            play_items.append({
-                "clip_id": pi.clip_id,
-                "in_time": pi.in_time,
-                "out_time": pi.out_time,
-                "duration_seconds": pi.duration_seconds,
-            })
-
-        audio_streams = []
-        for s in pl.audio_streams:
-            audio_streams.append({
-                "codec": s.codec,
-                "language": s.language,
-                "channels": s.channels,
-            })
-
-        subtitle_streams = []
-        for s in pl.subtitle_streams:
-            subtitle_streams.append({
-                "codec": s.codec,
-                "language": s.language,
-            })
-
-        chapters = []
-        for ch in pl.chapter_marks:
-            chapters.append({
-                "mark_type": ch.mark_type,
-                "play_item_ref": ch.play_item_ref,
-                "timestamp": ch.timestamp,
-                "duration_seconds": ch.duration_seconds,
-            })
-
-        playlists.append({
-            "version": pl.header.version,
-            "play_items": play_items,
-            "audio_streams": audio_streams,
-            "subtitle_streams": subtitle_streams,
-            "chapters": chapters,
-        })
-
-    return {"playlists": playlists}
-
-
-def _dvd_structure(disc: Disc) -> dict:
-    """Build the JSON-serialisable structure dict for a DVD disc."""
-    vts_list = []
-    for vts in disc._vts_list:
-        pgcs = []
-        for pgc in vts.pgc_list:
-            pgcs.append({
-                "duration_seconds": pgc.duration_seconds,
-                "chapter_count": pgc.chapter_count,
-            })
-
-        audio_streams = []
-        for s in vts.audio_streams:
-            audio_streams.append({
-                "codec": s.codec,
-                "language": s.language,
-                "channels": s.channels,
-            })
-
-        subtitle_streams = []
-        for s in vts.subtitle_streams:
-            subtitle_streams.append({
-                "language": s.language,
-            })
-
-        vts_list.append({
-            "pgcs": pgcs,
-            "audio_streams": audio_streams,
-            "subtitle_streams": subtitle_streams,
-        })
-
-    return {
-        "vts_count": disc.vts_count,
-        "title_count": disc.title_count,
-        "vts": vts_list,
-    }
+    disc = _open_disc(path)
+    return to_fingerprint_json(normalize_disc_structure(disc))
 
 
 # ------------------------------------------------------------------
@@ -388,197 +289,6 @@ def _tmdb_search_flow(
             return results[pick - 1]
 
         console.print("[red]Invalid selection.[/red]")
-
-
-def _build_submit_payload(
-    *,
-    disc: Union["Disc", Any],
-    title: str,
-    year: int | None,
-    tmdb_id: int | None,
-    imdb_id: str,
-    edition_name: str | None,
-    disc_number: int,
-    total_discs: int,
-) -> dict:
-    """Build the POST /v1/disc JSON payload from Disc or BDDisc structure."""
-    from ovid.bd_disc import BDDisc
-
-    if isinstance(disc, BDDisc):
-        return _build_bd_submit_payload(
-            bd_disc=disc,
-            title=title,
-            year=year,
-            tmdb_id=tmdb_id,
-            imdb_id=imdb_id,
-            edition_name=edition_name,
-            disc_number=disc_number,
-            total_discs=total_discs,
-        )
-
-    return _build_dvd_submit_payload(
-        disc=disc,
-        title=title,
-        year=year,
-        tmdb_id=tmdb_id,
-        imdb_id=imdb_id,
-        edition_name=edition_name,
-        disc_number=disc_number,
-        total_discs=total_discs,
-    )
-
-
-def _build_dvd_submit_payload(
-    *,
-    disc: "Disc",
-    title: str,
-    year: int | None,
-    tmdb_id: int | None,
-    imdb_id: str,
-    edition_name: str | None,
-    disc_number: int,
-    total_discs: int,
-) -> dict:
-    """Build the POST /v1/disc JSON payload from DVD Disc structure."""
-    titles: list[dict] = []
-    title_index = 0
-    first_title = True
-
-    for vts in disc._vts_list:
-        audio_tracks = []
-        for ai, stream in enumerate(vts.audio_streams):
-            audio_tracks.append({
-                "track_index": ai,
-                "language_code": stream.language,
-                "codec": stream.codec,
-                "channels": stream.channels,
-            })
-
-        subtitle_tracks = []
-        for si, stream in enumerate(vts.subtitle_streams):
-            subtitle_tracks.append({
-                "track_index": si,
-                "language_code": stream.language,
-            })
-
-        for pgc in vts.pgc_list:
-            titles.append({
-                "title_index": title_index,
-                "is_main_feature": first_title,
-                "duration_secs": pgc.duration_seconds,
-                "chapter_count": pgc.chapter_count,
-                "audio_tracks": audio_tracks,
-                "subtitle_tracks": subtitle_tracks,
-            })
-            title_index += 1
-            first_title = False
-
-    release: dict = {
-        "title": title,
-        "year": year,
-        "content_type": "movie",
-    }
-    if tmdb_id is not None:
-        release["tmdb_id"] = tmdb_id
-    if imdb_id:
-        release["imdb_id"] = imdb_id
-
-    payload: dict = {
-        "fingerprint": disc.fingerprint,
-        "format": "DVD",
-        "release": release,
-        "titles": titles,
-        "disc_number": disc_number,
-        "total_discs": total_discs,
-    }
-    if edition_name:
-        payload["edition_name"] = edition_name
-
-    return payload
-
-
-def _build_bd_submit_payload(
-    *,
-    bd_disc: Any,
-    title: str,
-    year: int | None,
-    tmdb_id: int | None,
-    imdb_id: str,
-    edition_name: str | None,
-    disc_number: int,
-    total_discs: int,
-) -> dict:
-    """Build the POST /v1/disc JSON payload from BDDisc structure.
-
-    Each playlist becomes a title entry. The first playlist with the
-    longest duration is marked as the main feature.
-    """
-    fmt = "UHD" if bd_disc.format_type == "uhd" else "Blu-ray"
-
-    titles: list[dict] = []
-    title_index = 0
-
-    # Find longest playlist to mark as main feature
-    longest_idx = 0
-    longest_dur = 0.0
-    for i, pl in enumerate(bd_disc.playlists):
-        dur = sum(pi.duration_seconds for pi in pl.play_items)
-        if dur > longest_dur:
-            longest_dur = dur
-            longest_idx = i
-
-    for i, pl in enumerate(bd_disc.playlists):
-        total_duration = sum(pi.duration_seconds for pi in pl.play_items)
-        chapter_count = len([m for m in pl.chapter_marks if m.mark_type == 1])
-
-        audio_tracks = []
-        for ai, stream in enumerate(pl.audio_streams):
-            audio_tracks.append({
-                "track_index": ai,
-                "language_code": stream.language,
-                "codec": stream.codec,
-                "channels": stream.channels,
-            })
-
-        subtitle_tracks = []
-        for si, stream in enumerate(pl.subtitle_streams):
-            subtitle_tracks.append({
-                "track_index": si,
-                "language_code": stream.language,
-            })
-
-        titles.append({
-            "title_index": title_index,
-            "is_main_feature": (i == longest_idx),
-            "duration_secs": total_duration,
-            "chapter_count": chapter_count,
-            "audio_tracks": audio_tracks,
-            "subtitle_tracks": subtitle_tracks,
-        })
-        title_index += 1
-
-    release: dict = {
-        "title": title,
-        "year": year,
-        "content_type": "movie",
-    }
-    if tmdb_id is not None:
-        release["tmdb_id"] = tmdb_id
-    if imdb_id:
-        release["imdb_id"] = imdb_id
-
-    payload: dict = {
-        "fingerprint": bd_disc.fingerprint,
-        "format": fmt,
-        "release": release,
-        "titles": titles,
-        "disc_number": disc_number,
-        "total_discs": total_discs,
-    }
-    if edition_name:
-        payload["edition_name"] = edition_name
-
-    return payload
 
 
 def _render_lookup(data: dict) -> None:

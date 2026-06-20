@@ -574,11 +574,12 @@ class TestCLIBDFingerprint:
 
 
 class TestBuildSubmitPayloadBD:
-    """_build_submit_payload() with BDDisc objects."""
+    """Submission payload construction with normalized disc structures."""
 
     def test_build_submit_payload_bd(self, tmp_path):
         """BD disc produces a payload with format='Blu-ray' and playlist-based titles."""
-        from ovid.cli import _build_submit_payload
+        from ovid.disc_structure import normalize_disc_structure
+        from ovid.submission import ContributorMetadata, build_submit_payload
 
         root = _make_bd_dir(
             tmp_path,
@@ -599,15 +600,17 @@ class TestBuildSubmitPayloadBD:
         )
         disc = BDDisc.from_path(str(root))
 
-        payload = _build_submit_payload(
-            disc=disc,
-            title="Test Movie",
-            year=2024,
-            tmdb_id=12345,
-            imdb_id="tt9999999",
-            edition_name="Collector's Edition",
-            disc_number=1,
-            total_discs=2,
+        payload = build_submit_payload(
+            normalize_disc_structure(disc),
+            ContributorMetadata(
+                title="Test Movie",
+                year=2024,
+                tmdb_id=12345,
+                imdb_id="tt9999999",
+                edition_name="Collector's Edition",
+                disc_number=1,
+                total_discs=2,
+            ),
         )
 
         assert payload["fingerprint"] == disc.fingerprint
@@ -633,7 +636,8 @@ class TestBuildSubmitPayloadBD:
 
     def test_build_submit_payload_uhd(self, tmp_path):
         """UHD disc produces format='UHD'."""
-        from ovid.cli import _build_submit_payload
+        from ovid.disc_structure import normalize_disc_structure
+        from ovid.submission import ContributorMetadata, build_submit_payload
 
         root = _make_bd_dir(
             tmp_path,
@@ -646,15 +650,17 @@ class TestBuildSubmitPayloadBD:
         )
         disc = BDDisc.from_path(str(root))
 
-        payload = _build_submit_payload(
-            disc=disc,
-            title="UHD Movie",
-            year=2025,
-            tmdb_id=None,
-            imdb_id="",
-            edition_name=None,
-            disc_number=1,
-            total_discs=1,
+        payload = build_submit_payload(
+            normalize_disc_structure(disc),
+            ContributorMetadata(
+                title="UHD Movie",
+                year=2025,
+                tmdb_id=None,
+                imdb_id="",
+                edition_name=None,
+                disc_number=1,
+                total_discs=1,
+            ),
         )
 
         assert payload["format"] == "UHD"
@@ -665,8 +671,9 @@ class TestBuildSubmitPayloadBD:
     def test_build_submit_payload_dvd_unchanged(self, tmp_path):
         """DVD disc still produces format='DVD' (no regressions)."""
         from conftest import make_vmg_ifo, make_vts_ifo
-        from ovid.cli import _build_submit_payload
         from ovid.disc import Disc
+        from ovid.disc_structure import normalize_disc_structure
+        from ovid.submission import ContributorMetadata, build_submit_payload
 
         vmg = make_vmg_ifo(vts_count=1, title_entries=1)
         vts = make_vts_ifo(
@@ -681,15 +688,17 @@ class TestBuildSubmitPayloadBD:
 
         disc = Disc.from_path(str(tmp_path))
 
-        payload = _build_submit_payload(
-            disc=disc,
-            title="DVD Movie",
-            year=2020,
-            tmdb_id=None,
-            imdb_id="",
-            edition_name=None,
-            disc_number=1,
-            total_discs=1,
+        payload = build_submit_payload(
+            normalize_disc_structure(disc),
+            ContributorMetadata(
+                title="DVD Movie",
+                year=2020,
+                tmdb_id=None,
+                imdb_id="",
+                edition_name=None,
+                disc_number=1,
+                total_discs=1,
+            ),
         )
 
         assert payload["format"] == "DVD"

@@ -172,17 +172,20 @@ def _submit_disc(disc, *, title: str, year: int | None) -> int:
         return 1
 
     # Build a minimal payload matching the API schema
-    from ovid.cli import _build_submit_payload
+    from ovid.disc_structure import normalize_disc_structure
+    from ovid.submission import ContributorMetadata, build_submit_payload
 
-    payload = _build_submit_payload(
-        disc=disc,
-        title=title,
-        year=year,
-        tmdb_id=None,
-        imdb_id="",
-        edition_name=None,
-        disc_number=1,
-        total_discs=1,
+    payload = build_submit_payload(
+        normalize_disc_structure(disc),
+        ContributorMetadata(
+            title=title,
+            year=year,
+            tmdb_id=None,
+            imdb_id="",
+            edition_name=None,
+            disc_number=1,
+            total_discs=1,
+        ),
     )
 
     client = OVIDClient(base_url=api_url)

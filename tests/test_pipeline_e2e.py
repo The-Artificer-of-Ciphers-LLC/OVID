@@ -14,9 +14,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ovid.disc import Disc
-
-# Import the payload builder from the CLI module
-from ovid.cli import _build_submit_payload
+from ovid.disc_structure import normalize_disc_structure
+from ovid.submission import ContributorMetadata, build_submit_payload
 
 
 
@@ -102,6 +101,31 @@ def synthetic_disc(tmp_path) -> Disc:
     return Disc.from_path(folder)
 
 
+def _build_test_submit_payload(
+    *,
+    disc: Disc,
+    title: str,
+    year: int | None,
+    tmdb_id: int | None,
+    imdb_id: str,
+    edition_name: str | None,
+    disc_number: int,
+    total_discs: int,
+) -> dict:
+    return build_submit_payload(
+        normalize_disc_structure(disc),
+        ContributorMetadata(
+            title=title,
+            year=year,
+            tmdb_id=tmdb_id,
+            imdb_id=imdb_id,
+            edition_name=edition_name,
+            disc_number=disc_number,
+            total_discs=total_discs,
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -120,7 +144,7 @@ class TestPipelineRoundTrip:
         disc = synthetic_disc
 
         # Build the payload exactly as the real CLI would
-        payload = _build_submit_payload(
+        payload = _build_test_submit_payload(
             disc=disc,
             title="The Matrix",
             year=1999,
@@ -210,7 +234,7 @@ class TestPipelineRoundTrip:
         auth_header: dict[str, str],
     ):
         """Submitting the same fingerprint twice returns 409 Conflict."""
-        payload = _build_submit_payload(
+        payload = _build_test_submit_payload(
             disc=synthetic_disc,
             title="The Matrix",
             year=1999,
@@ -247,7 +271,7 @@ class TestFingerprintStability:
         encoding drift."""
         original_fp = synthetic_disc.fingerprint
 
-        payload = _build_submit_payload(
+        payload = _build_test_submit_payload(
             disc=synthetic_disc,
             title="Fingerprint Stability Test",
             year=2025,
