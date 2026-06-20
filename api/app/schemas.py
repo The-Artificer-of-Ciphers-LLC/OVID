@@ -1,8 +1,10 @@
 """Pydantic request/response schemas for OVID API — tech spec §4."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
+
+FingerprintString = Annotated[str, Field(min_length=1)]
 
 # ---------------------------------------------------------------------------
 # Confidence mapping: disc.status → human-readable confidence level
@@ -110,7 +112,8 @@ class DisputedDiscsResponse(BaseModel):
 
 
 class DiscSubmitRequest(BaseModel):
-    fingerprint: str = Field(min_length=1)
+    fingerprint: FingerprintString
+    fingerprint_aliases: list[FingerprintString] = Field(default_factory=list)
     format: str = Field(min_length=1)
     region_code: str | None = None
     upc: str | None = None
@@ -136,7 +139,8 @@ class DiscRegisterRequest(BaseModel):
     The disc is created with status ``pending_identification`` — a human
     must later attach release metadata via the web UI or CLI.
     """
-    fingerprint: str = Field(min_length=1)
+    fingerprint: FingerprintString
+    fingerprint_aliases: list[FingerprintString] = Field(default_factory=list)
     format: str = Field(min_length=1)
     disc_label: str | None = None
 

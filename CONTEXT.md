@@ -36,9 +36,13 @@ The versioned format of a Disc Identity string. A Fingerprint Version tells call
 
 `dvd1-*` identifies the OVID-DVD-1 structural hash method. `dvdread1-*` identifies the libdvdread Disc ID method.
 
+### Primary Fingerprint
+
+The Disc Identity string that OVID publishes as the canonical identifier for a physical video disc pressing. Lookup by a secondary Disc Identity can resolve to a disc while responses still expose the disc's Primary Fingerprint.
+
 ### Lookup Alias
 
-A secondary Disc Identity string that resolves to the same physical video disc pressing as the primary fingerprint. Lookup Aliases preserve access to records created with older Fingerprint Versions or alternate Disc Identity Methods.
+A secondary Disc Identity string that resolves to the same physical video disc pressing as the Primary Fingerprint. A Lookup Alias identifies one physical video disc pressing globally; if the same Disc Identity string appears for a different pressing, OVID treats that as an identity conflict. Lookup Aliases preserve access to records created with older Fingerprint Versions or alternate Disc Identity Methods.
 
 ### Disc Structure
 

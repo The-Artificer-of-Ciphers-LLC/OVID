@@ -45,13 +45,13 @@ Returns server liveness status.
 GET /v1/disc/{fingerprint}
 ```
 
-Returns full disc metadata including release info, titles, and tracks.
+Returns full disc metadata including release info, titles, and tracks. The path value can be a Primary Fingerprint or a Lookup Alias. The response `fingerprint` is always the disc's Primary Fingerprint.
 
 **Path parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `fingerprint` | string | OVID fingerprint (e.g. `dvd1-a3f92c...`) |
+| `fingerprint` | string | Primary Fingerprint or Lookup Alias (e.g. `dvd1-a3f92c...` or `dvdread1-...`) |
 
 **Response 200 — disc found:**
 
@@ -136,6 +136,7 @@ Creates a new disc entry with release metadata, titles, and tracks in a single t
 ```json
 {
   "fingerprint": "dvd1-a3f92c1b4e8d7f6a2c9e0b1d3f5a8c2e4f6b8d0a",
+  "fingerprint_aliases": ["dvdread1-7d83f1..."],
   "format": "DVD",
   "region_code": "1",
   "edition_name": "Special Edition",
@@ -173,11 +174,12 @@ Creates a new disc entry with release metadata, titles, and tracks in a single t
 }
 ```
 
-**Required fields:**
+**Selected fields:**
 
 | Field | Type | Constraints |
 |-------|------|-------------|
-| `fingerprint` | string | Non-empty, unique |
+| `fingerprint` | string | Non-empty Primary Fingerprint for new records |
+| `fingerprint_aliases` | array of strings | Optional; non-empty Lookup Alias values |
 | `format` | string | Non-empty |
 | `release.title` | string | Non-empty |
 | `release.content_type` | string | Non-empty |
@@ -215,6 +217,16 @@ Creates a new disc entry with release metadata, titles, and tracks in a single t
 }
 ```
 
+**Response 409 — identity conflict:**
+
+```json
+{
+  "request_id": "550e8400-...",
+  "error": "identity_conflict",
+  "message": "Disc Identity 'dvdread1-...' already resolves to another disc"
+}
+```
+
 ---
 
 ### Verify an Existing Disc
@@ -224,13 +236,13 @@ POST /v1/disc/{fingerprint}/verify
 Authorization: Bearer <token>
 ```
 
-Promotes an unverified disc to verified status. Idempotent — verifying an already-verified disc returns success.
+Promotes an unverified disc to verified status. Idempotent — verifying an already-verified disc returns success. The path value can be a Primary Fingerprint or a Lookup Alias; responses publish the Primary Fingerprint.
 
 **Path parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `fingerprint` | string | OVID fingerprint to verify |
+| `fingerprint` | string | Primary Fingerprint or Lookup Alias to verify |
 
 **Response 200 — promoted to verified:**
 

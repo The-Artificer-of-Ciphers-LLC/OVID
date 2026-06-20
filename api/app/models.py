@@ -106,6 +106,9 @@ class Disc(Base):
     )
     edits: Mapped[list["DiscEdit"]] = relationship(back_populates="disc")
     disc_set: Mapped["DiscSet | None"] = relationship(back_populates="discs")
+    identity_aliases: Mapped[list["DiscIdentityAlias"]] = relationship(
+        back_populates="disc", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("idx_discs_fingerprint", "fingerprint"),
@@ -116,6 +119,33 @@ class Disc(Base):
             postgresql_where="disc_label IS NOT NULL",
         ),
         Index("idx_discs_status", "status"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# disc_identity_aliases — secondary Disc Identity strings for one disc pressing
+# ---------------------------------------------------------------------------
+class DiscIdentityAlias(Base):
+    __tablename__ = "disc_identity_aliases"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    disc_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("discs.id"), nullable=False
+    )
+    fingerprint: Mapped[str] = mapped_column(
+        String(50), unique=True, nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow
+    )
+
+    disc: Mapped["Disc"] = relationship(back_populates="identity_aliases")
+
+    __table_args__ = (
+        Index("idx_disc_identity_aliases_fingerprint", "fingerprint"),
+        Index("idx_disc_identity_aliases_disc_id", "disc_id"),
     )
 
 

@@ -15,8 +15,7 @@ The resulting fingerprint is a 45-character string in the format `dvd1-{40 hex c
 OVID is also introducing the libdvdread Disc ID method as the distinct
 `dvdread1-*` Fingerprint Version. During the staged migration, OVID-DVD-1
 remains the public DVD fingerprint returned by `ovid fingerprint`; libdvdread
-identities are collected internally as Lookup Aliases until API and database
-alias support is available.
+identities can be stored by the server as Lookup Aliases.
 
 ## Design Goals
 
@@ -167,7 +166,7 @@ The reference implementation is in `ovid-client` (Python):
 
 The algorithm version is embedded in the canonical string prefix (`OVID-DVD-1`). If the algorithm changes in a way that produces different fingerprints for the same disc, a new Fingerprint Version is defined.
 
-`dvdread1-*` is the Fingerprint Version for libdvdread Disc ID values. It is not a replacement meaning for `dvd1-*`; the prefixes identify different Disc Identity Methods. Both versions can coexist through Lookup Aliases once the API supports alias storage and lookup.
+`dvdread1-*` is the Fingerprint Version for libdvdread Disc ID values. It is not a replacement meaning for `dvd1-*`; the prefixes identify different Disc Identity Methods. Both versions can coexist through Lookup Aliases.
 
 ## License
 

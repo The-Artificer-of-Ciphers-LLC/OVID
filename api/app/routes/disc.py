@@ -13,6 +13,12 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.auth.deps import get_current_user
 from app.deps import get_db
+from app.disc_identity import (
+    DiscIdentityConflict,
+    attach_lookup_aliases,
+    resolve_disc_identity,
+    resolve_existing_disc_for_identities,
+)
 from app.models import Disc, DiscEdit, DiscRelease, DiscTitle, DiscTrack, Release, User
 from app.rate_limit import _dynamic_limit, limiter
 from app.sync import next_seq
@@ -50,6 +56,18 @@ def _error_response(
     return JSONResponse(
         status_code=status_code,
         content={"request_id": request_id, "error": error, "message": message},
+    )
+
+
+def _identity_conflict_response(
+    request_id: str, fingerprint: str
+) -> JSONResponse:
+    """Build a conflict response for Disc Identity collisions."""
+    return _error_response(
+        request_id,
+        "identity_conflict",
+        f"Disc Identity '{fingerprint}' already resolves to another disc",
+        409,
     )
 
 
@@ -213,9 +231,10 @@ async def resolve_dispute(
     request_id = str(uuid.uuid4())
     if current_user.role not in ("trusted", "editor", "admin"):
         return _error_response(request_id, "forbidden", "Trusted user role required", 403)
-    disc = db.query(Disc).filter(Disc.fingerprint == fingerprint).first()
-    if disc is None:
+    resolution = resolve_disc_identity(db, fingerprint)
+    if resolution is None:
         return _error_response(request_id, "not_found", "Disc not found", 404)
+    disc = resolution.disc
     if disc.status != "disputed":
         return _error_response(request_id, "invalid_state", "Disc is not in disputed state", 409)
     if body.action == "verify":
@@ -255,22 +274,21 @@ def lookup_disc(
     """Look up a disc by fingerprint with full nested metadata."""
     request_id: str = request.state.request_id
 
-    disc = (
-        db.query(Disc)
-        .options(
+    resolution = resolve_disc_identity(
+        db,
+        fingerprint,
+        options=(
             joinedload(Disc.titles).joinedload(DiscTitle.tracks),
             selectinload(Disc.releases),
-        )
-        .filter(Disc.fingerprint == fingerprint)
-        .first()
+        ),
     )
 
-    if disc is None:
+    if resolution is None:
         return _error_response(
             request_id, "not_found", f"No disc with fingerprint '{fingerprint}'", 404
         )
 
-    return _disc_to_response(disc, request_id)
+    return _disc_to_response(resolution.disc, request_id)
 
 
 # ---------------------------------------------------------------------------
@@ -295,13 +313,32 @@ def register_disc(
     """
     request_id: str = request.state.request_id
 
-    existing = db.query(Disc).filter(Disc.fingerprint == body.fingerprint).first()
-    if existing is not None:
+    try:
+        existing_resolution = resolve_existing_disc_for_identities(
+            db,
+            body.fingerprint,
+            body.fingerprint_aliases,
+        )
+    except DiscIdentityConflict as exc:
+        return _identity_conflict_response(request_id, exc.fingerprint)
+
+    if existing_resolution is not None:
+        existing = existing_resolution.disc
+        try:
+            attach_lookup_aliases(
+                db,
+                existing,
+                existing.fingerprint,
+                [body.fingerprint, *body.fingerprint_aliases],
+            )
+        except DiscIdentityConflict as exc:
+            return _identity_conflict_response(request_id, exc.fingerprint)
+        db.commit()
         return JSONResponse(
             status_code=409,
             content={
                 "request_id": request_id,
-                "fingerprint": body.fingerprint,
+                "fingerprint": existing.fingerprint,
                 "status": existing.status,
                 "message": "Disc already registered",
             },
@@ -316,6 +353,12 @@ def register_disc(
         seq_num=next_seq(db),
     )
     db.add(disc)
+    db.flush()
+    try:
+        attach_lookup_aliases(db, disc, body.fingerprint, body.fingerprint_aliases)
+    except DiscIdentityConflict as exc:
+        db.rollback()
+        return _identity_conflict_response(request_id, exc.fingerprint)
     db.commit()
     logger.info("disc_registered fingerprint=%s by=%s", body.fingerprint, current_user.id)
 
@@ -323,7 +366,7 @@ def register_disc(
         status_code=201,
         content={
             "request_id": request_id,
-            "fingerprint": body.fingerprint,
+            "fingerprint": disc.fingerprint,
             "status": "pending_identification",
             "message": "Disc registered — awaiting identification",
         },
@@ -345,10 +388,29 @@ def submit_disc(
     request_id: str = request.state.request_id
 
     # Duplicate check — auto-verify or dispute logic
-    existing = db.query(Disc).filter(Disc.fingerprint == body.fingerprint).first()
-    if existing is not None:
+    try:
+        existing_resolution = resolve_existing_disc_for_identities(
+            db,
+            body.fingerprint,
+            body.fingerprint_aliases,
+        )
+    except DiscIdentityConflict as exc:
+        return _identity_conflict_response(request_id, exc.fingerprint)
+
+    if existing_resolution is not None:
+        existing = existing_resolution.disc
+        try:
+            attach_lookup_aliases(
+                db,
+                existing,
+                existing.fingerprint,
+                [body.fingerprint, *body.fingerprint_aliases],
+            )
+        except DiscIdentityConflict as exc:
+            return _identity_conflict_response(request_id, exc.fingerprint)
         # Same user submitting again → conflict
         if existing.submitted_by is not None and str(existing.submitted_by) == str(current_user.id):
+            db.commit()
             return _error_response(
                 request_id,
                 "conflict",
@@ -369,7 +431,7 @@ def submit_disc(
                 )
             )
             db.commit()
-            logger.info("disc_auto_verified fingerprint=%s", body.fingerprint)
+            logger.info("disc_auto_verified fingerprint=%s", existing.fingerprint)
             return JSONResponse(
                 status_code=200,
                 content={
@@ -391,7 +453,7 @@ def submit_disc(
                 )
             )
             db.commit()
-            logger.info("disc_disputed fingerprint=%s", body.fingerprint)
+            logger.info("disc_disputed fingerprint=%s", existing.fingerprint)
             return JSONResponse(
                 status_code=200,
                 content={
@@ -429,6 +491,7 @@ def submit_disc(
         )
         db.add(disc)
         db.flush()
+        attach_lookup_aliases(db, disc, body.fingerprint, body.fingerprint_aliases)
 
         # Link disc ↔ release
         db.execute(
@@ -498,6 +561,9 @@ def submit_disc(
             message="Disc submitted successfully",
         )
 
+    except DiscIdentityConflict as exc:
+        db.rollback()
+        return _identity_conflict_response(request_id, exc.fingerprint)
     except Exception:
         db.rollback()
         logger.exception("disc_submit_failed fingerprint=%s", body.fingerprint)
@@ -523,11 +589,12 @@ def verify_disc(
     """
     request_id: str = request.state.request_id
 
-    disc = db.query(Disc).filter(Disc.fingerprint == fingerprint).first()
-    if disc is None:
+    resolution = resolve_disc_identity(db, fingerprint)
+    if resolution is None:
         return _error_response(
             request_id, "not_found", f"No disc with fingerprint '{fingerprint}'", 404
         )
+    disc = resolution.disc
 
     # Cannot verify your own submission
     if disc.submitted_by is not None and str(disc.submitted_by) == str(current_user.id):
@@ -540,7 +607,7 @@ def verify_disc(
             status_code=200,
             content={
                 "request_id": request_id,
-                "fingerprint": fingerprint,
+                "fingerprint": disc.fingerprint,
                 "status": "verified",
                 "message": "already verified",
             },
@@ -564,7 +631,7 @@ def verify_disc(
         status_code=200,
         content={
             "request_id": request_id,
-            "fingerprint": fingerprint,
+            "fingerprint": disc.fingerprint,
             "status": "verified",
             "message": "Disc verified successfully",
         },
@@ -584,11 +651,12 @@ def get_disc_edits(
     """Return the edit history for a disc (R015)."""
     request_id: str = request.state.request_id
 
-    disc = db.query(Disc).filter(Disc.fingerprint == fingerprint).first()
-    if disc is None:
+    resolution = resolve_disc_identity(db, fingerprint)
+    if resolution is None:
         return _error_response(
             request_id, "not_found", f"No disc with fingerprint '{fingerprint}'", 404
         )
+    disc = resolution.disc
 
     edits = (
         db.query(DiscEdit)
@@ -612,7 +680,7 @@ def get_disc_edits(
 
     return DiscEditsListResponse(
         request_id=request_id,
-        fingerprint=fingerprint,
+        fingerprint=disc.fingerprint,
         edits=edit_responses,
     )
 
