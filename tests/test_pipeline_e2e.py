@@ -14,6 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ovid.disc import Disc
+from ovid.disc_identity import DiscIdentitySet
 from ovid.disc_structure import normalize_disc_structure
 from ovid.submission import ContributorMetadata, build_submit_payload
 
@@ -112,6 +113,10 @@ def _build_test_submit_payload(
     disc_number: int,
     total_discs: int,
 ) -> dict:
+    identity_set = getattr(disc, "_identity_set", None)
+    if not isinstance(identity_set, DiscIdentitySet):
+        identity_set = None
+
     return build_submit_payload(
         normalize_disc_structure(disc),
         ContributorMetadata(
@@ -123,6 +128,7 @@ def _build_test_submit_payload(
             disc_number=disc_number,
             total_discs=total_discs,
         ),
+        identity_set,
     )
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from ovid.disc_identity import DiscIdentity, DiscIdentitySet
 from ovid.disc_structure import (
     normalize_bd_disc,
     normalize_dvd_disc,
@@ -135,6 +136,33 @@ def test_to_fingerprint_json_preserves_current_dvd_shape() -> None:
     assert result["structure"]["vts_count"] == 2
     assert result["structure"]["title_count"] == 3
     assert result["structure"]["vts"][0]["pgcs"][0]["duration_seconds"] == 7200
+    assert "fingerprint_aliases" not in result
+
+
+def test_to_fingerprint_json_includes_identity_aliases() -> None:
+    normalized = normalize_dvd_disc(_make_dvd_disc())
+    identity_set = DiscIdentitySet(
+        primary=DiscIdentity(
+            fingerprint="dvd1-primary",
+            method="ovid-dvd-1",
+            fingerprint_version="dvd1",
+        ),
+        aliases=[
+            DiscIdentity(
+                fingerprint="dvdread1-aabbccddeeff00112233445566778899",
+                method="libdvdread-disc-id",
+                fingerprint_version="dvdread1",
+            )
+        ],
+    )
+
+    result = to_fingerprint_json(normalized, identity_set)
+
+    assert result["fingerprint"] == "dvd1-primary"
+    assert result["fingerprint_aliases"] == [
+        "dvdread1-aabbccddeeff00112233445566778899"
+    ]
+    assert "diagnostics" not in result
 
 
 def test_to_fingerprint_json_preserves_current_bd_shape() -> None:

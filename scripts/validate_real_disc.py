@@ -172,8 +172,13 @@ def _submit_disc(disc, *, title: str, year: int | None) -> int:
         return 1
 
     # Build a minimal payload matching the API schema
+    from ovid.disc_identity import DiscIdentitySet
     from ovid.disc_structure import normalize_disc_structure
     from ovid.submission import ContributorMetadata, build_submit_payload
+
+    identity_set = getattr(disc, "_identity_set", None)
+    if not isinstance(identity_set, DiscIdentitySet):
+        identity_set = None
 
     payload = build_submit_payload(
         normalize_disc_structure(disc),
@@ -186,6 +191,7 @@ def _submit_disc(disc, *, title: str, year: int | None) -> int:
             disc_number=1,
             total_discs=1,
         ),
+        identity_set,
     )
 
     client = OVIDClient(base_url=api_url)

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from ovid.disc_identity import DiscIdentitySet
+
 
 @dataclass(frozen=True)
 class NormalizedTrack:
@@ -188,14 +190,27 @@ def normalize_bd_disc(bd_disc: Any) -> NormalizedDiscStructure:
     )
 
 
-def to_fingerprint_json(structure: NormalizedDiscStructure) -> dict[str, Any]:
+def to_fingerprint_json(
+    structure: NormalizedDiscStructure,
+    identity_set: DiscIdentitySet | None = None,
+) -> dict[str, Any]:
     """Build the current ``ovid fingerprint --json`` output shape."""
+    fingerprint = structure.fingerprint
+    fingerprint_aliases: list[str] = []
+    if identity_set is not None:
+        fingerprint = identity_set.primary.fingerprint
+        fingerprint_aliases = [
+            identity.fingerprint for identity in identity_set.aliases
+        ]
+
     result: dict[str, Any] = {
-        "fingerprint": structure.fingerprint,
+        "fingerprint": fingerprint,
         "format": structure.format,
         "source_type": structure.source_type,
         "structure": structure.legacy_structure,
     }
+    if fingerprint_aliases:
+        result["fingerprint_aliases"] = fingerprint_aliases
     if structure.tier is not None:
         result["tier"] = structure.tier
     return result

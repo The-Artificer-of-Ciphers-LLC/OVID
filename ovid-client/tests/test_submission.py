@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from ovid.disc_identity import (
+    DiscIdentity,
+    DiscIdentityDiagnostic,
+    DiscIdentitySet,
+)
 from ovid.disc_structure import (
     NormalizedDiscStructure,
     NormalizedTitle,
@@ -98,3 +103,47 @@ def test_build_submit_payload_omits_empty_optional_fields() -> None:
     assert "edition_name" not in payload
     assert "tmdb_id" not in payload["release"]
     assert "imdb_id" not in payload["release"]
+    assert "fingerprint_aliases" not in payload
+
+
+def test_build_submit_payload_uses_disc_identity_set() -> None:
+    structure = NormalizedDiscStructure(
+        fingerprint="dvd1-from-structure",
+        format="DVD",
+        source_type="FolderReader",
+        titles=[],
+    )
+    identity_set = DiscIdentitySet(
+        primary=DiscIdentity(
+            fingerprint="dvd1-primary",
+            method="ovid-dvd-1",
+            fingerprint_version="dvd1",
+        ),
+        aliases=[
+            DiscIdentity(
+                fingerprint="dvdread1-00112233445566778899aabbccddeeff",
+                method="libdvdread-disc-id",
+                fingerprint_version="dvdread1",
+            )
+        ],
+        diagnostics=[
+            DiscIdentityDiagnostic(code="libdvdread_disc_id_available")
+        ],
+    )
+    metadata = ContributorMetadata(
+        title="DVD Movie",
+        year=2026,
+        tmdb_id=None,
+        imdb_id="",
+        edition_name=None,
+        disc_number=1,
+        total_discs=1,
+    )
+
+    payload = build_submit_payload(structure, metadata, identity_set)
+
+    assert payload["fingerprint"] == "dvd1-primary"
+    assert payload["fingerprint_aliases"] == [
+        "dvdread1-00112233445566778899aabbccddeeff"
+    ]
+    assert "diagnostics" not in payload

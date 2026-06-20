@@ -27,7 +27,7 @@ ovid fingerprint <path>
 
 For DVDs, the current public output remains the `dvd1-*` OVID-DVD-1 fingerprint.
 The client may also compute a `dvdread1-*` libdvdread Disc ID internally, but
-that value is not printed until API Lookup Alias support exists.
+that value is exposed only in structured JSON as a Lookup Alias.
 
 **Examples:**
 

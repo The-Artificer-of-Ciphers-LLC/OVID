@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from ovid.disc_identity import DiscIdentitySet
 from ovid.disc_structure import NormalizedDiscStructure, NormalizedTitle
 
 
@@ -25,8 +26,17 @@ class ContributorMetadata:
 def build_submit_payload(
     structure: NormalizedDiscStructure,
     metadata: ContributorMetadata,
+    identity_set: DiscIdentitySet | None = None,
 ) -> dict[str, Any]:
     """Build the POST /v1/disc payload."""
+    fingerprint = structure.fingerprint
+    fingerprint_aliases: list[str] = []
+    if identity_set is not None:
+        fingerprint = identity_set.primary.fingerprint
+        fingerprint_aliases = [
+            identity.fingerprint for identity in identity_set.aliases
+        ]
+
     release: dict[str, Any] = {
         "title": metadata.title,
         "year": metadata.year,
@@ -38,13 +48,15 @@ def build_submit_payload(
         release["imdb_id"] = metadata.imdb_id
 
     payload: dict[str, Any] = {
-        "fingerprint": structure.fingerprint,
+        "fingerprint": fingerprint,
         "format": structure.format,
         "release": release,
         "titles": [_title_payload(title) for title in structure.titles],
         "disc_number": metadata.disc_number,
         "total_discs": metadata.total_discs,
     }
+    if fingerprint_aliases:
+        payload["fingerprint_aliases"] = fingerprint_aliases
     if metadata.edition_name:
         payload["edition_name"] = metadata.edition_name
     return payload

@@ -11,6 +11,7 @@ from typing import Any, Union
 
 import click
 
+from ovid.disc_identity import DiscIdentitySet
 from ovid.disc_structure import normalize_disc_structure, to_fingerprint_json
 from ovid.disc import Disc
 from ovid.submission import ContributorMetadata, build_submit_payload
@@ -146,6 +147,7 @@ def submit(path: str, api_url: str | None, token: str | None) -> None:
         except ValueError:
             year_int = None
 
+    identity_set = _disc_identity_set(disc)
     payload = build_submit_payload(
         normalize_disc_structure(disc),
         ContributorMetadata(
@@ -157,6 +159,7 @@ def submit(path: str, api_url: str | None, token: str | None) -> None:
             disc_number=disc_number,
             total_discs=total_discs,
         ),
+        identity_set,
     )
 
     # ── Step 5: Submit ──────────────────────────────────────────────
@@ -219,7 +222,17 @@ def _detect_and_fingerprint(path: str) -> dict:
     For Blu-ray/UHD, ``tier`` is also included (1 or 2).
     """
     disc = _open_disc(path)
-    return to_fingerprint_json(normalize_disc_structure(disc))
+    return to_fingerprint_json(
+        normalize_disc_structure(disc),
+        _disc_identity_set(disc),
+    )
+
+
+def _disc_identity_set(disc: Any) -> DiscIdentitySet | None:
+    identity_set = getattr(disc, "_identity_set", None)
+    if isinstance(identity_set, DiscIdentitySet):
+        return identity_set
+    return None
 
 
 # ------------------------------------------------------------------
