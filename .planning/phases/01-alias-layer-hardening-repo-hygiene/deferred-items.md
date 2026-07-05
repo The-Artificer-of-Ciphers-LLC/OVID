@@ -28,3 +28,13 @@ None of these are caused by `api/app/verification.py` or
 (this phase's stated concern) or a dependency-bump plan — not fixed here to
 stay within Plan 01-01's file scope (`api/app/verification.py`,
 `api/tests/test_verification.py`).
+
+## Plan 01-02 (disc_identity.py alias race hardening)
+
+Full suite (`cd api && python -m pytest tests/ -q`) after restructuring
+`attach_lookup_aliases` still passes all 251 tests (12 in the disc-identity
+race + alias suites), with the same pre-existing `InsecureKeyLengthWarning`
+/ `StarletteDeprecationWarning` / `DeprecationWarning` warnings noted above
+under Plan 01-01 — none originate from `api/app/disc_identity.py` or
+`api/tests/test_disc_identity_race.py`. No new warnings introduced by this
+plan. Confirmed out of scope, not fixed here.

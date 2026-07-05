@@ -134,11 +134,20 @@ def attach_lookup_aliases(
     winning disc row instead of a split/duplicate pressing.
     """
     for alias in normalize_lookup_aliases(primary_fingerprint, aliases):
+        # Concurrent-worker UNIQUE convergence (IDENT-02): a SAVEPOINT scopes
+        # this single insert so a losing race only unwinds this alias, never
+        # sibling aliases already committed in this call nor the caller's
+        # outer transaction. flush() forces the INSERT (and any violation)
+        # to surface here, inside the savepoint, rather than at the outer
+        # commit where it could no longer be isolated to just this alias.
         try:
             with db.begin_nested():
                 db.add(DiscIdentityAlias(disc_id=disc.id, fingerprint=alias))
                 db.flush()
         except IntegrityError:
+            # Another worker won the race. Discard the stale identity map
+            # left behind by the rolled-back savepoint before re-resolving
+            # (Pitfall 2), then converge to whoever actually holds it now.
             db.expire_all()
             winner = resolve_disc_identity(db, alias)
             if winner is None:
