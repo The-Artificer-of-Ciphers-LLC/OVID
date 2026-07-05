@@ -38,3 +38,22 @@ race + alias suites), with the same pre-existing `InsecureKeyLengthWarning`
 under Plan 01-01 — none originate from `api/app/disc_identity.py` or
 `api/tests/test_disc_identity_race.py`. No new warnings introduced by this
 plan. Confirmed out of scope, not fixed here.
+
+## Plan 01-06 (repo hygiene — disposable script deletion, UAT tooling relocation)
+
+Full suite (`api/.venv/bin/python -m pytest tests/ -q`) after deleting
+`fix_test.py`/`fix_test2.py`/`test_script.py`/`verify_t11.py`, relocating
+`run_uat.py`/`create_uat_dirs.py` to `scripts/`, and untracking/gitignoring
+`uat_results.json`/`uat_dirs/` passes all 252 tests, with the identical
+`InsecureKeyLengthWarning` / `StarletteDeprecationWarning` /
+`asyncio.iscoroutinefunction DeprecationWarning` warnings recorded under
+Plan 01-01 and Plan 01-02 above. This plan is pure VCS/repo-hygiene work —
+it touches zero `api/` source or test files (only root-level scripts,
+`scripts/`, `.gitignore`, and previously-tracked `uat_*` fixture data), so
+these warnings cannot have been introduced or affected by this diff. This
+is the third consecutive plan in this phase to independently confirm the
+same three warnings as pre-existing and out of this phase's file scope;
+recommend a dedicated dependency-bump / test-hardening plan to resolve them
+(pin `httpx2` per Starlette's deprecation guidance, raise HMAC test key
+lengths to >=32 bytes, and track `slowapi`'s upstream fix for
+`asyncio.iscoroutinefunction`). Not fixed here — confirmed out of scope.
