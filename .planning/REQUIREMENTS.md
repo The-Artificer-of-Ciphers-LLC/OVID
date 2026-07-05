@@ -118,17 +118,62 @@ Explicitly excluded — includes anti-features from research (with warnings).
 
 ## Traceability
 
-Populated during roadmap creation (Step 8). Each v1 requirement maps to exactly one phase.
+Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| _(to be filled by roadmapper)_ | — | Pending |
+| FPRINT-01 | Phase 4 | Pending |
+| FPRINT-02 | Phase 4 | Pending |
+| FPRINT-03 | Phase 4 | Pending |
+| FPRINT-04 | Phase 4 | Pending |
+| FPRINT-05 | Phase 4 | Pending |
+| FPRINT-06 | Phase 4 | Pending |
+| FPRINT-07 | Phase 4 | Pending |
+| IDENT-01 | Phase 1 | Pending |
+| IDENT-02 | Phase 1 | Pending |
+| IDENT-03 | Phase 5 | Pending |
+| IDENT-04 | Phase 5 | Pending |
+| IDENT-05 | Phase 1 | Pending |
+| AUTH-01 | Phase 6 | Pending |
+| AUTH-02 | Phase 6 | Pending |
+| AUTH-03 | Phase 6 | Pending |
+| AUTH-04 | Phase 6 | Pending |
+| AUTH-05 | Phase 6 | Pending |
+| AUTH-06 | Phase 6 | Pending |
+| AUTH-07 | Phase 6 | Pending |
+| AUTH-08 | Phase 6 | Pending |
+| AUTH-09 | Phase 6 | Pending |
+| AUTH-10 | Phase 6 | Pending |
+| VERIFY-01 | Phase 2 | Pending |
+| VERIFY-02 | Phase 1 | Pending |
+| VERIFY-03 | Phase 2 | Pending |
+| VERIFY-04 | Phase 2 | Pending |
+| WEBUI-01 | Phase 7 | Pending |
+| WEBUI-02 | Phase 7 | Pending |
+| WEBUI-03 | Phase 7 | Pending |
+| WEBUI-04 | Phase 7 | Pending |
+| INFRA-01 | Phase 3 | Pending |
+| INFRA-02 | Phase 3 | Pending |
+| INFRA-03 | Phase 3 | Pending |
+| INFRA-04 | Phase 3 | Pending |
+| ARM-01 | Phase 8 | Pending |
+| ARM-02 | Phase 8 | Pending |
+| OPS-01 | Phase 8 | Pending |
+| OPS-02 | Phase 8 | Pending |
+| OPS-03 | Phase 8 | Pending |
+| OPS-04 | Phase 8 | Pending |
+| DOCS-01 | Phase 4 | Pending |
+| DOCS-02 | Phase 8 | Pending |
+| DOCS-03 | Phase 6 | Pending |
+| DOCS-04 | Phase 8 | Pending |
+| CLEAN-01 | Phase 1 | Pending |
+| CLEAN-02 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 46 total (FPRINT 7, IDENT 5, AUTH 10, VERIFY 4, WEBUI 4, INFRA 4, ARM 2, OPS 4, DOCS 4, CLEAN 2)
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 46 ⚠️ (resolved at roadmap creation)
+- Mapped to phases: 46
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-05*
-*Last updated: 2026-07-05 after initial definition*
+*Last updated: 2026-07-05 after roadmap creation (8 phases, 46/46 mapped)*
