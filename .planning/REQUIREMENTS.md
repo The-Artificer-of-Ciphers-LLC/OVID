@@ -147,7 +147,7 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 | VERIFY-01 | Phase 2 | Complete |
 | VERIFY-02 | Phase 1 | Complete |
 | VERIFY-03 | Phase 2 | Pending |
-| VERIFY-04 | Phase 2 | Pending |
+| VERIFY-04 | Phase 2 | Complete |
 | WEBUI-01 | Phase 7 | Pending |
 | WEBUI-02 | Phase 7 | Pending |
 | WEBUI-03 | Phase 7 | Pending |
