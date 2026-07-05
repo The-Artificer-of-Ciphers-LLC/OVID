@@ -376,12 +376,26 @@ class DiscEdit(Base):
     old_value: Mapped[str | None] = mapped_column(Text)
     new_value: Mapped[str | None] = mapped_column(Text)
     edit_note: Mapped[str | None] = mapped_column(Text)
+    # Salted, /24-truncated HMAC-SHA256 hex of the actor's client subnet (D-06).
+    # Nullable → historical rows stay NULL → anti-Sybil IP signal fails open (D-07).
+    ip_hash: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow
     )
 
     # relationships
     disc: Mapped["Disc | None"] = relationship(back_populates="edits")
+
+    __table_args__ = (
+        # Backs the Postgres-native confirmation cooldown COUNT (VERIFY-04/D-13):
+        # filters DiscEdit by (user_id, edit_type="verify") over a created_at window.
+        Index(
+            "idx_disc_edits_user_type_created",
+            "user_id",
+            "edit_type",
+            "created_at",
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
