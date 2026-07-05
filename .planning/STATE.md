@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-07-05T19:10:22.935Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-07-05T19:31:33.111Z"
 last_activity: 2026-07-05 -- Phase 01 execution started
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 current_phase: 01
 current_phase_name: Alias-Layer Hardening & Repo Hygiene
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 ## Current Position
 
 Phase: 01 (alias-layer-hardening-repo-hygiene) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-07-05 -- Phase 01 execution started
 
@@ -52,6 +52,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 01 P02 | 15min | 3 tasks | 2 files |
 | Phase 01 P05 | 15min | 2 tasks | 1 files |
 | Phase 01 P06 | 3min | 3 tasks | 4 files |
+| Phase 01 P03 | 30min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Recent decisions affecting current work:
 - [Phase 01-02]: A post-conflict re-resolve that unexpectedly returns None re-raises the original IntegrityError rather than swallowing it (no-wave-off rule) - a genuinely-unexpected state, not a legitimate race outcome
 - [Phase 01-05]: D-16: dvd1-* identity regression asserts stable identity/structure, not the literal top-level fingerprint value, so the guardrail survives Phase 5 libdvdread alias promotion
 - [Phase 01]: D-17/D-18/D-19 (01-06): deleted 4 disposable one-shot patch scripts, relocated run_uat.py/create_uat_dirs.py to scripts/ via git mv, untracked+gitignored uat_results.json/uat_dirs/ (git rm --cached required alongside gitignore per Pitfall 5)
+- [Phase 01]: A2 contract: a mismatched submission against a verified disc records an audit DiscEdit and stays verified (200), never silently disputed (VERIFY-02 crit #4)
+- [Phase 01]: Renamed the /resolve route handler to resolve_dispute_endpoint to free the resolve_dispute name for import from app.verification
+- [Phase 01]: submit_disc's disc-row insert SAVEPOINT wraps the Release creation together with the Disc insert, so a losing race unwinds both instead of leaking an orphaned Release row
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-05T19:10:22.928Z
-Stopped at: Completed 01-06-PLAN.md
+Last session: 2026-07-05T19:31:33.105Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
