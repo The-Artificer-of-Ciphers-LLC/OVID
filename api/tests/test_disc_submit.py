@@ -77,17 +77,33 @@ class TestDiscSubmit:
         assert get_resp.status_code == 200
         assert get_resp.json()["fingerprint"] == "bd-NEW001-main"
 
-    def test_submit_with_titles_and_tracks(self, client, auth_header):
-        """POST with titles+tracks → GET returns nested structure."""
+    def test_submit_with_titles_and_tracks(self, client, auth_header, db_session: Session):
+        """POST with titles+tracks persists the nested structure.
+
+        The freshly-submitted disc is ``unverified``, so its public GET
+        withholds the structural payload (anti-echo redaction, D-09) — the
+        titles round-trip via GET only after verification (covered by
+        test_disc_lookup / test_lookup_redaction). Persistence is asserted
+        here directly against the ORM so submit coverage is preserved.
+        """
         client.post("/v1/disc", json=VALID_PAYLOAD, headers=auth_header)
+
+        # Public read of the unverified disc withholds structure (D-09).
         resp = client.get("/v1/disc/bd-NEW001-main")
-        data = resp.json()
-        assert len(data["titles"]) == 1
-        t = data["titles"][0]
-        assert t["title_index"] == 0
-        assert len(t["audio_tracks"]) == 1
-        assert t["audio_tracks"][0]["codec"] == "dts-hd"
-        assert len(t["subtitle_tracks"]) == 2
+        assert resp.status_code == 200
+        assert resp.json()["titles"] == []
+
+        # …but the submitted structure did persist (proven at the DB layer).
+        disc = db_session.query(Disc).filter(Disc.fingerprint == "bd-NEW001-main").first()
+        assert disc is not None
+        assert len(disc.titles) == 1
+        t = disc.titles[0]
+        assert t.title_index == 0
+        audio = [tr for tr in t.tracks if tr.track_type == "audio"]
+        subs = [tr for tr in t.tracks if tr.track_type == "subtitle"]
+        assert len(audio) == 1
+        assert audio[0].codec == "dts-hd"
+        assert len(subs) == 2
 
     def test_submit_has_request_id(self, client, auth_header):
         """Submit response includes request_id in body and header."""
@@ -406,8 +422,10 @@ class TestSubmitAgainstPendingIdentificationDisc:
         assert get_resp.status_code == 200
         get_data = get_resp.json()
         assert get_data["status"] == "unverified"
+        # Identification attached the release; structure is withheld while
+        # the disc is unverified (anti-echo redaction, D-09).
         assert get_data["release"]["title"] == "New Film"
-        assert len(get_data["titles"]) == 1
+        assert get_data["titles"] == []
 
     def test_different_user_submits_first_metadata_identifies(
         self, client, auth_header, second_auth_header
@@ -436,5 +454,7 @@ class TestSubmitAgainstPendingIdentificationDisc:
         get_resp = client.get("/v1/disc/bd-PENDING-DIFF-001")
         get_data = get_resp.json()
         assert get_data["status"] == "unverified"
+        # First metadata attached (identified, not disputed); structure is
+        # withheld while the disc is unverified (anti-echo redaction, D-09).
         assert get_data["release"]["title"] == "New Film"
-        assert len(get_data["titles"]) == 1
+        assert get_data["titles"] == []

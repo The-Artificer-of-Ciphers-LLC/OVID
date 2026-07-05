@@ -60,6 +60,18 @@ class FingerprintAliasResponse(BaseModel):
 
 
 class DiscLookupResponse(BaseModel):
+    """Public read shape for a disc (GET /v1/disc/{fingerprint}).
+
+    Anti-echo redaction (D-09): for an ``unverified`` disc the serializer
+    (``_disc_to_response``) withholds the structural payload — ``titles`` is
+    returned as an empty list (and with it the per-title chapters,
+    main-feature marker, and audio/subtitle tracks). ``titles`` is already
+    ``Field(default_factory=list)`` and every ``TitleResponse`` field is
+    optional, so an empty list is a valid, non-breaking response — redaction
+    makes no field required. ``release`` and ``fingerprint_aliases`` stay
+    populated for every status (D-11).
+    """
+
     request_id: str
     fingerprint: str
     format: str

@@ -447,7 +447,20 @@ def _disc_to_response(disc: Disc, request_id: str) -> DiscLookupResponse:
             imdb_id=rel.imdb_id,
         )
 
-    titles_resp = [_build_title_response(t) for t in disc.titles]
+    # Anti-echo redaction (D-09/D-12): withhold the submitted structural
+    # payload (titles → chapters / main-feature marker / audio+subtitle
+    # tracks) for UNVERIFIED discs so a sockpuppet cannot "confirm" by
+    # echoing the first submitter's upload — a second contributor must
+    # reproduce this from a physical disc. Scoped to "unverified" ONLY:
+    # verified, disputed, and pending_identification reads keep full
+    # structure (Pitfall 6). release_resp and fingerprint_aliases_resp
+    # stay populated for every status (D-11). Sync serialization is a
+    # separate builder in sync.py and is untouched.
+    titles_resp = (
+        []
+        if disc.status == "unverified"
+        else [_build_title_response(t) for t in disc.titles]
+    )
 
     # fingerprint_aliases (IDENT-01): primary first (is_primary=True), then
     # the identity_aliases relationship's own order (deterministic
