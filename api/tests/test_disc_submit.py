@@ -331,3 +331,36 @@ class TestDiscRowRace:
         )
         assert len(rows) == 1, "disc-row insert race must converge to one row"
         assert rows[0].id == winner_id
+
+
+# ---------------------------------------------------------------------------
+# Post-savepoint IntegrityError misclassification (CR-01)
+# ---------------------------------------------------------------------------
+class TestSubmitPostSavepointIntegrityError:
+    """A duplicate ``title_index`` violates ``uq_disc_titles_index`` AFTER the
+    release+disc savepoint has already committed. This must be reported as a
+    client error (400), never mistaken for a fingerprint race (which would
+    return 409) and never leak as an unhandled 500 from a subsequent
+    re-resolve against an aborted transaction.
+    """
+
+    def test_duplicate_title_index_returns_400_not_409_or_500(
+        self, client, auth_header
+    ):
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "bd-DUPTITLE-001",
+            "titles": [
+                {**VALID_PAYLOAD["titles"][0], "title_index": 0},
+                {**VALID_PAYLOAD["titles"][0], "title_index": 0},
+            ],
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 400
+        data = resp.json()
+        assert "request_id" in data
+
+        # Session must still be usable — a subsequent valid submit succeeds.
+        valid_payload = {**VALID_PAYLOAD, "fingerprint": "bd-DUPTITLE-002"}
+        resp2 = client.post("/v1/disc", json=valid_payload, headers=auth_header)
+        assert resp2.status_code == 201

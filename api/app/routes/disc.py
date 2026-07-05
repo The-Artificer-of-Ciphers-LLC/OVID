@@ -610,6 +610,11 @@ def submit_disc(
         # transaction — so a losing race can be cleanly recovered and
         # re-resolved instead of leaking an orphaned Release row or
         # splitting into two disc rows.
+        #
+        # CR-01: this try/except is scoped to ONLY the savepoint. Anything
+        # after it (aliases, titles/tracks, commit) has its own try/except
+        # below so a post-savepoint IntegrityError (e.g. a duplicate
+        # title_index) is never misclassified as a fingerprint race.
         with db.begin_nested():
             # Create release
             release = Release(
@@ -638,7 +643,28 @@ def submit_disc(
             )
             db.add(disc)
             db.flush()
+    except IntegrityError:
+        # Another submitter/worker won the race for this fingerprint
+        # between our duplicate-check and this insert. Discard the stale
+        # identity map (Pitfall 2), re-resolve to find the true winner, and
+        # fall through to the same duplicate-submission handling used by
+        # the up-front check — never split into two disc rows (IDENT-02).
+        db.expire_all()
+        try:
+            winner_resolution = resolve_existing_disc_for_identities(
+                db, body.fingerprint, body.fingerprint_aliases
+            )
+        except DiscIdentityConflict as exc:
+            return _identity_conflict_response(request_id, exc.fingerprint)
+        if winner_resolution is None:
+            # Genuinely unexpected — the UNIQUE violation implies a row
+            # exists, but re-resolve found nothing. Do not swallow.
+            raise
+        return _handle_existing_disc(
+            db, winner_resolution.disc, body, current_user, request_id
+        )
 
+    try:
         attach_lookup_aliases(db, disc, body.fingerprint, body.fingerprint_aliases)
 
         # Link disc ↔ release
@@ -709,29 +735,21 @@ def submit_disc(
             message="Disc submitted successfully",
         )
 
-    except IntegrityError:
-        # Another submitter/worker won the race for this fingerprint
-        # between our duplicate-check and this insert. Discard the stale
-        # identity map (Pitfall 2), re-resolve to find the true winner, and
-        # fall through to the same duplicate-submission handling used by
-        # the up-front check — never split into two disc rows (IDENT-02).
-        db.expire_all()
-        try:
-            winner_resolution = resolve_existing_disc_for_identities(
-                db, body.fingerprint, body.fingerprint_aliases
-            )
-        except DiscIdentityConflict as exc:
-            return _identity_conflict_response(request_id, exc.fingerprint)
-        if winner_resolution is None:
-            # Genuinely unexpected — the UNIQUE violation implies a row
-            # exists, but re-resolve found nothing. Do not swallow.
-            raise
-        return _handle_existing_disc(
-            db, winner_resolution.disc, body, current_user, request_id
-        )
     except DiscIdentityConflict as exc:
         db.rollback()
         return _identity_conflict_response(request_id, exc.fingerprint)
+    except IntegrityError:
+        # A constraint violation AFTER the fingerprint/disc-row savepoint
+        # (e.g. a duplicate title_index violating uq_disc_titles_index) is
+        # a CLIENT error, not a fingerprint race — the disc row already
+        # won its savepoint, so this is invalid submitted structure.
+        db.rollback()
+        return _error_response(
+            request_id,
+            "invalid_submission",
+            "Duplicate title_index or invalid disc structure in submission",
+            400,
+        )
     except Exception:
         db.rollback()
         logger.exception("disc_submit_failed fingerprint=%s", body.fingerprint)
