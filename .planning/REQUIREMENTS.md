@@ -40,7 +40,7 @@
 
 ### Two-Contributor Verification (VERIFY)
 
-- [ ] **VERIFY-01**: A submitted disc entry is `unverified` until a second, DISTINCT contributor independently confirms the fingerprint (never self-confirmation)
+- [x] **VERIFY-01**: A submitted disc entry is `unverified` until a second, DISTINCT contributor independently confirms the fingerprint (never self-confirmation)
 - [x] **VERIFY-02**: Verification status transitions are consolidated into a single guarded service module (no scattered route-level mutations)
 - [ ] **VERIFY-03 [guardrail]**: An already-`verified` disc cannot be flipped back to `disputed`/`unverified` by a later third submission without an explicit dispute path
 - [ ] **VERIFY-04 [guardrail]**: Baseline anti-Sybil weighting (account-age / IP-diversity signals) and confirmation-action rate limits gate the verification step — distinct `user_id` alone is not accepted as proof of independence
@@ -144,7 +144,7 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 | AUTH-08 | Phase 6 | Pending |
 | AUTH-09 | Phase 6 | Pending |
 | AUTH-10 | Phase 6 | Pending |
-| VERIFY-01 | Phase 2 | Pending |
+| VERIFY-01 | Phase 2 | Complete |
 | VERIFY-02 | Phase 1 | Complete |
 | VERIFY-03 | Phase 2 | Pending |
 | VERIFY-04 | Phase 2 | Pending |

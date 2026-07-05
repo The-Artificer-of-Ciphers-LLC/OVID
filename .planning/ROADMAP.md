@@ -65,11 +65,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Confirmation actions are rate-limited per account and weighted by account-age/IP-diversity signals; a merely-distinct `user_id` is not by itself accepted as proof of independent physical possession (VERIFY-04 [guardrail]).
   4. The full submitted structural payload of an `unverified` disc is withheld from public reads until verification, so a sockpuppet cannot "confirm" without independently computing the fingerprint from a physical disc.
 
-**Plans**: 5 plans
+**Plans**: 1/5 plans executed
 
 **Wave 1** *(parallel — disjoint files)*
 
-- [ ] 02-01-PLAN.md — `structural_match.py`: tolerant structural-equality verify gate (D-03) [Wave 1, tdd] (VERIFY-01)
+- [x] 02-01-PLAN.md — `structural_match.py`: tolerant structural-equality verify gate (D-03) [Wave 1, tdd] (VERIFY-01)
 - [ ] 02-02-PLAN.md — `anti_sybil.py` + `disc_edits.ip_hash` column/index + migration `900000000004`: Postgres confirmation cooldown, salted /24 IP hash, weighted fail-open trust score (VERIFY-04) [Wave 1, tdd]
 
 **Wave 2** *(blocked on Wave 1)*
@@ -184,7 +184,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Alias-Layer Hardening & Repo Hygiene | 6/6 | Complete    | 2026-07-05 |
-| 2. Two-Contributor Verification Workflow | 0/5 | Not started | - |
+| 2. Two-Contributor Verification Workflow | 1/5 | In Progress|  |
 | 3. Redis-Backed Rate Limiting & Performance | 0/TBD | Not started | - |
 | 4. Blu-ray/UHD Fingerprinting | 0/TBD | Not started | - |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 0/TBD | Not started | - |
