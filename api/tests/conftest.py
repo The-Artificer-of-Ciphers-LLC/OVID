@@ -17,6 +17,7 @@ os.environ["DATABASE_URL"] = "sqlite://"
 os.environ.setdefault("OVID_SECRET_KEY", "test-secret-key-for-unit-tests-32b")
 
 import uuid  # noqa: E402
+from datetime import datetime, timedelta, timezone  # noqa: E402
 
 from sqlalchemy import create_engine, event  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
@@ -312,6 +313,36 @@ def seed_trusted_user(db: Session) -> User:
 def trusted_user(db_session: Session) -> User:
     """Fixture that creates and returns a trusted test user."""
     return seed_trusted_user(db_session)
+
+
+# ---------------------------------------------------------------------------
+# Account-age override helper (VERIFY-04 anti-Sybil soft-signal tests)
+# ---------------------------------------------------------------------------
+def make_user_with_age(
+    db: Session,
+    *,
+    hours_old: float,
+    username: str,
+    email: str,
+) -> User:
+    """Create a User whose ``created_at`` is ``hours_old`` hours in the past.
+
+    Lets the account-age branch of the anti-Sybil weighted trust score be
+    exercised deterministically (fresh vs. established confirmer) without
+    altering the fixed-age ``test_user``/``second_user`` fixtures.
+    """
+    user = User(
+        id=uuid.uuid4(),
+        username=username,
+        email=email,
+        display_name=username,
+        role="contributor",
+        created_at=datetime.now(timezone.utc) - timedelta(hours=hours_old),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @pytest.fixture()
