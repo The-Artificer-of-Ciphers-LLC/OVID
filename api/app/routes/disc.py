@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.auth.deps import get_current_user
@@ -22,6 +23,12 @@ from app.disc_identity import (
 from app.models import Disc, DiscEdit, DiscRelease, DiscTitle, DiscTrack, Release, User
 from app.rate_limit import _dynamic_limit, limiter
 from app.sync import next_seq
+from app.verification import (
+    VerificationTransitionError,
+    flag_dispute,
+    resolve_dispute,
+    verify,
+)
 from app.schemas import (
     STATUS_CONFIDENCE,
     DiscEditResponse,
@@ -98,6 +105,128 @@ def _releases_match(
     return (
         existing_release.title.lower() == new_release.title.lower()
         and existing_release.year == new_release.year
+    )
+
+
+def _handle_existing_disc(
+    db: Session,
+    existing: Disc,
+    body: DiscSubmitRequest,
+    current_user: User,
+    request_id: str,
+) -> JSONResponse:
+    """Handle a submission that resolves to an already-existing disc.
+
+    Attaches any new Lookup Aliases, then applies the two-contributor
+    auto-verify / dispute contract (VERIFY-02): matching metadata from a
+    different submitter auto-verifies via ``verify()``; mismatched metadata
+    calls ``flag_dispute()`` — the sole writer of the disputed status, which
+    refuses to touch an already-verified disc. On refusal the disc stays
+    verified, an audit ``DiscEdit`` is recorded, and the response is 200
+    with an explicit message — never a silent flip to disputed (A2 / crit
+    #4). Reused by both the up-front duplicate check and the disc-row
+    losing-race recovery path (IDENT-02).
+    """
+    try:
+        attach_lookup_aliases(
+            db,
+            existing,
+            existing.fingerprint,
+            [body.fingerprint, *body.fingerprint_aliases],
+        )
+    except DiscIdentityConflict as exc:
+        return _identity_conflict_response(request_id, exc.fingerprint)
+
+    # Same user submitting again → conflict
+    if existing.submitted_by is not None and str(existing.submitted_by) == str(current_user.id):
+        db.commit()
+        return _error_response(
+            request_id,
+            "conflict",
+            "Disc already submitted by this user",
+            409,
+        )
+
+    # Different user — check if release metadata matches
+    if _releases_match(existing, body.release, db):
+        try:
+            transitioned = verify(db, existing, current_user)
+        except VerificationTransitionError as exc:
+            db.rollback()
+            return _error_response(request_id, "invalid_state", str(exc), 409)
+        if transitioned:
+            existing.seq_num = next_seq(db)
+            db.add(
+                DiscEdit(
+                    disc_id=existing.id,
+                    user_id=current_user.id,
+                    edit_type="verify",
+                    edit_note="auto-verified by second contributor",
+                )
+            )
+        db.commit()
+        logger.info("disc_auto_verified fingerprint=%s", existing.fingerprint)
+        return JSONResponse(
+            status_code=200,
+            content={
+                "request_id": request_id,
+                "status": "verified",
+                "message": "Disc auto-verified by second contributor",
+            },
+        )
+
+    flagged = flag_dispute(
+        db, existing, current_user, reason="metadata conflict on second submission"
+    )
+    if flagged:
+        existing.seq_num = next_seq(db)
+        db.add(
+            DiscEdit(
+                disc_id=existing.id,
+                user_id=current_user.id,
+                edit_type="disputed",
+                edit_note="metadata conflict on second submission",
+                new_value=json.dumps(body.release.model_dump()),
+            )
+        )
+        db.commit()
+        logger.info("disc_disputed fingerprint=%s", existing.fingerprint)
+        return JSONResponse(
+            status_code=200,
+            content={
+                "request_id": request_id,
+                "status": "disputed",
+                "message": "Disc flagged as disputed due to metadata conflict",
+            },
+        )
+
+    # A2 (VERIFY-02 crit #4): flag_dispute refused — existing is already
+    # verified. It stays verified; record an audit DiscEdit and return 200
+    # with an explicit message. Never report the disputed status.
+    db.add(
+        DiscEdit(
+            disc_id=existing.id,
+            user_id=current_user.id,
+            edit_type="dispute_attempted",
+            edit_note=(
+                "metadata conflict on second submission against a verified "
+                "disc — disc remains verified"
+            ),
+            new_value=json.dumps(body.release.model_dump()),
+        )
+    )
+    db.commit()
+    logger.info("disc_dispute_attempt_on_verified fingerprint=%s", existing.fingerprint)
+    return JSONResponse(
+        status_code=200,
+        content={
+            "request_id": request_id,
+            "status": "verified",
+            "message": (
+                "Disc is already verified; conflicting metadata recorded "
+                "but the disc remains verified"
+            ),
+        },
     )
 
 
@@ -220,7 +349,7 @@ async def list_disputed_discs(
 # ---------------------------------------------------------------------------
 @router.post("/disc/{fingerprint}/resolve")
 @limiter.limit(_dynamic_limit)
-async def resolve_dispute(
+async def resolve_dispute_endpoint(
     fingerprint: str,
     body: DisputeResolveRequest,
     request: Request,
@@ -235,14 +364,13 @@ async def resolve_dispute(
     if resolution is None:
         return _error_response(request_id, "not_found", "Disc not found", 404)
     disc = resolution.disc
-    if disc.status != "disputed":
-        return _error_response(request_id, "invalid_state", "Disc is not in disputed state", 409)
+    try:
+        resolve_dispute(db, disc, current_user, body.action)
+    except VerificationTransitionError as exc:
+        return _error_response(request_id, "invalid_state", str(exc), 409)
     if body.action == "verify":
-        disc.status = "verified"
-        disc.verified_by = current_user.id
         edit_note = f"Dispute resolved: marked verified by {current_user.username}"
     else:  # reject
-        disc.status = "unverified"
         edit_note = f"Dispute resolved: reverted to unverified by {current_user.username}"
     disc.seq_num = next_seq(db)
     db.add(
@@ -398,70 +526,9 @@ def submit_disc(
         return _identity_conflict_response(request_id, exc.fingerprint)
 
     if existing_resolution is not None:
-        existing = existing_resolution.disc
-        try:
-            attach_lookup_aliases(
-                db,
-                existing,
-                existing.fingerprint,
-                [body.fingerprint, *body.fingerprint_aliases],
-            )
-        except DiscIdentityConflict as exc:
-            return _identity_conflict_response(request_id, exc.fingerprint)
-        # Same user submitting again → conflict
-        if existing.submitted_by is not None and str(existing.submitted_by) == str(current_user.id):
-            db.commit()
-            return _error_response(
-                request_id,
-                "conflict",
-                "Disc already submitted by this user",
-                409,
-            )
-        # Different user — check if release metadata matches
-        if _releases_match(existing, body.release, db):
-            existing.status = "verified"
-            existing.verified_by = current_user.id
-            existing.seq_num = next_seq(db)
-            db.add(
-                DiscEdit(
-                    disc_id=existing.id,
-                    user_id=current_user.id,
-                    edit_type="verify",
-                    edit_note="auto-verified by second contributor",
-                )
-            )
-            db.commit()
-            logger.info("disc_auto_verified fingerprint=%s", existing.fingerprint)
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "request_id": request_id,
-                    "status": "verified",
-                    "message": "Disc auto-verified by second contributor",
-                },
-            )
-        else:
-            existing.status = "disputed"
-            existing.seq_num = next_seq(db)
-            db.add(
-                DiscEdit(
-                    disc_id=existing.id,
-                    user_id=current_user.id,
-                    edit_type="disputed",
-                    edit_note="metadata conflict on second submission",
-                    new_value=json.dumps(body.release.model_dump()),
-                )
-            )
-            db.commit()
-            logger.info("disc_disputed fingerprint=%s", existing.fingerprint)
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "request_id": request_id,
-                    "status": "disputed",
-                    "message": "Disc flagged as disputed due to metadata conflict",
-                },
-            )
+        return _handle_existing_disc(
+            db, existing_resolution.disc, body, current_user, request_id
+        )
 
     try:
         # Create release
@@ -596,13 +663,16 @@ def verify_disc(
         )
     disc = resolution.disc
 
-    # Cannot verify your own submission
-    if disc.submitted_by is not None and str(disc.submitted_by) == str(current_user.id):
-        return _error_response(
-            request_id, "forbidden", "Cannot verify your own submission", 403
-        )
+    try:
+        transitioned = verify(db, disc, current_user)
+    except VerificationTransitionError as exc:
+        if exc.attempted_status == "verified" and str(disc.submitted_by) == str(current_user.id):
+            return _error_response(
+                request_id, "forbidden", "Cannot verify your own submission", 403
+            )
+        return _error_response(request_id, "invalid_state", str(exc), 409)
 
-    if disc.status == "verified":
+    if not transitioned:
         return JSONResponse(
             status_code=200,
             content={
@@ -613,8 +683,6 @@ def verify_disc(
             },
         )
 
-    disc.status = "verified"
-    disc.verified_by = current_user.id
     disc.seq_num = next_seq(db)
     db.add(
         DiscEdit(
