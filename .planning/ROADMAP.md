@@ -13,7 +13,7 @@ OVID's v0.1.0 core (DVD structural fingerprinting, lookup/submission API, Postgr
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Alias-Layer Hardening & Repo Hygiene** - Close the alias write-path race and verification-consolidation gaps that must land before promotion; clean up ad-hoc repo cruft
+- [x] **Phase 1: Alias-Layer Hardening & Repo Hygiene** - Close the alias write-path race and verification-consolidation gaps that must land before promotion; clean up ad-hoc repo cruft (completed 2026-07-05)
 - [ ] **Phase 2: Two-Contributor Verification Workflow** - Make the two-contributor trust model live and resistant to cheap Sybil abuse
 - [ ] **Phase 3: Redis-Backed Rate Limiting & Performance** - Fix multi-worker rate-limit scaling and validate the p95 latency budget against the real deployment config
 - [ ] **Phase 4: Blu-ray/UHD Fingerprinting** - Bring BD/UHD discs to fingerprinting parity with the DVD path (Tier 1 AACS + Tier 2 BDMV, coexisting as an alias pair)
@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Verification status transitions (`unverified → verified → disputed`) run through one guarded service module (`api/app/verification.py`); an already-verified disc cannot be silently flipped to `disputed` by a later mismatched submission outside the explicit dispute-resolution path (VERIFY-02).
   5. The repo root contains none of the ad-hoc debug scripts (`fix_test.py`, `fix_test2.py`, `test_script.py`, `verify_t11.py`), and UAT artifacts (`uat_results.json`, `uat_dirs/`) are gitignored (CLEAN-01, CLEAN-02).
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 **Wave 1**
 
 - [x] 01-01-PLAN.md — verification.py guarded state machine (VERIFY-02) [Wave 1, tdd]
@@ -51,7 +51,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-04-PLAN.md — expose fingerprint_aliases on the lookup response (IDENT-01) [Wave 3, depends 01-03]
+- [x] 01-04-PLAN.md — expose fingerprint_aliases on the lookup response (IDENT-01) [Wave 3, depends 01-03]
 
 ### Phase 2: Two-Contributor Verification Workflow
 
@@ -167,7 +167,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Alias-Layer Hardening & Repo Hygiene | 5/6 | In Progress|  |
+| 1. Alias-Layer Hardening & Repo Hygiene | 6/6 | Complete   | 2026-07-05 |
 | 2. Two-Contributor Verification Workflow | 0/TBD | Not started | - |
 | 3. Redis-Backed Rate Limiting & Performance | 0/TBD | Not started | - |
 | 4. Blu-ray/UHD Fingerprinting | 0/TBD | Not started | - |

@@ -75,3 +75,31 @@ pre-existing and out of file scope (`api/app/routes/disc.py`,
 `api/app/verification.py`, `api/app/disc_identity.py`,
 `api/tests/test_disc_submit.py`, `api/tests/test_dispute.py`). Not fixed
 here — confirmed out of scope.
+
+## Plan 01-04 (fingerprint_aliases lookup exposure — final plan of the phase)
+
+Full suite (`cd api && ./.venv/bin/python -m pytest tests/ -q`) after adding
+`FingerprintAliasResponse`/`fingerprint_aliases` to `schemas.py`, the
+`order_by` on `Disc.identity_aliases` in `models.py`, and `_method_of` +
+eager-loads in `routes/disc.py` passes all 255 tests (one new test added),
+with the identical `InsecureKeyLengthWarning` / `StarletteDeprecationWarning`
+/ `asyncio.iscoroutinefunction DeprecationWarning` trio recorded under
+Plans 01-01/01-02/01-03/01-06 above — the fifth consecutive plan to
+independently confirm these as pre-existing and out of this plan's file
+scope (`api/app/schemas.py`, `api/app/models.py`, `api/app/routes/disc.py`,
+`api/tests/test_disc_lookup.py`).
+
+Additionally, `web/node_modules/` was not present in the working tree before
+this plan ran (`npm ci` was required per the plan's technical note before
+`npx tsc --noEmit` / `npm test` could execute). Once installed, `npm test`
+(Vitest, 3 files / 32 tests) surfaces one pre-existing warning unrelated to
+this plan's type-only `web/lib/api.ts` diff:
+
+- `(node:...) [DEP0205] DeprecationWarning: module.register() is deprecated.
+  Use module.registerHooks() instead.` — emitted by Vitest's own TS-transform
+  loader registration against the installed Node.js runtime, not by any file
+  this plan touches (`web/lib/api.ts` gained only a type-only optional
+  field). Recommend tracking alongside the API-side dependency-bump item
+  above (bump Vitest / Node compatibility) rather than fixing inline here.
+
+Not fixed here — confirmed out of scope for both suites.

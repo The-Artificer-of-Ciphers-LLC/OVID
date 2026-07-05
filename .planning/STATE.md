@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-07-05T19:31:33.111Z"
+status: verifying
+stopped_at: Completed 01-04-PLAN.md (final plan of Phase 01)
+last_updated: "2026-07-05T19:45:02.220Z"
 last_activity: 2026-07-05 -- Phase 01 execution started
 progress:
   total_phases: 8
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
-  completed_plans: 5
-  percent: 0
+  completed_plans: 6
+  percent: 13
 current_phase: 01
 current_phase_name: Alias-Layer Hardening & Repo Hygiene
 ---
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 01 (alias-layer-hardening-repo-hygiene) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-05 -- Phase 01 execution started
 
 Progress: [██░░░░░░░░] 17%
@@ -53,6 +53,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 01 P05 | 15min | 2 tasks | 1 files |
 | Phase 01 P06 | 3min | 3 tasks | 4 files |
 | Phase 01 P03 | 30min | 3 tasks | 4 files |
+| Phase 01 P04 | 10min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,8 @@ Recent decisions affecting current work:
 - [Phase 01]: A2 contract: a mismatched submission against a verified disc records an audit DiscEdit and stays verified (200), never silently disputed (VERIFY-02 crit #4)
 - [Phase 01]: Renamed the /resolve route handler to resolve_dispute_endpoint to free the resolve_dispute name for import from app.verification
 - [Phase 01]: submit_disc's disc-row insert SAVEPOINT wraps the Release creation together with the Disc insert, so a losing race unwinds both instead of leaking an orphaned Release row
+- [Phase 01-04]: method is derived from the fingerprint prefix via _method_of() in routes/disc.py — no method column, no Alembic migration (D-04)
+- [Phase 01-04]: Deterministic alias ordering via order_by=(created_at, id) on Disc.identity_aliases — primary-first then insertion order, never string-sorted (D-06)
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-05T19:31:33.105Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-07-05T19:45:02.206Z
+Stopped at: Completed 01-04-PLAN.md (final plan of Phase 01)
 Resume file: None
