@@ -108,6 +108,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. New DVD submissions and lookups show `dvdread1-*` as the primary fingerprint; every disc that already has a recorded `dvdread1-*` alias is promoted in one transaction per disc, and any disc without one stays permanently on `dvd1-*` (IDENT-04).
   3. `dvd1-*` fingerprints from before the migration still resolve correctly after promotion — the Phase 1 CI regression test (IDENT-05) continues to pass with zero fragmentation.
 
+**Carry-forward from Phase 1 code review (WR-02, user-scoped to this phase):** `discs.fingerprint` and `disc_identity_aliases.fingerprint` carry independent UNIQUE constraints with no cross-table arbitration. Phase 1 hardened the same-table alias write race (IDENT-02), but a race between "insert a new disc with fingerprint F" and "attach F as an alias to a *different* disc" is arbitrated by neither constraint and can silently split identity. Because promotion here increases write concurrency on the shared fingerprint namespace, this phase must add cross-table arbitration (e.g. a shared fingerprint registry table or an application-level advisory lock) plus the accompanying migration. Source: `.planning/phases/01-alias-layer-hardening-repo-hygiene/01-REVIEW.md` (WR-02).
+
 **Plans**: TBD
 
 ### Phase 6: OAuth & Account Linking
@@ -167,7 +169,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Alias-Layer Hardening & Repo Hygiene | 6/6 | Complete   | 2026-07-05 |
+| 1. Alias-Layer Hardening & Repo Hygiene | 6/6 | Complete    | 2026-07-05 |
 | 2. Two-Contributor Verification Workflow | 0/TBD | Not started | - |
 | 3. Redis-Backed Rate Limiting & Performance | 0/TBD | Not started | - |
 | 4. Blu-ray/UHD Fingerprinting | 0/TBD | Not started | - |
