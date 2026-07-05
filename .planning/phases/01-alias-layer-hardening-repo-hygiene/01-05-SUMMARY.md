@@ -105,3 +105,10 @@ None - no external service configuration required.
 ---
 *Phase: 01-alias-layer-hardening-repo-hygiene*
 *Completed: 2026-07-05*
+
+## Self-Check: PASSED
+
+- FOUND: api/tests/test_disc_identity_regression.py
+- FOUND: .planning/phases/01-alias-layer-hardening-repo-hygiene/01-05-SUMMARY.md
+- FOUND commit: 98d8020 (Task 1)
+- FOUND commit: c78f222 (SUMMARY.md)
