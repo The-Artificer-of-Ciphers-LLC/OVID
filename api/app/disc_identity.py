@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import Iterable
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Disc, DiscIdentityAlias
@@ -118,11 +119,32 @@ def attach_lookup_aliases(
     primary_fingerprint: str,
     aliases: Iterable[str] | None,
 ) -> None:
-    """Persist new Lookup Aliases for a disc, rejecting cross-disc conflicts."""
+    """Persist new Lookup Aliases for a disc, rejecting cross-disc conflicts.
+
+    Concurrent gunicorn workers may attempt to attach the same alias
+    fingerprint at the same time (IDENT-02). Reading-then-adding (TOCTOU)
+    cannot prevent that race — only the `disc_identity_aliases.fingerprint`
+    UNIQUE constraint can arbitrate atomically. So each insert is attempted
+    first, inside its own SAVEPOINT (`db.begin_nested()`), so a losing insert
+    rolls back only its own savepoint — not sibling aliases already
+    committed in this same call, nor the outer submission transaction. A
+    caught `IntegrityError` means another worker won the race; we discard
+    the now-stale identity map (`db.expire_all()`) and re-resolve to find
+    out who actually holds the fingerprint now, converging to a single
+    winning disc row instead of a split/duplicate pressing.
+    """
     for alias in normalize_lookup_aliases(primary_fingerprint, aliases):
-        resolution = resolve_disc_identity(db, alias)
-        if resolution is None:
-            db.add(DiscIdentityAlias(disc_id=disc.id, fingerprint=alias))
-            continue
-        if resolution.disc.id != disc.id:
-            raise DiscIdentityConflict(alias, resolution.disc)
+        try:
+            with db.begin_nested():
+                db.add(DiscIdentityAlias(disc_id=disc.id, fingerprint=alias))
+                db.flush()
+        except IntegrityError:
+            db.expire_all()
+            winner = resolve_disc_identity(db, alias)
+            if winner is None:
+                # Genuinely unexpected — the UNIQUE violation implies a row
+                # exists, but re-resolve found nothing. Do not swallow.
+                raise
+            if winner.disc.id != disc.id:
+                raise DiscIdentityConflict(alias, winner.disc)
+            # else: our own disc already owns this alias — idempotent no-op.

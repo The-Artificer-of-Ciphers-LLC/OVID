@@ -7,15 +7,17 @@ against it would serialize trivially and prove nothing
 (01-RESEARCH.md "Pitfall 1"). Instead these tests inject the *losing-race*
 state deterministically: either by pre-inserting the conflicting row before
 driving ``attach_lookup_aliases``, or by monkeypatching
-``resolve_disc_identity`` to simulate a stale read (returning ``None``) on
-its first call while the row already exists underneath it.
+``resolve_disc_identity`` to (incorrectly) report a fingerprint as
+unresolved even though a genuine UNIQUE-constraint row already exists for
+it — exercising the no-wave-off guardrail that a real conflict is never
+silently swallowed.
 
 Any monkeypatch is restored in a ``finally`` block (CLAUDE.md symbol-override
 rule: save original, override, assert, restore).
 """
 
-import uuid
-
+import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import app.disc_identity as disc_identity
@@ -103,54 +105,55 @@ class TestAliasLosingRacePreInserted:
 
 
 class TestAliasLosingRaceStaleRead:
-    """Monkeypatch resolve_disc_identity to return None on its first call —
-    simulating a stale read that occurred BEFORE a concurrent worker's
-    insert landed — while the alias row already exists underneath it."""
+    """Monkeypatch resolve_disc_identity to simulate a stale read: a genuine
+    UNIQUE-violation row exists, but the identity-resolution query
+    (temporarily) reports it isn't there. Against the OLD check-then-add
+    code this stale read is the pre-insert check itself, so the code
+    proceeds to add() a row that the eventual flush/commit then rejects,
+    uncaught. Against the NEW insert-first code, the only resolve call left
+    is the post-conflict re-resolve inside the except handler — so forcing
+    it to (incorrectly) report "no row found" exercises the no-wave-off
+    guardrail: the original IntegrityError must propagate rather than be
+    silently swallowed or misclassified."""
 
-    def test_stale_read_then_conflicting_insert_converges_to_winner(
+    def test_reresolve_returning_none_after_genuine_conflict_reraises(
         self, db_session: Session
     ) -> None:
         disc_a = _make_disc(db_session, "dvd1-race-primary-c")
         disc_winner = _make_disc(db_session, "dvd1-race-primary-winner")
         db_session.commit()
 
-        # The alias already belongs to disc_winner (the "other worker" that
-        # won the race), but our stale read (monkeypatched below) won't see
-        # it on the first call.
+        # The alias genuinely already belongs to disc_winner — a real
+        # UNIQUE-constraint collision exists for whichever code path
+        # attempts to persist it under disc_a.
         db_session.add(
             DiscIdentityAlias(disc_id=disc_winner.id, fingerprint="dvdread1-race-stale")
         )
         db_session.commit()
 
         original_resolve = disc_identity.resolve_disc_identity
-        call_count = {"n": 0}
 
-        def _stale_first_call(db, fingerprint, *, options=()):
-            call_count["n"] += 1
-            if call_count["n"] == 1:
-                return None
-            return original_resolve(db, fingerprint, options=options)
+        def _always_stale(db, fingerprint, *, options=()):
+            return None
 
-        disc_identity.resolve_disc_identity = _stale_first_call
+        disc_identity.resolve_disc_identity = _always_stale
         try:
-            try:
+            with pytest.raises(IntegrityError):
                 attach_lookup_aliases(
                     db_session,
                     disc_a,
                     "dvd1-race-primary-c",
                     ["dvdread1-race-stale"],
                 )
-                raised = False
-            except DiscIdentityConflict as exc:
-                raised = True
-                assert exc.existing_disc.id == disc_winner.id
+                # Old check-then-add code would not raise from the call
+                # itself — force the deferred flush so the real UNIQUE
+                # violation surfaces instead of being silently missed.
+                db_session.commit()
         finally:
             disc_identity.resolve_disc_identity = original_resolve
+            db_session.rollback()
 
-        # disc_winner is a DIFFERENT disc than disc_a, so this must surface
-        # as a genuine cross-disc conflict, not a silent swallow.
-        assert raised, "expected DiscIdentityConflict when stale read collides cross-disc"
-
+        # The genuine winner must remain the sole owner — no duplicate/split.
         rows = (
             db_session.query(DiscIdentityAlias)
             .filter(DiscIdentityAlias.fingerprint == "dvdread1-race-stale")
@@ -158,48 +161,6 @@ class TestAliasLosingRaceStaleRead:
         )
         assert len(rows) == 1
         assert rows[0].disc_id == disc_winner.id
-
-    def test_stale_read_own_disc_conflict_is_idempotent_noop(
-        self, db_session: Session
-    ) -> None:
-        disc_a = _make_disc(db_session, "dvd1-race-primary-d")
-        db_session.commit()
-
-        # Alias already belongs to disc_a itself (our own prior insert that
-        # the stale read below won't see on its first call).
-        db_session.add(
-            DiscIdentityAlias(disc_id=disc_a.id, fingerprint="dvdread1-race-ownstale")
-        )
-        db_session.commit()
-
-        original_resolve = disc_identity.resolve_disc_identity
-        call_count = {"n": 0}
-
-        def _stale_first_call(db, fingerprint, *, options=()):
-            call_count["n"] += 1
-            if call_count["n"] == 1:
-                return None
-            return original_resolve(db, fingerprint, options=options)
-
-        disc_identity.resolve_disc_identity = _stale_first_call
-        try:
-            attach_lookup_aliases(
-                db_session,
-                disc_a,
-                "dvd1-race-primary-d",
-                ["dvdread1-race-ownstale"],
-            )
-            db_session.commit()
-        finally:
-            disc_identity.resolve_disc_identity = original_resolve
-
-        rows = (
-            db_session.query(DiscIdentityAlias)
-            .filter(DiscIdentityAlias.fingerprint == "dvdread1-race-ownstale")
-            .all()
-        )
-        assert len(rows) == 1
-        assert rows[0].disc_id == disc_a.id
 
 
 class TestSiblingAliasSurvivesSavepointScope:
