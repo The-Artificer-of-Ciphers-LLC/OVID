@@ -80,6 +80,14 @@ export interface ReleaseResponse {
   imdb_id: string | null;
 }
 
+// One known Disc Identity string for a pressing (IDENT-01). Optional on
+// DiscLookupResponse so existing, unmodified callers keep working (D-07).
+export interface FingerprintAlias {
+  fingerprint: string;
+  method: string;
+  is_primary: boolean;
+}
+
 export interface DiscLookupResponse {
   request_id: string;
   fingerprint: string;
@@ -95,6 +103,7 @@ export interface DiscLookupResponse {
   verified_by: string | null;
   release: ReleaseResponse | null;
   titles: TitleResponse[];
+  fingerprint_aliases?: FingerprintAlias[];
 }
 
 // Request types
