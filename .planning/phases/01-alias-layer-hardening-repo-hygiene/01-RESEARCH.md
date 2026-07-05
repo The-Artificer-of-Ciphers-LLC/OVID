@@ -420,17 +420,19 @@ disc.seq_num = next_seq(db); db.commit()
 | A3 | `run_uat.py` / `create_uat_dirs.py` are still-useful and should be relocated (not deleted) per D-18 | Runtime State Inventory | Low — D-18 explicitly leaves final disposition to the planner after obsolescence check. |
 | A4 | `db.begin_nested()` SAVEPOINT behaves identically enough on the SQLite `StaticPool`/WAL harness to exercise the `IntegrityError` path | Pattern 1 / Pitfall 2 | Low — SQLite supports SAVEPOINT and raises `IntegrityError` on UNIQUE violation; WAL is enabled (`conftest.py:48`). Verify empirically in the first test. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Response contract for a mismatched submission against a verified disc (A2).**
    - What we know: criterion #4 forbids the silent flip; `flag_dispute` must refuse verified discs.
    - What's unclear: exact HTTP status/message and whether to still record a `DiscEdit`.
    - Recommendation: keep `verified`, add an audit `DiscEdit`, return 200 with an explicit message; encode in a new test. Confirm at plan time.
+   - **RESOLVED:** stays `verified`, records an audit `DiscEdit`, returns 200 (see Plan 03).
 
 2. **Should `list_disputed_discs` / `lookup_disc_by_upc` also eager-load `identity_aliases`?**
    - What we know: they share `_disc_to_response`, so they gain the field automatically; without a loader they lazy-load per disc.
    - What's unclear: whether the extra per-disc query matters for the disputed/UPC list sizes.
    - Recommendation: add `selectinload(Disc.identity_aliases)` to all three query sites for consistency and to avoid N+1 under the p95 ≤ 500ms budget.
+   - **RESOLVED:** `selectinload` added at all 3 read sites (see Plan 04).
 
 ## Environment Availability
 
