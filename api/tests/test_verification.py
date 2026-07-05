@@ -7,6 +7,7 @@ from app.verification import (
     LEGAL_TRANSITIONS,
     VerificationTransitionError,
     flag_dispute,
+    identify,
     resolve_dispute,
     verify,
 )
@@ -34,6 +35,7 @@ class TestLegalTransitions:
                 ("unverified", "verified"),
                 ("disputed", "verified"),
                 ("disputed", "unverified"),
+                ("pending_identification", "unverified"),
             }
         )
 
@@ -128,6 +130,29 @@ class TestFlagDispute:
 
         assert result is True
         assert disc.status == "disputed"
+
+
+class TestIdentify:
+    """WR-03: the sole legal path from pending_identification to unverified."""
+
+    def test_identify_pending_identification_disc_sets_unverified(self, db_session):
+        actor = seed_test_user(db_session)
+        disc = _make_disc(db_session, "pending_identification")
+
+        identify(db_session, disc, actor)
+
+        assert disc.status == "unverified"
+
+    def test_identify_non_pending_disc_raises(self, db_session):
+        actor = seed_test_user(db_session)
+        disc = _make_disc(db_session, "unverified")
+
+        try:
+            identify(db_session, disc, actor)
+            assert False, "expected VerificationTransitionError"
+        except VerificationTransitionError as exc:
+            assert exc.current_status == "unverified"
+            assert exc.attempted_status == "unverified"
 
 
 class TestResolveDispute:

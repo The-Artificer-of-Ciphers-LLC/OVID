@@ -26,6 +26,7 @@ from app.sync import next_seq
 from app.verification import (
     VerificationTransitionError,
     flag_dispute,
+    identify,
     resolve_dispute,
     verify,
 )
@@ -118,6 +119,126 @@ def _releases_match(
     )
 
 
+def _identify_existing_disc(
+    db: Session,
+    existing: Disc,
+    body: DiscSubmitRequest,
+    current_user: User,
+    request_id: str,
+) -> JSONResponse:
+    """Attach the first release metadata to a ``pending_identification`` disc.
+
+    A disc pre-registered via ``POST /v1/disc/register`` (ARM registers a
+    disc before metadata is known) has no Release/titles/tracks yet. The
+    first ``submit_disc`` against it — by ANY user, including the original
+    registrant — attaches the submitted metadata and identifies the disc
+    via ``verification.identify()`` rather than running the same-submitter
+    409 guard or the verify/dispute logic, neither of which applies when
+    there is no existing release to conflict against (WR-03).
+    """
+    try:
+        release = Release(
+            title=body.release.title,
+            year=body.release.year,
+            content_type=body.release.content_type,
+            tmdb_id=body.release.tmdb_id,
+            imdb_id=body.release.imdb_id,
+            original_language=body.release.original_language,
+        )
+        db.add(release)
+        db.flush()
+
+        # Link disc ↔ release
+        db.execute(
+            DiscRelease.__table__.insert().values(
+                disc_id=existing.id, release_id=release.id
+            )
+        )
+
+        # Create titles and tracks
+        for tc in body.titles:
+            title = DiscTitle(
+                disc_id=existing.id,
+                title_index=tc.title_index,
+                title_type=tc.title_type,
+                duration_secs=tc.duration_secs,
+                chapter_count=tc.chapter_count,
+                is_main_feature=tc.is_main_feature,
+                display_name=tc.display_name,
+            )
+            db.add(title)
+            db.flush()
+
+            for at in tc.audio_tracks:
+                db.add(DiscTrack(
+                    disc_title_id=title.id,
+                    track_type="audio",
+                    track_index=at.track_index,
+                    language_code=at.language_code,
+                    codec=at.codec,
+                    channels=at.channels,
+                    is_default=at.is_default,
+                ))
+
+            for st in tc.subtitle_tracks:
+                db.add(DiscTrack(
+                    disc_title_id=title.id,
+                    track_type="subtitle",
+                    track_index=st.track_index,
+                    language_code=st.language_code,
+                    codec=st.codec,
+                    channels=st.channels,
+                    is_default=st.is_default,
+                ))
+
+        identify(db, existing, current_user)
+
+        # Assign sync sequence numbers so mirrors can track this change
+        seq = next_seq(db)
+        existing.seq_num = seq
+        release.seq_num = seq
+
+        # Audit trail: record the identification event
+        db.add(
+            DiscEdit(
+                disc_id=existing.id,
+                user_id=current_user.id,
+                edit_type="identify",
+                edit_note="disc identified — first release metadata attached",
+            )
+        )
+
+        db.commit()
+    except VerificationTransitionError as exc:
+        db.rollback()
+        return _error_response(request_id, "invalid_state", str(exc), 409)
+    except IntegrityError:
+        # Consistent with the new-disc path (CR-01): a constraint violation
+        # in the metadata inserts (e.g. a duplicate title_index) is a
+        # CLIENT error, not a fingerprint race — report 400, never 409/500.
+        db.rollback()
+        return _error_response(
+            request_id,
+            "invalid_submission",
+            "Duplicate title_index or invalid disc structure in submission",
+            400,
+        )
+
+    logger.info(
+        "disc_identified fingerprint=%s disc_id=%s", existing.fingerprint, existing.id
+    )
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "request_id": request_id,
+            "fingerprint": existing.fingerprint,
+            "status": "unverified",
+            "message": "Disc identified — release metadata attached",
+        },
+    )
+
+
 def _handle_existing_disc(
     db: Session,
     existing: Disc,
@@ -136,6 +257,13 @@ def _handle_existing_disc(
     with an explicit message — never a silent flip to disputed (A2 / crit
     #4). Reused by both the up-front duplicate check and the disc-row
     losing-race recovery path (IDENT-02).
+
+    A disc that is still ``pending_identification`` (WR-03: registered by
+    ARM before metadata was known) has no release to conflict/match
+    against — the first submission against it always attaches metadata via
+    ``_identify_existing_disc``, for any user, before the same-submitter
+    409 guard and the verify/dispute logic below (which only apply once a
+    disc already carries release metadata).
     """
     try:
         attach_lookup_aliases(
@@ -146,6 +274,9 @@ def _handle_existing_disc(
         )
     except DiscIdentityConflict as exc:
         return _identity_conflict_response(request_id, exc.fingerprint)
+
+    if existing.status == "pending_identification":
+        return _identify_existing_disc(db, existing, body, current_user, request_id)
 
     # Same user submitting again → conflict
     if existing.submitted_by is not None and str(existing.submitted_by) == str(current_user.id):

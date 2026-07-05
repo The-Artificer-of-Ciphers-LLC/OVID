@@ -364,3 +364,74 @@ class TestSubmitPostSavepointIntegrityError:
         valid_payload = {**VALID_PAYLOAD, "fingerprint": "bd-DUPTITLE-002"}
         resp2 = client.post("/v1/disc", json=valid_payload, headers=auth_header)
         assert resp2.status_code == 201
+
+
+# ---------------------------------------------------------------------------
+# pending_identification handling (WR-03)
+# ---------------------------------------------------------------------------
+class TestSubmitAgainstPendingIdentificationDisc:
+    """A disc registered via ``POST /v1/disc/register`` (ARM pre-registration)
+    has status ``pending_identification`` and no Release/titles/tracks yet.
+    The first ``submit_disc`` against it must ATTACH the metadata and
+    identify the disc — for ANY user, including the original registrant —
+    never the same-submitter 409 guard and never the dispute path (WR-03).
+    """
+
+    def test_same_user_register_then_submit_identifies(self, client, auth_header):
+        """Register→submit by the SAME user is the legitimate ARM workflow:
+        must succeed, never 409.
+        """
+        register_payload = {
+            "fingerprint": "bd-PENDING-SAME-001",
+            "format": "BD",
+            "disc_label": "PENDING_SAME",
+        }
+        reg_resp = client.post(
+            "/v1/disc/register", json=register_payload, headers=auth_header
+        )
+        assert reg_resp.status_code == 201
+        assert reg_resp.json()["status"] == "pending_identification"
+
+        payload = {**VALID_PAYLOAD, "fingerprint": "bd-PENDING-SAME-001"}
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data.get("error") != "conflict"
+        assert data["status"] == "unverified"
+
+        get_resp = client.get("/v1/disc/bd-PENDING-SAME-001")
+        assert get_resp.status_code == 200
+        get_data = get_resp.json()
+        assert get_data["status"] == "unverified"
+        assert get_data["release"]["title"] == "New Film"
+        assert len(get_data["titles"]) == 1
+
+    def test_different_user_submits_first_metadata_identifies(
+        self, client, auth_header, second_auth_header
+    ):
+        """User A registers, user B submits the FIRST metadata → must
+        attach and identify, never mis-route into the dispute path (there
+        is no existing Release yet to conflict against).
+        """
+        register_payload = {
+            "fingerprint": "bd-PENDING-DIFF-001",
+            "format": "BD",
+            "disc_label": "PENDING_DIFF",
+        }
+        reg_resp = client.post(
+            "/v1/disc/register", json=register_payload, headers=auth_header
+        )
+        assert reg_resp.status_code == 201
+
+        payload = {**VALID_PAYLOAD, "fingerprint": "bd-PENDING-DIFF-001"}
+        resp = client.post("/v1/disc", json=payload, headers=second_auth_header)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] != "disputed"
+        assert data["status"] == "unverified"
+
+        get_resp = client.get("/v1/disc/bd-PENDING-DIFF-001")
+        get_data = get_resp.json()
+        assert get_data["status"] == "unverified"
+        assert get_data["release"]["title"] == "New Film"
+        assert len(get_data["titles"]) == 1

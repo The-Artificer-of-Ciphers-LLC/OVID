@@ -32,6 +32,7 @@ LEGAL_TRANSITIONS: frozenset[tuple[str, str]] = frozenset(
         ("unverified", "verified"),
         ("disputed", "verified"),
         ("disputed", "unverified"),
+        ("pending_identification", "unverified"),
     }
 )
 
@@ -55,6 +56,24 @@ def verify(db: Session, disc: Disc, actor: User) -> bool:
     disc.status = "verified"
     disc.verified_by = actor.id
     return True
+
+
+def identify(db: Session, disc: Disc, actor: User) -> None:
+    """Transition a ``pending_identification`` disc to ``unverified``.
+
+    Called when the first release metadata is attached to a disc that was
+    pre-registered without metadata (e.g. via ``register_disc()`` for ARM
+    — WR-03). Raises :class:`VerificationTransitionError` if ``disc`` is
+    not currently ``pending_identification``, matching the guarded-writer
+    contract of :func:`verify` and :func:`flag_dispute`.
+    """
+    if disc.status != "pending_identification":
+        raise VerificationTransitionError(disc.id, disc.status, "unverified")
+
+    if (disc.status, "unverified") not in LEGAL_TRANSITIONS:
+        raise VerificationTransitionError(disc.id, disc.status, "unverified")
+
+    disc.status = "unverified"
 
 
 def flag_dispute(db: Session, disc: Disc, actor: User, reason: str) -> bool:
