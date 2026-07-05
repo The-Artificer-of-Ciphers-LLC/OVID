@@ -35,15 +35,18 @@ class TestDiscEdits:
         assert data["edits"][0]["user_id"] is not None
         assert data["edits"][0]["created_at"] != ""
 
-    def test_edits_after_verify_has_two_entries(
+    def test_edits_after_confirmation_has_two_entries(
         self, client, auth_header, second_auth_header
     ):
-        """Submit then verify → GET edits shows create + verify entries."""
+        """Submit then confirm via a second contributor's structural
+        re-submission (D-01, the /verify route is retired per D-02) → GET
+        edits shows create + verify entries."""
         client.post("/v1/disc", json=VALID_PAYLOAD, headers=auth_header)
-        verify_resp = client.post(
-            "/v1/disc/bd-EDITS-001/verify", headers=second_auth_header
+        confirm_resp = client.post(
+            "/v1/disc", json=VALID_PAYLOAD, headers=second_auth_header
         )
-        assert verify_resp.status_code == 200
+        assert confirm_resp.status_code == 200
+        assert confirm_resp.json()["status"] == "verified"
 
         edits_resp = client.get("/v1/disc/bd-EDITS-001/edits")
         assert edits_resp.status_code == 200

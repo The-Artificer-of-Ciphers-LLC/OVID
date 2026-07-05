@@ -132,14 +132,11 @@ class TestDiscIdentityAliases:
         assert resp.status_code == 409
         assert resp.json()["error"] == "identity_conflict"
 
-    def test_verify_accepts_alias_and_returns_primary(
-        self, client, auth_header, db_session: Session, seeded_disc
-    ) -> None:
-        _add_alias(db_session, seeded_disc["disc_id"], "dvdread1-verify-alias")
-
-        resp = client.post("/v1/disc/dvdread1-verify-alias/verify", headers=auth_header)
-        assert resp.status_code == 200
-        assert resp.json()["fingerprint"] == "dvd-ABC123-main"
+    # NOTE: the alias→primary resolution contract for the retired bodyless
+    # /verify route (D-02) is no longer applicable — that endpoint is deleted.
+    # Alias resolution is still covered against the live routes by
+    # test_edits_accepts_alias_and_returns_primary (GET /edits),
+    # test_resolve_dispute_accepts_alias (POST /resolve), and the lookup tests.
 
     def test_edits_accepts_alias_and_returns_primary(
         self, client, auth_header, db_session: Session
