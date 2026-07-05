@@ -419,6 +419,39 @@ def lookup_disc(
     return _disc_to_response(resolution.disc, request_id)
 
 
+def _handle_existing_registered_disc(
+    db: Session,
+    existing: Disc,
+    body: DiscRegisterRequest,
+    request_id: str,
+) -> JSONResponse:
+    """Handle a ``/disc/register`` submission that resolves to an existing disc.
+
+    Attaches any new Lookup Aliases and returns the idempotent 409
+    "already registered" response. Reused by both the up-front duplicate
+    check and the disc-row losing-race recovery path (IDENT-02).
+    """
+    try:
+        attach_lookup_aliases(
+            db,
+            existing,
+            existing.fingerprint,
+            [body.fingerprint, *body.fingerprint_aliases],
+        )
+    except DiscIdentityConflict as exc:
+        return _identity_conflict_response(request_id, exc.fingerprint)
+    db.commit()
+    return JSONResponse(
+        status_code=409,
+        content={
+            "request_id": request_id,
+            "fingerprint": existing.fingerprint,
+            "status": existing.status,
+            "message": "Disc already registered",
+        },
+    )
+
+
 # ---------------------------------------------------------------------------
 # POST /v1/disc/register — fingerprint-only registration (no release metadata)
 # ---------------------------------------------------------------------------
@@ -451,37 +484,45 @@ def register_disc(
         return _identity_conflict_response(request_id, exc.fingerprint)
 
     if existing_resolution is not None:
-        existing = existing_resolution.disc
+        return _handle_existing_registered_disc(
+            db, existing_resolution.disc, body, request_id
+        )
+
+    try:
+        # SAVEPOINT-scoped disc-row insert (IDENT-02): a losing insert here
+        # rolls back only this savepoint, never the outer transaction, so
+        # we can cleanly recover and re-resolve to the true winner.
+        with db.begin_nested():
+            disc = Disc(
+                fingerprint=body.fingerprint,
+                format=body.format,
+                disc_label=body.disc_label,
+                status="pending_identification",
+                submitted_by=current_user.id,
+                seq_num=next_seq(db),
+            )
+            db.add(disc)
+            db.flush()
+    except IntegrityError:
+        # Another worker won the race for this fingerprint between our
+        # duplicate-check and this insert. Discard the stale identity map
+        # (Pitfall 2), re-resolve, and fall through to the same duplicate
+        # handling used by the up-front check — never split into two rows.
+        db.expire_all()
         try:
-            attach_lookup_aliases(
-                db,
-                existing,
-                existing.fingerprint,
-                [body.fingerprint, *body.fingerprint_aliases],
+            winner_resolution = resolve_existing_disc_for_identities(
+                db, body.fingerprint, body.fingerprint_aliases
             )
         except DiscIdentityConflict as exc:
             return _identity_conflict_response(request_id, exc.fingerprint)
-        db.commit()
-        return JSONResponse(
-            status_code=409,
-            content={
-                "request_id": request_id,
-                "fingerprint": existing.fingerprint,
-                "status": existing.status,
-                "message": "Disc already registered",
-            },
+        if winner_resolution is None:
+            # Genuinely unexpected — the UNIQUE violation implies a row
+            # exists, but re-resolve found nothing. Do not swallow.
+            raise
+        return _handle_existing_registered_disc(
+            db, winner_resolution.disc, body, request_id
         )
 
-    disc = Disc(
-        fingerprint=body.fingerprint,
-        format=body.format,
-        disc_label=body.disc_label,
-        status="pending_identification",
-        submitted_by=current_user.id,
-        seq_num=next_seq(db),
-    )
-    db.add(disc)
-    db.flush()
     try:
         attach_lookup_aliases(db, disc, body.fingerprint, body.fingerprint_aliases)
     except DiscIdentityConflict as exc:
@@ -531,33 +572,40 @@ def submit_disc(
         )
 
     try:
-        # Create release
-        release = Release(
-            title=body.release.title,
-            year=body.release.year,
-            content_type=body.release.content_type,
-            tmdb_id=body.release.tmdb_id,
-            imdb_id=body.release.imdb_id,
-            original_language=body.release.original_language,
-        )
-        db.add(release)
-        db.flush()
+        # SAVEPOINT-scoped release+disc-row insert (IDENT-02): a losing
+        # insert here rolls back only this savepoint — never the outer
+        # transaction — so a losing race can be cleanly recovered and
+        # re-resolved instead of leaking an orphaned Release row or
+        # splitting into two disc rows.
+        with db.begin_nested():
+            # Create release
+            release = Release(
+                title=body.release.title,
+                year=body.release.year,
+                content_type=body.release.content_type,
+                tmdb_id=body.release.tmdb_id,
+                imdb_id=body.release.imdb_id,
+                original_language=body.release.original_language,
+            )
+            db.add(release)
+            db.flush()
 
-        # Create disc
-        disc = Disc(
-            fingerprint=body.fingerprint,
-            format=body.format,
-            region_code=body.region_code,
-            upc=body.upc,
-            disc_label=body.disc_label,
-            disc_number=body.disc_number,
-            total_discs=body.total_discs,
-            edition_name=body.edition_name,
-            status="unverified",
-            submitted_by=current_user.id,
-        )
-        db.add(disc)
-        db.flush()
+            # Create disc
+            disc = Disc(
+                fingerprint=body.fingerprint,
+                format=body.format,
+                region_code=body.region_code,
+                upc=body.upc,
+                disc_label=body.disc_label,
+                disc_number=body.disc_number,
+                total_discs=body.total_discs,
+                edition_name=body.edition_name,
+                status="unverified",
+                submitted_by=current_user.id,
+            )
+            db.add(disc)
+            db.flush()
+
         attach_lookup_aliases(db, disc, body.fingerprint, body.fingerprint_aliases)
 
         # Link disc ↔ release
@@ -628,6 +676,26 @@ def submit_disc(
             message="Disc submitted successfully",
         )
 
+    except IntegrityError:
+        # Another submitter/worker won the race for this fingerprint
+        # between our duplicate-check and this insert. Discard the stale
+        # identity map (Pitfall 2), re-resolve to find the true winner, and
+        # fall through to the same duplicate-submission handling used by
+        # the up-front check — never split into two disc rows (IDENT-02).
+        db.expire_all()
+        try:
+            winner_resolution = resolve_existing_disc_for_identities(
+                db, body.fingerprint, body.fingerprint_aliases
+            )
+        except DiscIdentityConflict as exc:
+            return _identity_conflict_response(request_id, exc.fingerprint)
+        if winner_resolution is None:
+            # Genuinely unexpected — the UNIQUE violation implies a row
+            # exists, but re-resolve found nothing. Do not swallow.
+            raise
+        return _handle_existing_disc(
+            db, winner_resolution.disc, body, current_user, request_id
+        )
     except DiscIdentityConflict as exc:
         db.rollback()
         return _identity_conflict_response(request_id, exc.fingerprint)

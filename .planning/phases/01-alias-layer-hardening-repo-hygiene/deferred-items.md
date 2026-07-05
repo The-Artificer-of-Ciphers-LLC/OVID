@@ -57,3 +57,21 @@ recommend a dedicated dependency-bump / test-hardening plan to resolve them
 (pin `httpx2` per Starlette's deprecation guidance, raise HMAC test key
 lengths to >=32 bytes, and track `slowapi`'s upstream fix for
 `asyncio.iscoroutinefunction`). Not fixed here — confirmed out of scope.
+
+## Plan 01-03 (verification wiring in routes/disc.py + disc-row race safety)
+
+Full suite (`cd api && ./.venv/bin/python -m pytest tests/ -q`) after wiring
+`verify()`/`flag_dispute()`/`resolve_dispute()` into `api/app/routes/disc.py`
+and savepoint-guarding the disc-row inserts in `submit_disc`/`register_disc`
+passes all 254 tests, with the identical `InsecureKeyLengthWarning` /
+`StarletteDeprecationWarning` / `asyncio.iscoroutinefunction`
+`DeprecationWarning` trio recorded under Plans 01-01/01-02/01-06 above.
+Verified via `git log` that `api/tests/test_auth.py` and
+`api/tests/test_auth_apple.py` (the InsecureKeyLengthWarning source) were
+last touched by an unrelated pre-phase commit (`0dee4dd`) and are untouched
+by any of this plan's three task commits — this is the fourth consecutive
+plan in this phase to independently confirm the same warnings as
+pre-existing and out of file scope (`api/app/routes/disc.py`,
+`api/app/verification.py`, `api/app/disc_identity.py`,
+`api/tests/test_disc_submit.py`, `api/tests/test_dispute.py`). Not fixed
+here — confirmed out of scope.
