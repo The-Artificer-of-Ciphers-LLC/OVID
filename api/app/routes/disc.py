@@ -39,6 +39,7 @@ from app.schemas import (
     DiscSubmitResponse,
     DisputeResolveRequest,
     DisputedDiscsResponse,
+    FingerprintAliasResponse,
     ReleaseCreate,
     ReleaseResponse,
     SearchResponse,
@@ -76,6 +77,15 @@ def _identity_conflict_response(
         f"Disc Identity '{fingerprint}' already resolves to another disc",
         409,
     )
+
+
+def _method_of(fingerprint: str) -> str:
+    """Derive the Disc Identity Method label from a fingerprint's prefix.
+
+    Method is DERIVED, not stored — ``DiscIdentityAlias`` has no ``method``
+    column and this phase adds no migration (D-04, IDENT-01).
+    """
+    return fingerprint.split("-", 1)[0]
 
 
 def _build_track_response(track: DiscTrack) -> TrackResponse:
@@ -266,6 +276,25 @@ def _disc_to_response(disc: Disc, request_id: str) -> DiscLookupResponse:
 
     titles_resp = [_build_title_response(t) for t in disc.titles]
 
+    # fingerprint_aliases (IDENT-01): primary first (is_primary=True), then
+    # the identity_aliases relationship's own order (deterministic
+    # (created_at, id) order_by on the relationship — D-06; do not
+    # re-sort here, per PATTERNS).
+    fingerprint_aliases_resp = [
+        FingerprintAliasResponse(
+            fingerprint=disc.fingerprint,
+            method=_method_of(disc.fingerprint),
+            is_primary=True,
+        )
+    ] + [
+        FingerprintAliasResponse(
+            fingerprint=alias.fingerprint,
+            method=_method_of(alias.fingerprint),
+            is_primary=False,
+        )
+        for alias in disc.identity_aliases
+    ]
+
     return DiscLookupResponse(
         request_id=request_id,
         fingerprint=disc.fingerprint,
@@ -281,6 +310,7 @@ def _disc_to_response(disc: Disc, request_id: str) -> DiscLookupResponse:
         verified_by=str(disc.verified_by) if disc.verified_by else None,
         release=release_resp,
         titles=titles_resp,
+        fingerprint_aliases=fingerprint_aliases_resp,
     )
 
 
@@ -303,6 +333,7 @@ def lookup_disc_by_upc(
         .options(
             joinedload(Disc.titles).joinedload(DiscTitle.tracks),
             selectinload(Disc.releases),
+            selectinload(Disc.identity_aliases),
         )
         .all()
     )
@@ -329,6 +360,7 @@ async def list_disputed_discs(
         q.options(
             joinedload(Disc.titles).joinedload(DiscTitle.tracks),
             selectinload(Disc.releases),
+            selectinload(Disc.identity_aliases),
         )
         .offset(offset)
         .limit(limit)
@@ -408,6 +440,7 @@ def lookup_disc(
         options=(
             joinedload(Disc.titles).joinedload(DiscTitle.tracks),
             selectinload(Disc.releases),
+            selectinload(Disc.identity_aliases),
         ),
     )
 

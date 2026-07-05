@@ -46,6 +46,19 @@ class ReleaseResponse(BaseModel):
     imdb_id: str | None = None
 
 
+class FingerprintAliasResponse(BaseModel):
+    """One known Disc Identity string for a pressing (IDENT-01).
+
+    ``method`` is derived from the fingerprint prefix by the serializer
+    (see ``_method_of`` in ``routes/disc.py``) — there is no ``method``
+    column and this is not backed by a migration.
+    """
+
+    fingerprint: str
+    method: str
+    is_primary: bool = False
+
+
 class DiscLookupResponse(BaseModel):
     request_id: str
     fingerprint: str
@@ -61,6 +74,7 @@ class DiscLookupResponse(BaseModel):
     verified_by: str | None = None
     release: ReleaseResponse | None = None
     titles: list[TitleResponse] = Field(default_factory=list)
+    fingerprint_aliases: list[FingerprintAliasResponse] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

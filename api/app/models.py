@@ -107,7 +107,9 @@ class Disc(Base):
     edits: Mapped[list["DiscEdit"]] = relationship(back_populates="disc")
     disc_set: Mapped["DiscSet | None"] = relationship(back_populates="discs")
     identity_aliases: Mapped[list["DiscIdentityAlias"]] = relationship(
-        back_populates="disc", cascade="all, delete-orphan"
+        back_populates="disc",
+        cascade="all, delete-orphan",
+        order_by="DiscIdentityAlias.created_at, DiscIdentityAlias.id",
     )
 
     __table_args__ = (
