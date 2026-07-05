@@ -124,9 +124,15 @@ def client() -> TestClient:
 # Seed helper
 # ---------------------------------------------------------------------------
 def seed_test_disc(
-    db: Session, submitted_by_id: uuid.UUID | None = None
+    db: Session,
+    submitted_by_id: uuid.UUID | None = None,
+    status: str = "verified",
 ) -> dict[str, uuid.UUID]:
     """Seed a disc + release + titles + tracks matching the Matrix pattern.
+
+    ``status`` defaults to ``"verified"`` (existing behavior). Pass
+    ``status="unverified"`` to seed a disc for the legitimate
+    unverified->disputed path (VERIFY-02 / Phase 1 Plan 03).
 
     Returns a dict of entity UUIDs: disc_id, release_id, title_id, audio_track_id,
     subtitle_track_id.
@@ -151,7 +157,7 @@ def seed_test_disc(
         disc_number=1,
         total_discs=1,
         edition_name="10th Anniversary",
-        status="verified",
+        status=status,
         submitted_by=submitted_by_id,
     )
     db.add(disc)

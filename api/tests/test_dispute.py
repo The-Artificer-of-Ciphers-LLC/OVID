@@ -79,12 +79,14 @@ class TestListDisputed:
 # ---------------------------------------------------------------------------
 class TestSubmitStoresConflictData:
     def test_submit_stores_conflict_data(
-        self, client, db_session: Session, seeded_disc_with_owner, second_auth_header
+        self, client, db_session: Session, test_user, second_auth_header
     ) -> None:
-        """Submit same fingerprint twice with different release titles →
-        DiscEdit with edit_type='disputed' has new_value as valid JSON
-        containing the second submission's release data.
+        """Submit same fingerprint twice with different release titles,
+        against an UNVERIFIED disc (the legitimate flag_dispute path per
+        VERIFY-02 A2) → DiscEdit with edit_type='disputed' has new_value
+        as valid JSON containing the second submission's release data.
         """
+        seed_test_disc(db_session, submitted_by_id=test_user.id, status="unverified")
         conflicting_payload = {
             "fingerprint": "dvd-ABC123-main",
             "format": "DVD",

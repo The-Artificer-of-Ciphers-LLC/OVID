@@ -2,7 +2,8 @@
 
 from sqlalchemy.orm import Session
 
-from app.models import Disc
+from app.models import Disc, DiscEdit
+from tests.conftest import seed_test_disc
 
 
 VALID_PAYLOAD = {
@@ -113,13 +114,18 @@ class TestDiscSubmit:
 # ---------------------------------------------------------------------------
 class TestDiscSubmitErrors:
     def test_submit_duplicate_fingerprint_conflicting_metadata(
-        self, client, seeded_disc, auth_header
+        self, client, db_session, auth_header
     ):
-        """POST same fingerprint with conflicting metadata → 200 disputed.
+        """POST same fingerprint with conflicting metadata against an
+        UNVERIFIED disc → 200 disputed via the legitimate flag_dispute path.
 
         The seeded disc has no submitted_by, so the current user is treated
         as a different contributor.  Metadata (tmdb_id) differs → disputed.
+        Seeded explicitly unverified (VERIFY-02 A2): a verified disc must
+        NEVER silently flip to disputed — see
+        test_mismatched_submission_against_verified_disc_stays_verified.
         """
+        seed_test_disc(db_session, status="unverified")
         payload = {**VALID_PAYLOAD, "fingerprint": "dvd-ABC123-main"}
         resp = client.post("/v1/disc", json=payload, headers=auth_header)
         assert resp.status_code == 200
@@ -198,10 +204,16 @@ class TestDiscSubmitAutoVerify:
     def test_duplicate_conflicting_metadata_disputes(
         self,
         client,
-        seeded_disc_with_owner,
+        db_session,
+        test_user,
         second_auth_header,
     ):
-        """Second user submitting same fingerprint with different metadata → 200 disputed."""
+        """Second user submitting same fingerprint with different metadata
+        against an UNVERIFIED disc → 200 disputed via the legitimate
+        flag_dispute path (VERIFY-02 A2 — see the verified-stays-verified
+        test below for the case where the seed disc is already verified).
+        """
+        seed_test_disc(db_session, submitted_by_id=test_user.id, status="unverified")
         payload = {
             **VALID_PAYLOAD,
             "fingerprint": "dvd-ABC123-main",
@@ -218,3 +230,104 @@ class TestDiscSubmitAutoVerify:
         data = resp.json()
         assert data["status"] == "disputed"
         assert "disputed" in data["message"]
+
+    def test_mismatched_submission_against_verified_disc_stays_verified(
+        self,
+        client,
+        db_session,
+        seeded_disc_with_owner,
+        second_auth_header,
+    ):
+        """A2 (VERIFY-02 crit #4): a mismatched submission against an
+        already-VERIFIED disc must never silently flip to disputed. It
+        stays verified, records an audit DiscEdit, and returns 200 — the
+        response body must never report the disputed status.
+        """
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "dvd-ABC123-main",
+            "release": {
+                "title": "Totally Different Film",
+                "year": 2020,
+                "content_type": "movie",
+                "tmdb_id": 99999,
+                "original_language": "en",
+            },
+        }
+        resp = client.post("/v1/disc", json=payload, headers=second_auth_header)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] != "disputed"
+        assert data["status"] == "verified"
+
+        db_session.expire_all()
+        disc = (
+            db_session.query(Disc)
+            .filter(Disc.fingerprint == "dvd-ABC123-main")
+            .first()
+        )
+        assert disc.status == "verified"
+
+        edit = (
+            db_session.query(DiscEdit)
+            .filter(DiscEdit.disc_id == disc.id)
+            .order_by(DiscEdit.created_at.desc())
+            .first()
+        )
+        assert edit is not None, "expected an audit DiscEdit for the conflict attempt"
+
+
+# ---------------------------------------------------------------------------
+# Disc-row insert race safety (IDENT-02)
+# ---------------------------------------------------------------------------
+class TestDiscRowRace:
+    """Two submissions racing the SAME new primary fingerprint must converge
+    to a single disc row instead of splitting (IDENT-02).
+
+    Per CLAUDE.md's cross-platform IO-failure rule and 01-RESEARCH.md
+    Pitfall 1, this is exercised via deterministic monkeypatch injection —
+    never threading/asyncio — restored in a ``finally`` block.
+    """
+
+    def test_new_fingerprint_losing_race_converges_to_one_disc(
+        self, client, db_session, auth_header
+    ):
+        """Simulate a stale read: resolve_existing_disc_for_identities
+        reports "no existing disc" on its first call (as a losing worker
+        would see), even though a real disc row for this fingerprint is
+        pre-inserted (the winner). The route's disc-row insert then hits
+        the real UNIQUE constraint and must re-resolve to the winner
+        instead of crashing or creating a split disc row.
+        """
+        import app.routes.disc as disc_routes
+
+        fingerprint = "bd-RACE-NEW-001"
+        winner = Disc(fingerprint=fingerprint, format="BD", status="unverified")
+        db_session.add(winner)
+        db_session.commit()
+        winner_id = winner.id
+
+        original = disc_routes.resolve_existing_disc_for_identities
+        calls = {"n": 0}
+
+        def _stale_once(db, primary_fingerprint, aliases):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return None
+            return original(db, primary_fingerprint, aliases)
+
+        disc_routes.resolve_existing_disc_for_identities = _stale_once
+        try:
+            payload = {**VALID_PAYLOAD, "fingerprint": fingerprint}
+            resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        finally:
+            disc_routes.resolve_existing_disc_for_identities = original
+
+        assert resp.status_code in (200, 409)
+        rows = (
+            db_session.query(Disc)
+            .filter(Disc.fingerprint == fingerprint)
+            .all()
+        )
+        assert len(rows) == 1, "disc-row insert race must converge to one row"
+        assert rows[0].id == winner_id
