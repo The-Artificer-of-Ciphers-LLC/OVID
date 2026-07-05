@@ -68,11 +68,15 @@ curl http://localhost:8000/v1/disc/dvd1-matrix-1999-r1-us
 |--------|----------|------|-------------|
 | GET | `/health` | No | Liveness check |
 | GET | `/v1/disc/{fingerprint}` | No | Look up disc metadata |
-| POST | `/v1/disc` | Yes | Submit a new disc |
-| POST | `/v1/disc/{fingerprint}/verify` | Yes | Verify an existing disc |
+| POST | `/v1/disc` | Yes | Submit a new disc (also confirms an existing one — see below) |
 | GET | `/v1/search?q=` | No | Search releases by title |
 | GET | `/v1/auth/github/login` | No | Start GitHub OAuth flow |
 | GET | `/v1/auth/me` | Yes | Current user info |
+
+There is no standalone verify endpoint — a disc is promoted from `unverified`
+to `verified` when a second, distinct contributor re-submits it via
+`POST /v1/disc` and the server's independently-computed structure matches (see
+[Contributing](contributing.md#2-confirm-existing-discs)).
 
 Auto-generated API docs are available at [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI) and [http://localhost:8000/redoc](http://localhost:8000/redoc) (ReDoc).
 

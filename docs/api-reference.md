@@ -229,40 +229,38 @@ Creates a new disc entry with release metadata, titles, and tracks in a single t
 
 ---
 
-### Verify an Existing Disc
+### Confirming an Existing Disc
 
-```
-POST /v1/disc/{fingerprint}/verify
-Authorization: Bearer <token>
-```
+There is no standalone verify endpoint. A disc is promoted from `unverified` to
+`verified` when a **second, distinct contributor** re-submits the same disc
+through `POST /v1/disc` (see above) — the server independently recomputes the
+disc's structure from their submission and compares it against the withheld
+stored structure. This is proof-of-possession re-submission, not a bodyless
+verify call; see [Contributing](contributing.md#2-confirm-existing-discs).
 
-Promotes an unverified disc to verified status. Idempotent — verifying an already-verified disc returns success. The path value can be a Primary Fingerprint or a Lookup Alias; responses publish the Primary Fingerprint.
+A confirmation attempt may also fail closed:
 
-**Path parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `fingerprint` | string | Primary Fingerprint or Lookup Alias to verify |
-
-**Response 200 — promoted to verified:**
+**Response 429 — confirmation cooldown active:**
 
 ```json
 {
   "request_id": "550e8400-...",
-  "fingerprint": "dvd1-a3f92c...",
-  "status": "verified",
-  "message": "Disc verified"
+  "error": "rate_limited",
+  "message": "Confirmation cooldown active"
 }
 ```
 
-**Response 200 — already verified:**
+Includes a `Retry-After` header (seconds). This is a per-account Postgres-backed
+cooldown floor on confirmation actions — distinct from the general API rate
+limiter (see [Rate Limiting Notes](#rate-limiting-notes) below).
+
+**Response 403 — insufficient trust signal:**
 
 ```json
 {
   "request_id": "550e8400-...",
-  "fingerprint": "dvd1-a3f92c...",
-  "status": "verified",
-  "message": "Disc already verified"
+  "error": "insufficient_trust",
+  "message": "Confirmation rejected by anti-Sybil weighting"
 }
 ```
 
@@ -400,6 +398,22 @@ All error responses use a consistent shape:
 | 422 | (Pydantic) | Request body validation failure |
 | 501 | `not_configured` | OAuth provider not configured |
 | 502 | `provider_error` | Upstream OAuth provider error |
+
+---
+
+## Rate Limiting Notes
+
+OVID has two independent throttling mechanisms — they are not redundant and
+serve different purposes:
+
+- **Confirmation cooldown** (this endpoint, `POST /v1/disc` re-submission
+  path) — a permanent, Postgres-backed, per-account cap on confirmation
+  actions. It is part of the anti-Sybil trust model, not general API-abuse
+  protection, and holds regardless of how many gunicorn workers are running.
+- **General API rate limiter** — a separate `slowapi`-based limiter across all
+  endpoints, backed by Redis in multi-worker deployments (see
+  [privacy policy](privacy.md#confirmation-cooldown-vs-general-api-rate-limiting)
+  for the full note).
 
 ---
 

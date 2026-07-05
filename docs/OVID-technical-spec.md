@@ -658,14 +658,22 @@ Content-Type: application/json
 
 ---
 
-#### Verify an Existing Disc
+#### Confirming an Existing Disc (retired standalone verify route)
 
-```
-POST /v1/disc/{fingerprint}/verify
-Authorization: Bearer {token}
-```
+There is no standalone per-fingerprint "verify" endpoint — it was retired. A
+second, distinct contributor who owns the same disc confirms it by
+re-submitting through `POST /v1/disc` (above) with their own independently
+computed fingerprint/structure. The server compares the re-submission against
+the withheld stored structure (proof-of-possession, not a public-metadata
+echo); a match promotes the disc to `verified`. A bodyless verify call is not
+possible under this model, and was removed because it offered no proof of
+possession and was a pure Sybil-bypass surface.
 
-A second contributor who owns the same disc submits their fingerprint. If it matches the existing entry, the disc is promoted to `verified` status.
+An anti-Sybil confirmation gate (Postgres-backed cooldown floor + weighted,
+fail-open trust score over account age and a salted/truncated IP-hash signal)
+runs before the structural match; see `docs/privacy.md` for the IP-hash data
+category and the distinction between this per-account cooldown and the
+general Redis-backed `slowapi` API rate limiter (Phase 3).
 
 ---
 

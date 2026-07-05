@@ -27,15 +27,25 @@ The submit wizard walks through:
 
 New submissions start as **unverified**. When a second contributor submits the same disc fingerprint with matching metadata, the entry is promoted to **verified** status. This two-contributor model ensures data quality without requiring moderation.
 
-### 2. Verify existing discs
+### 2. Confirm existing discs
 
-If you have a disc that's already in the OVID database, you can verify it:
+There is no separate "verify" command. If you have a disc that's already in
+the OVID database, you confirm it the same way you submit a new one — by
+running `ovid submit` against your own physical copy:
 
 ```bash
-ovid verify /path/to/VIDEO_TS --api-url https://api.oviddb.org --token YOUR_JWT
+ovid submit /path/to/VIDEO_TS --api-url https://api.oviddb.org --token YOUR_JWT
 ```
 
-Verifications are just as valuable as new submissions — they increase confidence in existing data.
+If your independently-computed disc structure matches the existing entry, the
+server promotes it from **unverified** to **verified**. This is proof of
+possession — the server never trusts a re-submission that merely echoes the
+first contributor's public metadata; it re-derives the structure from your own
+disc read. A second submission from the *same* account against a disc you
+already submitted is rejected as a duplicate — confirmation requires a
+distinct contributor.
+
+Confirmations are just as valuable as new submissions — they increase confidence in existing data. Note: to keep confirmations from being abused by a single actor spinning up throwaway accounts, confirmation attempts are subject to a per-account cooldown and a lightweight anti-Sybil trust check; see [Privacy Policy](privacy.md) for what signals are used.
 
 ### 3. Contribute code
 
