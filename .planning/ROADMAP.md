@@ -14,7 +14,7 @@ OVID's v0.1.0 core (DVD structural fingerprinting, lookup/submission API, Postgr
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Alias-Layer Hardening & Repo Hygiene** - Close the alias write-path race and verification-consolidation gaps that must land before promotion; clean up ad-hoc repo cruft (completed 2026-07-05)
-- [ ] **Phase 2: Two-Contributor Verification Workflow** - Make the two-contributor trust model live and resistant to cheap Sybil abuse
+- [x] **Phase 2: Two-Contributor Verification Workflow** - Make the two-contributor trust model live and resistant to cheap Sybil abuse (completed 2026-07-05)
 - [ ] **Phase 3: Redis-Backed Rate Limiting & Performance** - Fix multi-worker rate-limit scaling and validate the p95 latency budget against the real deployment config
 - [ ] **Phase 4: Blu-ray/UHD Fingerprinting** - Bring BD/UHD discs to fingerprinting parity with the DVD path (Tier 1 AACS + Tier 2 BDMV, coexisting as an alias pair)
 - [ ] **Phase 5: ADR 0001 Completion — dvdread1-* Promotion** - Complete alias submission and promote `dvdread1-*` to the primary DVD fingerprint, keeping `dvd1-*` a permanent alias
@@ -65,7 +65,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Confirmation actions are rate-limited per account and weighted by account-age/IP-diversity signals; a merely-distinct `user_id` is not by itself accepted as proof of independent physical possession (VERIFY-04 [guardrail]).
   4. The full submitted structural payload of an `unverified` disc is withheld from public reads until verification, so a sockpuppet cannot "confirm" without independently computing the fingerprint from a physical disc.
 
-**Plans**: 3/5 plans executed
+**Plans**: 5/5 plans complete
 
 **Wave 1** *(parallel — disjoint files)*
 
@@ -78,8 +78,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 02-04-PLAN.md — redact the unverified structural payload in `_disc_to_response` (D-09 anti-echo) [Wave 3, depends 02-03, tdd] (VERIFY-01)
-- [ ] 02-05-PLAN.md — docs: retire verify-route references, IP-hash privacy addendum, `OVID_IP_HASH_SALT`, cooldown-vs-Phase-3 note (VERIFY-04) [Wave 3, depends 02-03]
+- [x] 02-04-PLAN.md — redact the unverified structural payload in `_disc_to_response` (D-09 anti-echo) [Wave 3, depends 02-03, tdd] (VERIFY-01)
+- [x] 02-05-PLAN.md — docs: retire verify-route references, IP-hash privacy addendum, `OVID_IP_HASH_SALT`, cooldown-vs-Phase-3 note (VERIFY-04) [Wave 3, depends 02-03]
 
 ### Phase 3: Redis-Backed Rate Limiting & Performance
 
@@ -184,7 +184,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Alias-Layer Hardening & Repo Hygiene | 6/6 | Complete    | 2026-07-05 |
-| 2. Two-Contributor Verification Workflow | 3/5 | In Progress|  |
+| 2. Two-Contributor Verification Workflow | 5/5 | Complete   | 2026-07-05 |
 | 3. Redis-Backed Rate Limiting & Performance | 0/TBD | Not started | - |
 | 4. Blu-ray/UHD Fingerprinting | 0/TBD | Not started | - |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 0/TBD | Not started | - |

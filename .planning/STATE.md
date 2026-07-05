@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-07-05T23:16:53.242Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-07-05T23:40:41.862Z"
 last_activity: 2026-07-05 -- Phase 02 execution started
 progress:
   total_phases: 8
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 11
-  completed_plans: 9
-  percent: 13
+  completed_plans: 11
+  percent: 25
 current_phase: 02
 current_phase_name: Alias-Layer Hardening & Repo Hygiene
 ---
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 ## Current Position
 
 Phase: 02 (two-contributor-verification-workflow) — EXECUTING
-Plan: 5 of 5
+Plan: 2 of 5
 Status: Ready to execute
 Last activity: 2026-07-05 -- Phase 02 execution started
 
@@ -58,6 +58,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 02 P02 | 6min | 3 tasks | 5 files |
 | Phase 02 P03 | 6min | 3 tasks | 9 files |
 | Phase 02 P04 | 6m | 2 tasks | 4 files |
+| Phase 02 P05 | 10min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Recent decisions affecting current work:
 - [Phase ?]: VERIFY-04 anti-Sybil gate (anti_sybil.py): Postgres cooldown floor over disc_edits verify rows + salted /24//48 HMAC-SHA256 IP hash + weighted fail-open trust score; salt optional-with-warning (D-07), cooldown via index-on-disc_edits COUNT with Python cutoff bound param (D-13/D-14)
 - [Phase 02]: 02-04: Anti-echo redaction is a single status branch in _disc_to_response — titles withheld only for status==unverified; release + fingerprint_aliases stay visible for all statuses (D-09/D-11/D-12).
 - [Phase 02]: 02-04: Confirmed D-10 — ARM's _extract_result reads only release-level fields + confidence + format, so redaction is a no-op for ARM.
+- [Phase 02]: [Phase 02-05]: Retired /verify endpoint deleted (not annotated in place) across api-reference.md and docker-quickstart.md; replaced with a Confirming an Existing Disc section describing POST /v1/disc re-submission and its 429/403 gate responses.
+- [Phase 02]: [Phase 02-05]: docs/privacy.md created as a new top-level privacy-policy page (D-06 IP-hash disclosure) and wired into mkdocs.yml nav; D-14 cooldown-vs-slowapi-limiter note cross-referenced from api-reference.md, OVID-technical-spec.md, and privacy.md.
 
 ### Pending Todos
 
@@ -107,6 +110,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-05T23:13:56.390Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-07-05T23:40:41.857Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
