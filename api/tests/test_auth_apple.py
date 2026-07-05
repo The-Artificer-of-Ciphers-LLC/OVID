@@ -41,7 +41,7 @@ def _make_apple_id_token(sub="apple.user.001", email="user@icloud.com"):
         "email_verified": "true",
     }
     # Sign with HS256 for testing — production uses RS256
-    return pyjwt.encode(payload, "test-key", algorithm="HS256")
+    return pyjwt.encode(payload, "test-key-that-is-at-least-32-bytes-long", algorithm="HS256")
 
 
 def _make_apple_id_token_no_email(sub="apple.user.002"):
@@ -53,7 +53,7 @@ def _make_apple_id_token_no_email(sub="apple.user.002"):
         "exp": int(time.time()) + 3600,
         "iat": int(time.time()),
     }
-    return pyjwt.encode(payload, "test-key", algorithm="HS256")
+    return pyjwt.encode(payload, "test-key-that-is-at-least-32-bytes-long", algorithm="HS256")
 
 
 def _patch_apple_configured():
@@ -231,7 +231,7 @@ class TestAppleCallbackErrors:
         """ID token with no sub claim → 401."""
         bad_token = pyjwt.encode(
             {"iss": "apple", "exp": int(time.time()) + 3600, "iat": int(time.time())},
-            "k", algorithm="HS256",
+            "k-that-is-at-least-32-bytes-long", algorithm="HS256",
         )
         with _apple_patches(token_response={"id_token": bad_token, "access_token": "at"}):
             resp = client.get("/v1/auth/apple/callback?code=abc")

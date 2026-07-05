@@ -72,7 +72,7 @@ class TestDecodeAccessToken:
             "exp": datetime.now(timezone.utc) + timedelta(days=1),
             "iss": "ovid",
         }
-        token = pyjwt.encode(payload, "wrong-key", algorithm="HS256")
+        token = pyjwt.encode(payload, "wrong-key-that-is-at-least-32-bytes-long", algorithm="HS256")
         with pytest.raises(pyjwt.InvalidTokenError):
             decode_access_token(token)
 
@@ -158,7 +158,7 @@ class TestGetCurrentUser:
             "exp": datetime.now(timezone.utc) + timedelta(days=1),
             "iss": "ovid",
         }
-        token = pyjwt.encode(payload, "different-secret", algorithm="HS256")
+        token = pyjwt.encode(payload, "different-secret-that-is-at-least-32-bytes-long", algorithm="HS256")
         resp = client.post("/v1/disc", json={}, headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 401
         assert resp.json()["detail"]["error"] == "invalid_token"
