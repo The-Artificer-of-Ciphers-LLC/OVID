@@ -3,7 +3,7 @@
 from sqlalchemy.orm import Session
 
 from app.models import Disc, DiscEdit
-from tests.conftest import seed_test_disc
+from tests.conftest import matrix_matching_submit_payload, seed_test_disc
 
 
 VALID_PAYLOAD = {
@@ -179,23 +179,26 @@ class TestDiscSubmitAutoVerify:
     def test_duplicate_matching_metadata_auto_verifies(
         self,
         client,
-        seeded_disc_with_owner,
+        db_session,
+        test_user,
         second_auth_header,
     ):
-        """Second user submitting same fingerprint with matching tmdb_id → 200 verified."""
-        # The seeded disc has tmdb_id=603, title="The Matrix", year=1999
-        payload = {
-            **VALID_PAYLOAD,
-            "fingerprint": "dvd-ABC123-main",
-            "release": {
-                "title": "The Matrix",
-                "year": 1999,
-                "content_type": "movie",
-                "tmdb_id": 603,
-                "original_language": "en",
-            },
-        }
-        resp = client.post("/v1/disc", json=payload, headers=second_auth_header)
+        """A distinct second contributor reproducing the WITHHELD structure
+        (not just the public release fields) auto-verifies → 200 verified.
+
+        The verify trigger is structural equality now (D-01/D-03), so the
+        confirmer must re-submit the seeded disc's actual structure — a
+        release-only match no longer verifies. Seeded UNVERIFIED and owned by
+        a different user so this exercises the genuine unverified→verified flip.
+        """
+        seed_test_disc(
+            db_session, submitted_by_id=test_user.id, status="unverified"
+        )
+        resp = client.post(
+            "/v1/disc",
+            json=matrix_matching_submit_payload(),
+            headers=second_auth_header,
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "verified"

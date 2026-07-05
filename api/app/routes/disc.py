@@ -12,6 +12,11 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
+from app.anti_sybil import (
+    CONFIRMATION_COOLDOWN_WINDOW_HOURS,
+    client_ip_hash,
+    evaluate_confirmation,
+)
 from app.auth.deps import get_current_user
 from app.deps import get_db
 from app.disc_identity import (
@@ -21,6 +26,7 @@ from app.disc_identity import (
     resolve_existing_disc_for_identities,
 )
 from app.models import Disc, DiscEdit, DiscRelease, DiscTitle, DiscTrack, Release, User
+from app.structural_match import structural_match
 from app.rate_limit import _dynamic_limit, limiter
 from app.sync import next_seq
 from app.verification import (
@@ -245,6 +251,7 @@ def _handle_existing_disc(
     body: DiscSubmitRequest,
     current_user: User,
     request_id: str,
+    request: Request,
 ) -> JSONResponse:
     """Handle a submission that resolves to an already-existing disc.
 
@@ -288,8 +295,42 @@ def _handle_existing_disc(
             409,
         )
 
-    # Different user — check if release metadata matches
-    if _releases_match(existing, body.release, db):
+    # Different user — anti-Sybil gate BEFORE any status write (VERIFY-04).
+    # The gate only decides; it never mutates disc.status (VERIFY-02).
+    gate = evaluate_confirmation(db, existing, current_user, request)
+    if gate.hard_blocked:
+        # Cooldown floor exceeded (D-13). Persist any alias attachments (parity
+        # with the same-submitter 409 path) and refuse with 429 + Retry-After.
+        db.commit()
+        retry_after = str(CONFIRMATION_COOLDOWN_WINDOW_HOURS * 3600)
+        return JSONResponse(
+            status_code=429,
+            content={
+                "request_id": request_id,
+                "error": "rate_limited",
+                "message": "Confirmation cooldown active",
+            },
+            headers={"Retry-After": retry_after},
+        )
+    if not gate.trust_ok:
+        # Weighted soft score below threshold (D-04); fail-open already applied
+        # inside evaluate_confirmation for absent signals (D-07).
+        db.commit()
+        return _error_response(
+            request_id,
+            "insufficient_trust",
+            "Confirmation rejected by anti-Sybil weighting",
+            403,
+        )
+
+    # Structural equality (D-01/D-03) gates VERIFY over the WITHHELD stored
+    # structure — a real proof of possession, not a public-metadata echo.
+    # Release-consistency is retained as the DISPUTE trigger (A3): a
+    # structural match with conflicting release, OR any structural mismatch,
+    # falls through to the existing flag_dispute path below.
+    if structural_match(existing, body, db) and _releases_match(
+        existing, body.release, db
+    ):
         try:
             transitioned = verify(db, existing, current_user)
         except VerificationTransitionError as exc:
@@ -302,6 +343,7 @@ def _handle_existing_disc(
                     disc_id=existing.id,
                     user_id=current_user.id,
                     edit_type="verify",
+                    ip_hash=gate.ip_hash,
                     edit_note="auto-verified by second contributor",
                 )
             )
@@ -732,7 +774,7 @@ def submit_disc(
 
     if existing_resolution is not None:
         return _handle_existing_disc(
-            db, existing_resolution.disc, body, current_user, request_id
+            db, existing_resolution.disc, body, current_user, request_id, request
         )
 
     try:
@@ -792,7 +834,7 @@ def submit_disc(
             # exists, but re-resolve found nothing. Do not swallow.
             raise
         return _handle_existing_disc(
-            db, winner_resolution.disc, body, current_user, request_id
+            db, winner_resolution.disc, body, current_user, request_id, request
         )
 
     try:
@@ -846,12 +888,15 @@ def submit_disc(
         disc.seq_num = seq
         release.seq_num = seq
 
-        # Audit trail: record the creation event
+        # Audit trail: record the creation event. Capture the submitter's
+        # salted /24 subnet hash (D-06) so a future confirmer's IP-diversity
+        # can be compared against it (fail-open to NULL when IP/salt absent).
         db.add(
             DiscEdit(
                 disc_id=disc.id,
                 user_id=current_user.id,
                 edit_type="create",
+                ip_hash=client_ip_hash(request),
             )
         )
 
@@ -890,70 +935,13 @@ def submit_disc(
 
 
 # ---------------------------------------------------------------------------
-# POST /v1/disc/{fingerprint}/verify
+# POST /v1/disc/{fingerprint}/verify — RETIRED (D-02)
 # ---------------------------------------------------------------------------
-@router.post("/disc/{fingerprint}/verify")
-@limiter.limit(_dynamic_limit)
-def verify_disc(
-    fingerprint: str,
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> Any:
-    """Promote a disc from unverified → verified (idempotent).
-
-    The original submitter cannot verify their own submission (R011).
-    """
-    request_id: str = request.state.request_id
-
-    resolution = resolve_disc_identity(db, fingerprint)
-    if resolution is None:
-        return _error_response(
-            request_id, "not_found", f"No disc with fingerprint '{fingerprint}'", 404
-        )
-    disc = resolution.disc
-
-    try:
-        transitioned = verify(db, disc, current_user)
-    except VerificationTransitionError as exc:
-        if exc.attempted_status == "verified" and str(disc.submitted_by) == str(current_user.id):
-            return _error_response(
-                request_id, "forbidden", "Cannot verify your own submission", 403
-            )
-        return _error_response(request_id, "invalid_state", str(exc), 409)
-
-    if not transitioned:
-        return JSONResponse(
-            status_code=200,
-            content={
-                "request_id": request_id,
-                "fingerprint": disc.fingerprint,
-                "status": "verified",
-                "message": "already verified",
-            },
-        )
-
-    disc.seq_num = next_seq(db)
-    db.add(
-        DiscEdit(
-            disc_id=disc.id,
-            user_id=current_user.id,
-            edit_type="verify",
-        )
-    )
-    db.commit()
-
-    logger.info("disc_verified fingerprint=%s", fingerprint)
-
-    return JSONResponse(
-        status_code=200,
-        content={
-            "request_id": request_id,
-            "fingerprint": disc.fingerprint,
-            "status": "verified",
-            "message": "Disc verified successfully",
-        },
-    )
+# The bodyless verify route was deleted: it flipped status on a bare bearer
+# token with no proof of physical possession — a pure Sybil bypass with no
+# legitimate caller (the web UI cannot read discs). Confirmation is now ONLY
+# structural re-submission via POST /v1/disc, gated by the anti-Sybil
+# pre-check and structural_match in _handle_existing_disc above (D-01/D-03).
 
 
 # ---------------------------------------------------------------------------

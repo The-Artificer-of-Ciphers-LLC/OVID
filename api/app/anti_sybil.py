@@ -113,6 +113,21 @@ def ip_subnet_hash(raw_ip: str | None, salt: bytes | None) -> str | None:
     return hmac.new(salt, net.network_address.packed, hashlib.sha256).hexdigest()
 
 
+def client_ip_hash(request) -> str | None:
+    """Return the salted /24 (or /48) subnet hash of ``request``'s client IP.
+
+    Thin public wrapper over :func:`ip_subnet_hash` + :func:`_ip_hash_salt` so
+    both the confirmation gate and the original-submission create-edit capture
+    the subnet hash the same way (D-06). Fails open to ``None`` when the IP or
+    salt is absent (D-07).
+    """
+    raw_ip: str | None = None
+    client = getattr(request, "client", None)
+    if client is not None:
+        raw_ip = getattr(client, "host", None)
+    return ip_subnet_hash(raw_ip, _ip_hash_salt())
+
+
 def _ip_hash_salt() -> bytes | None:
     """Return the IP-hash salt from the environment, or None with a one-time
     warning if unset (optional-with-warning, NOT the fail-fast _require_env
@@ -192,12 +207,7 @@ def evaluate_confirmation(
     (hard_blocked) or 403 (not trust_ok), and stores ``ip_hash`` on the verify
     DiscEdit when the confirmation proceeds.
     """
-    salt = _ip_hash_salt()
-    raw_ip: str | None = None
-    client = getattr(request, "client", None)
-    if client is not None:
-        raw_ip = getattr(client, "host", None)
-    confirmer_hash = ip_subnet_hash(raw_ip, salt)
+    confirmer_hash = client_ip_hash(request)
 
     # --- Layer 1: hard cooldown floor (Postgres, worker-safe; D-13) ---
     now = datetime.now(timezone.utc)
