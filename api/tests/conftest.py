@@ -32,19 +32,23 @@ from app.auth.jwt import create_access_token  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
-# SQLite ↔ PostgreSQL UUID compatibility
+# SQLite WAL mode for test concurrency
 # ---------------------------------------------------------------------------
-# The ORM models use `sqlalchemy.dialects.postgresql.UUID(as_uuid=True)`.
-# On SQLite that column type is rendered as `UUID` (accepted by SQLite as a
-# typeless column) and values arrive/depart as plain strings.  We hook
-# into SQLAlchemy's event system to make uuid.UUID <-> str transparent.
+# NOTE (IN-02): this hook does NOT do anything UUID-related — it only sets
+# ``PRAGMA journal_mode=WAL`` for slightly better concurrency during tests.
+# UUID round-tripping (uuid.UUID <-> str) needs no compat shim here: the
+# ORM models use `sqlalchemy.dialects.postgresql.UUID(as_uuid=True)`, and
+# that type's bind/result processors are dialect-independent pure-Python
+# conversions — they transparently convert uuid.UUID <-> str against
+# SQLite exactly as they would against PostgreSQL, with no extra event
+# hook required. Confirmed by direct round-trip check against this same
+# in-memory SQLite engine: values come back as `uuid.UUID` instances, not
+# strings, both immediately after commit and after a fresh requery.
 
-def _sqlite_uuid_compat(engine):
-    """Register type adapters so uuid.UUID values round-trip through SQLite."""
+def _enable_sqlite_wal(engine):
+    """Set PRAGMA journal_mode=WAL on every new connection (test concurrency only)."""
     @event.listens_for(engine, "connect")
     def _on_connect(dbapi_conn, _connection_record):
-        # Enable WAL for slightly better concurrency during tests, and
-        # let SQLite accept UUID-typed columns without complaint.
         dbapi_conn.execute("PRAGMA journal_mode=WAL")
 
 
@@ -59,7 +63,7 @@ _engine = create_engine(
     poolclass=StaticPool,
 )
 
-_sqlite_uuid_compat(_engine)
+_enable_sqlite_wal(_engine)
 
 _TestSession = sessionmaker(bind=_engine, autocommit=False, autoflush=False)
 
