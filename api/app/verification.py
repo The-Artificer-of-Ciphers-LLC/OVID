@@ -43,11 +43,11 @@ def verify(db: Session, disc: Disc, actor: User) -> bool:
     :class:`VerificationTransitionError` when the submitter attempts to
     verify their own submission (D-11) or the transition is illegal.
     """
-    if disc.submitted_by is not None and str(disc.submitted_by) == str(actor.id):
-        raise VerificationTransitionError(disc.id, disc.status, "verified")
-
     if disc.status == "verified":
         return False
+
+    if disc.submitted_by is not None and str(disc.submitted_by) == str(actor.id):
+        raise VerificationTransitionError(disc.id, disc.status, "verified")
 
     if (disc.status, "verified") not in LEGAL_TRANSITIONS:
         raise VerificationTransitionError(disc.id, disc.status, "verified")

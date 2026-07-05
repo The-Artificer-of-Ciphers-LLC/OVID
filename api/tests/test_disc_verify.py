@@ -41,9 +41,20 @@ class TestVerifyDisc:
         assert edits[0].edit_type == "verify"
 
     def test_self_verify_returns_403(
-        self, client, seeded_disc_with_owner, auth_header
+        self, client, db_session, seeded_disc_with_owner, auth_header
     ):
-        """Original submitter cannot verify their own disc → 403."""
+        """Original submitter cannot verify their own UNVERIFIED disc → 403.
+
+        WR-01: the idempotency no-op (already-verified) must be checked
+        BEFORE the self-submission guard, so this test explicitly seeds an
+        unverified disc to exercise the genuine self-submission-blocked
+        path — see test_self_verify_on_already_verified_disc_is_idempotent
+        for the already-verified case, which must NOT 403.
+        """
+        disc = db_session.get(Disc, seeded_disc_with_owner["disc_id"])
+        disc.status = "unverified"
+        db_session.commit()
+
         resp = client.post(
             "/v1/disc/dvd-ABC123-main/verify", headers=auth_header
         )
@@ -51,6 +62,22 @@ class TestVerifyDisc:
         data = resp.json()
         assert data["error"] == "forbidden"
         assert "Cannot verify your own submission" in data["message"]
+
+    def test_self_verify_on_already_verified_disc_is_idempotent(
+        self, client, seeded_disc_with_owner, auth_header
+    ):
+        """WR-01: original submitter re-verifying an ALREADY-verified disc
+        gets the same idempotent 200 no-op as any other caller — not a
+        spurious 403. ``seeded_disc_with_owner`` defaults to status
+        "verified" with submitted_by set to the auth_header user.
+        """
+        resp = client.post(
+            "/v1/disc/dvd-ABC123-main/verify", headers=auth_header
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "verified"
+        assert data["message"] == "already verified"
 
     def test_different_user_can_verify(
         self, client, db_session, seeded_disc_with_owner, second_auth_header

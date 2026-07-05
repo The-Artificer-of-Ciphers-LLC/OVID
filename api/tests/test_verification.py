@@ -85,6 +85,30 @@ class TestVerify:
         assert result is True
         assert disc.status == "verified"
 
+    def test_verify_already_verified_disc_by_original_submitter_is_idempotent(
+        self, db_session
+    ):
+        """WR-01: the idempotency no-op must run BEFORE the self-submission
+        guard. A disc already verified by someone else, then the ORIGINAL
+        submitter calls verify() again, must get the same idempotent no-op
+        every other caller gets — not a spurious VerificationTransitionError.
+        """
+        submitter = seed_test_user(db_session)
+        other = seed_second_user(db_session)
+        disc = _make_disc(db_session, "unverified", submitted_by_id=submitter.id)
+
+        # Another contributor verifies it first.
+        first_result = verify(db_session, disc, other)
+        assert first_result is True
+        assert disc.status == "verified"
+
+        # The original submitter re-calling verify() must be a no-op, not
+        # a self-submission error.
+        result = verify(db_session, disc, submitter)
+
+        assert result is False
+        assert disc.status == "verified"
+
 
 class TestFlagDispute:
     def test_flag_dispute_refuses_verified_disc(self, db_session):
