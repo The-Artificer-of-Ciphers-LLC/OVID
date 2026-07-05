@@ -37,11 +37,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Verification status transitions (`unverified → verified → disputed`) run through one guarded service module (`api/app/verification.py`); an already-verified disc cannot be silently flipped to `disputed` by a later mismatched submission outside the explicit dispute-resolution path (VERIFY-02).
   5. The repo root contains none of the ad-hoc debug scripts (`fix_test.py`, `fix_test2.py`, `test_script.py`, `verify_t11.py`), and UAT artifacts (`uat_results.json`, `uat_dirs/`) are gitignored (CLEAN-01, CLEAN-02).
 
-**Plans**: 1/6 plans executed
+**Plans**: 2/6 plans executed
 **Wave 1**
 
 - [x] 01-01-PLAN.md — verification.py guarded state machine (VERIFY-02) [Wave 1, tdd]
-- [ ] 01-02-PLAN.md — race-safe alias insert in disc_identity.py (IDENT-02) [Wave 1, tdd]
+- [x] 01-02-PLAN.md — race-safe alias insert in disc_identity.py (IDENT-02) [Wave 1, tdd]
 - [ ] 01-05-PLAN.md — permanent dvd1-* anti-fragmentation regression test (IDENT-05) [Wave 1]
 - [ ] 01-06-PLAN.md — repo hygiene: remove root scripts, untrack + gitignore UAT artifacts (CLEAN-01, CLEAN-02) [Wave 1]
 
@@ -167,7 +167,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Alias-Layer Hardening & Repo Hygiene | 1/6 | In Progress|  |
+| 1. Alias-Layer Hardening & Repo Hygiene | 2/6 | In Progress|  |
 | 2. Two-Contributor Verification Workflow | 0/TBD | Not started | - |
 | 3. Redis-Backed Rate Limiting & Performance | 0/TBD | Not started | - |
 | 4. Blu-ray/UHD Fingerprinting | 0/TBD | Not started | - |

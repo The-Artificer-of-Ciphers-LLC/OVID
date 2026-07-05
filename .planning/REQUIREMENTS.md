@@ -130,7 +130,7 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 | FPRINT-06 | Phase 4 | Pending |
 | FPRINT-07 | Phase 4 | Pending |
 | IDENT-01 | Phase 1 | Pending |
-| IDENT-02 | Phase 1 | Pending |
+| IDENT-02 | Phase 1 | Complete |
 | IDENT-03 | Phase 5 | Pending |
 | IDENT-04 | Phase 5 | Pending |
 | IDENT-05 | Phase 1 | Pending |
