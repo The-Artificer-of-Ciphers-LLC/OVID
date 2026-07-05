@@ -217,6 +217,59 @@ def seed_test_disc(
     }
 
 
+def matrix_matching_submit_payload() -> dict:
+    """A POST /v1/disc payload whose STRUCTURE reproduces ``seed_test_disc``'s
+    Matrix disc and whose RELEASE matches it.
+
+    Kept in lockstep with ``seed_test_disc`` (title_index 1, 39 chapters,
+    main-feature marker, en/ac3/6ch audio, en/vobsub subtitle; The Matrix /
+    1999 / tmdb 603) so a second-contributor re-submission of this payload
+    satisfies ``structural_match`` AND ``_releases_match`` and auto-verifies
+    (D-01/D-03). Callers mutate a deep copy to drive the mismatch/jitter
+    boundary cases.
+    """
+    return {
+        "fingerprint": "dvd-ABC123-main",
+        "format": "DVD",
+        "region_code": "1",
+        "release": {
+            "title": "The Matrix",
+            "year": 1999,
+            "content_type": "movie",
+            "tmdb_id": 603,
+            "imdb_id": "tt0133093",
+            "original_language": "en",
+        },
+        "titles": [
+            {
+                "title_index": 1,
+                "title_type": "main_feature",
+                "duration_secs": 8160,
+                "chapter_count": 39,
+                "is_main_feature": True,
+                "display_name": "The Matrix",
+                "audio_tracks": [
+                    {
+                        "track_index": 0,
+                        "language_code": "en",
+                        "codec": "ac3",
+                        "channels": 6,
+                        "is_default": True,
+                    }
+                ],
+                "subtitle_tracks": [
+                    {
+                        "track_index": 0,
+                        "language_code": "en",
+                        "codec": "vobsub",
+                        "is_default": False,
+                    }
+                ],
+            }
+        ],
+    }
+
+
 @pytest.fixture()
 def seeded_disc(db_session: Session) -> dict[str, uuid.UUID]:
     """Fixture wrapper around seed_test_disc for easy injection."""
