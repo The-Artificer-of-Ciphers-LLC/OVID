@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from app.models import Disc
+from app.models import Disc, DiscIdentityAlias
 
 
 # ---------------------------------------------------------------------------
@@ -58,6 +58,57 @@ class TestDiscLookup:
         assert len(data["request_id"]) > 0
         assert "x-request-id" in resp.headers
         assert resp.headers["x-request-id"] == data["request_id"]
+
+    def test_lookup_returns_fingerprint_aliases(
+        self, client, db_session: Session, seeded_disc
+    ):
+        """fingerprint_aliases enumerates primary + aliases as objects,
+        primary-first, then in INSERTION order — never string-sorted
+        (IDENT-01, D-04/D-05/D-06)."""
+        from datetime import datetime, timedelta, timezone
+
+        base = datetime.now(timezone.utc)
+        first_alias = DiscIdentityAlias(
+            disc_id=seeded_disc["disc_id"],
+            fingerprint="dvdread1-alias-first",
+            created_at=base,
+        )
+        second_alias = DiscIdentityAlias(
+            disc_id=seeded_disc["disc_id"],
+            fingerprint="dvdread1-alias-second",
+            created_at=base + timedelta(seconds=1),
+        )
+        db_session.add_all([first_alias, second_alias])
+        db_session.commit()
+
+        resp = client.get("/v1/disc/dvd-ABC123-main")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        # Additive-safety: existing top-level keys are unchanged (D-05/D-07).
+        assert data["fingerprint"] == "dvd-ABC123-main"
+        assert data["format"] == "DVD"
+        assert data["release"]["title"] == "The Matrix"
+
+        aliases = data["fingerprint_aliases"]
+        assert len(aliases) == 3
+        # Primary first, flagged is_primary=true, method derived from prefix.
+        assert aliases[0] == {
+            "fingerprint": "dvd-ABC123-main",
+            "method": "dvd",
+            "is_primary": True,
+        }
+        # Remaining aliases in insertion order (NOT string-sorted).
+        assert aliases[1] == {
+            "fingerprint": "dvdread1-alias-first",
+            "method": "dvdread1",
+            "is_primary": False,
+        }
+        assert aliases[2] == {
+            "fingerprint": "dvdread1-alias-second",
+            "method": "dvdread1",
+            "is_primary": False,
+        }
 
 
 # ---------------------------------------------------------------------------
