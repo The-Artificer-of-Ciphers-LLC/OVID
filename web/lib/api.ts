@@ -146,6 +146,7 @@ export interface DiscSubmitRequest {
   total_discs: number;
   release: ReleaseCreate;
   titles: TitleCreate[];
+  fingerprint_aliases?: string[];
 }
 
 export interface DiscSubmitResponse {
