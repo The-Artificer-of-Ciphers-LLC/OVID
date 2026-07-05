@@ -2,19 +2,18 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-current_phase: 01
-current_phase_name: Alias-Layer Hardening & Repo Hygiene
 status: executing
 stopped_at: Phase 1 context gathered
-last_updated: "2026-07-05T18:53:12.756Z"
-last_activity: 2026-07-05
-last_activity_desc: Phase 01 execution started
+last_updated: "2026-07-05T19:02:12.859Z"
+last_activity: 2026-07-05 -- Phase 01 execution started
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 6
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
+current_phase: 01
+current_phase_name: Alias-Layer Hardening & Repo Hygiene
 ---
 
 # Project State
@@ -29,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 ## Current Position
 
 Phase: 01 (alias-layer-hardening-repo-hygiene) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-07-05 -- Phase 01 execution started
 
@@ -51,6 +50,7 @@ Progress: [██░░░░░░░░] 17%
 
 *Updated after each plan completion*
 | Phase 01 P02 | 15min | 3 tasks | 2 files |
+| Phase 01 P05 | 15min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -67,6 +67,7 @@ Recent decisions affecting current work:
 - [Phase 01-01]: Self-verification guard lives inside verify() as a transition invariant (D-11), not in the route layer
 - [Phase 01-02]: Alias insert race fix = insert-first / catch sqlalchemy.exc.IntegrityError / re-resolve-the-winner inside per-insert db.begin_nested() SAVEPOINTs (D-01/D-03), closing IDENT-02
 - [Phase 01-02]: A post-conflict re-resolve that unexpectedly returns None re-raises the original IntegrityError rather than swallowing it (no-wave-off rule) - a genuinely-unexpected state, not a legitimate race outcome
+- [Phase 01-05]: D-16: dvd1-* identity regression asserts stable identity/structure, not the literal top-level fingerprint value, so the guardrail survives Phase 5 libdvdread alias promotion
 
 ### Pending Todos
 
@@ -88,6 +89,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-05T18:51:18.075Z
+Last session: 2026-07-05T19:01:04.776Z
 Stopped at: Phase 1 context gathered
 Resume file: .planning/phases/01-alias-layer-hardening-repo-hygiene/01-CONTEXT.md
