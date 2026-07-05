@@ -80,8 +80,8 @@
 
 ### Repo Hygiene (CLEAN)
 
-- [ ] **CLEAN-01**: Ad-hoc root scripts (`fix_test.py`, `fix_test2.py`, `test_script.py`, `verify_t11.py`) are removed or relocated under `scripts/`
-- [ ] **CLEAN-02**: UAT artifacts (`uat_results.json`, `uat_dirs/`) are gitignored
+- [x] **CLEAN-01**: Ad-hoc root scripts (`fix_test.py`, `fix_test2.py`, `test_script.py`, `verify_t11.py`) are removed or relocated under `scripts/`
+- [x] **CLEAN-02**: UAT artifacts (`uat_results.json`, `uat_dirs/`) are gitignored
 
 ## v2 Requirements
 
@@ -166,8 +166,8 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 | DOCS-02 | Phase 8 | Pending |
 | DOCS-03 | Phase 6 | Pending |
 | DOCS-04 | Phase 8 | Pending |
-| CLEAN-01 | Phase 1 | Pending |
-| CLEAN-02 | Phase 1 | Pending |
+| CLEAN-01 | Phase 1 | Complete |
+| CLEAN-02 | Phase 1 | Complete |
 
 **Coverage:**
 
