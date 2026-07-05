@@ -1,4 +1,6 @@
-"""The single guarded writer of ``disc.status`` transitions."""
+"""The single guarded writer of disc.status, consolidating scattered inline mutations."""
+
+import uuid
 
 from sqlalchemy.orm import Session
 
@@ -8,7 +10,9 @@ from app.models import Disc, User
 class VerificationTransitionError(Exception):
     """Raised when a requested ``disc.status`` transition is not permitted."""
 
-    def __init__(self, disc_id, current_status: str, attempted_status: str) -> None:
+    def __init__(
+        self, disc_id: uuid.UUID, current_status: str, attempted_status: str
+    ) -> None:
         self.disc_id = disc_id
         self.current_status = current_status
         self.attempted_status = attempted_status
