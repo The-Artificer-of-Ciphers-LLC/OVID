@@ -2,19 +2,18 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-current_phase: 1
-current_phase_name: Alias-Layer Hardening & Repo Hygiene
 status: executing
 stopped_at: Phase 1 context gathered
-last_updated: "2026-07-05T18:09:52.667Z"
-last_activity: 2026-07-05
-last_activity_desc: "Project initialized (v0.2.0 milestone): PROJECT.md, research, REQUIREMENTS.md (46 reqs), ROADMAP.md (8 phases)"
+last_updated: "2026-07-05T18:35:13.217Z"
+last_activity: 2026-07-05 -- Phase 01 execution started
 progress:
   total_phases: 8
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 6
+  completed_plans: 1
+  percent: 17
+current_phase: 1
+current_phase_name: Alias-Layer Hardening & Repo Hygiene
 ---
 
 # Project State
@@ -24,30 +23,30 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Given a disc in any drive, OVID returns the correct disc identity and structure — deterministically and reproducibly — so ripping tools can name, tag, and route content without manual correction.
-**Current focus:** Phase 1 — Alias-Layer Hardening & Repo Hygiene
+**Current focus:** Phase 01 — alias-layer-hardening-repo-hygiene
 
 ## Current Position
 
-Phase: 1 of 8 (Alias-Layer Hardening & Repo Hygiene)
-Plan: — (not yet planned)
+Phase: 01 (alias-layer-hardening-repo-hygiene) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-07-05 — Project initialized (v0.2.0 milestone): PROJECT.md, research, REQUIREMENTS.md (46 reqs), ROADMAP.md (8 phases)
+Last activity: 2026-07-05 -- Phase 01 execution started
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 17%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: — min
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 25 min
+- Total execution time: 0.4 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01 | 1 | 25min | 25min |
 
 *Updated after each plan completion*
 
@@ -61,6 +60,9 @@ Recent decisions affecting current work:
 - Init: Stage the libdvdread disc-identity migration (dvd1 primary → aliases → dvdread1 primary) per ADR 0001 — dvd1-* must stay resolvable
 - Init: Include non-code v0.2.0 exit items (DNS redirects, announcement, ≥500-entry seeding) as roadmap tasks (Phase 8)
 - Init: Move rate limiting to Redis-backed slowapi storage (multi-worker correctness)
+- [Phase 01-01]: verify() returns False (not exception/400) for an already-verified disc — preserves route idempotent-200 contract (Pitfall 4)
+- [Phase 01-01]: flag_dispute() is the sole writer of disc.status=disputed; LEGAL_TRANSITIONS has zero entries targeting disputed (D-09), closing the VERIFY-02 silent-flip bug
+- [Phase 01-01]: Self-verification guard lives inside verify() as a transition invariant (D-11), not in the route layer
 
 ### Pending Todos
 
@@ -82,6 +84,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-05T17:07:46.917Z
+Last session: 2026-07-05T18:33:29.105Z
 Stopped at: Phase 1 context gathered
 Resume file: .planning/phases/01-alias-layer-hardening-repo-hygiene/01-CONTEXT.md
