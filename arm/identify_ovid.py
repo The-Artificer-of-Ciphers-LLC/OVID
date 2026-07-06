@@ -71,10 +71,16 @@ def _is_bd_path(path: str) -> bool:
 # Fingerprinting
 # ------------------------------------------------------------------
 
-def fingerprint_disc(disc_path: str) -> str:
-    """Fingerprint a disc at *disc_path*, returning the fingerprint string.
+def fingerprint_disc_with_identity(disc_path: str) -> tuple[str, list[str]]:
+    """Fingerprint a disc at *disc_path*, returning the primary fingerprint
+    string plus any alias fingerprint strings the parse discovered.
 
     Detects BD vs DVD automatically. Raises on failure (caller catches).
+
+    Returns:
+        A ``(primary_fingerprint, [alias_fingerprint, ...])`` tuple. The
+        alias list is empty when the disc's ``_identity_set`` is ``None``
+        or has no aliases (e.g. libdvdread unavailable at read time).
     """
     if _is_bd_path(disc_path):
         from ovid.bd_disc import BDDisc
@@ -85,7 +91,26 @@ def fingerprint_disc(disc_path: str) -> str:
 
         disc = Disc.from_path(disc_path)
 
-    return disc.fingerprint
+    identity_set = getattr(disc, "_identity_set", None)
+    aliases = (
+        [alias.fingerprint for alias in identity_set.aliases]
+        if identity_set is not None
+        else []
+    )
+    return disc.fingerprint, aliases
+
+
+def fingerprint_disc(disc_path: str) -> str:
+    """Fingerprint a disc at *disc_path*, returning the fingerprint string.
+
+    Detects BD vs DVD automatically. Raises on failure (caller catches).
+
+    Thin backward-compatible wrapper over
+    :func:`fingerprint_disc_with_identity` — existing callers (e.g.
+    :func:`lookup_ovid`) that only need the primary fingerprint string are
+    unaffected.
+    """
+    return fingerprint_disc_with_identity(disc_path)[0]
 
 
 # ------------------------------------------------------------------
@@ -209,6 +234,7 @@ def submit_to_ovid(
     fingerprint: str,
     disc_format: str,
     disc_label: str | None = None,
+    fingerprint_aliases: list[str] | None = None,
     api_url: str = "http://ovid-prod-api:8000",
 ) -> bool:
     """Register a disc fingerprint with OVID after a miss.
@@ -219,6 +245,14 @@ def submit_to_ovid(
 
     Requires ``OVID_API_TOKEN`` environment variable or
     ``/home/arm/ovid/.ovid_token`` file with a valid JWT.
+
+    Args:
+        fingerprint_aliases: Additional Disc Identity strings discovered
+            for the same physical disc (e.g. a demoted ``dvd1-*`` value
+            alongside a ``dvdread1-*`` primary). Mirrors
+            ``ovid.submission.build_submit_payload``'s convention — omitted
+            from the payload entirely when ``None`` or empty, never sent as
+            an empty list.
 
     Returns:
         True if registration succeeded (HTTP 201 or 409), False otherwise.
@@ -249,6 +283,8 @@ def submit_to_ovid(
         "format": fmt,
         "disc_label": disc_label or "",
     }
+    if fingerprint_aliases:
+        payload["fingerprint_aliases"] = fingerprint_aliases
 
     headers = {"Authorization": f"Bearer {token}"}
     url = f"{api_url.rstrip('/')}/v1/disc/register"
