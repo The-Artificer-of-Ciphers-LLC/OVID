@@ -1,4 +1,10 @@
-"""Integration tests for BDDisc class — Tier 1/Tier 2 fallback, UHD detection, and error paths.
+"""Integration tests for BDDisc class — Tier-2-primary/Tier-1-alias identity, UHD detection, and error paths.
+
+Tier 2 (BDMV structure) is always computed and used as primary whenever at
+least one playlist survives the anti-obfuscation filter, regardless of AACS
+availability. Tier 1 (AACS) is attached as an alias whenever readable. Tier 1
+becomes primary only in the fully-degenerate case where Tier 2 cannot be
+computed at all (see ``test_all_playlists_under_60s_with_aacs_uses_tier1``).
 
 Negative tests:
   - No PLAYLIST directory
@@ -86,15 +92,15 @@ def _make_long_playlist(
 
 
 # ===================================================================
-# BDDisc.from_path — AACS Tier 1
+# BDDisc.from_path — Tier-2-primary / Tier-1-alias identity resolution
 # ===================================================================
 
 
-class TestBDDiscTier1:
-    """BDDisc with AACS Tier 1 fingerprint."""
+class TestBDDiscAliasPair:
+    """BDDisc identity resolution: Tier 2 always primary, Tier 1 as alias."""
 
-    def test_tier1_with_aacs(self, tmp_path):
-        """AACS directory with Unit_Key_RO.inf → Tier 1 fingerprint."""
+    def test_bd2_primary_with_aacs_alias(self, tmp_path):
+        """AACS present + valid playlist → bd2- primary with bd1-aacs- alias."""
         unit_key = b"unique_aacs_key_data_for_test"
         root = _make_bd_dir(
             tmp_path,
@@ -103,16 +109,18 @@ class TestBDDiscTier1:
         )
 
         disc = BDDisc.from_path(str(root))
-        assert disc.tier == 1
-        assert disc.fingerprint.startswith("bd1-aacs-")
-        assert len(disc.fingerprint) == 49  # "bd1-aacs-" (9) + 40 hex
+        assert disc.tier == 2
+        assert disc.fingerprint.startswith("bd2-")
+        assert len(disc.fingerprint) == 44  # "bd2-" (4) + 40 hex
+        assert disc.canonical_string.startswith("OVID-BD-2|")
+        assert len(disc.identity.aliases) == 1
+        assert disc.identity.aliases[0].fingerprint.startswith("bd1-aacs-")
         assert disc.format_type == "bluray"
-        assert disc.canonical_string == ""
         assert disc.source_type == "BDFolderReader"
         assert len(disc.playlists) == 1
 
-    def test_tier1_uhd(self, tmp_path):
-        """UHD disc with AACS → uhd1-aacs- prefix."""
+    def test_uhd2_primary_with_uhd1_aacs_alias(self, tmp_path):
+        """UHD disc with AACS → uhd2- primary with uhd1-aacs- alias."""
         unit_key = b"uhd_key_data"
         root = _make_bd_dir(
             tmp_path,
@@ -121,11 +129,12 @@ class TestBDDiscTier1:
         )
 
         disc = BDDisc.from_path(str(root))
-        assert disc.tier == 1
-        assert disc.fingerprint.startswith("uhd1-aacs-")
+        assert disc.tier == 2
+        assert disc.fingerprint.startswith("uhd2-")
+        assert disc.identity.aliases[0].fingerprint.startswith("uhd1-aacs-")
         assert disc.format_type == "uhd"
 
-    def test_tier1_deterministic(self, tmp_path):
+    def test_deterministic_with_aacs_present(self, tmp_path):
         """Same AACS key → same fingerprint."""
         unit_key = b"deterministic_key"
         root = _make_bd_dir(
@@ -137,6 +146,42 @@ class TestBDDiscTier1:
         disc1 = BDDisc.from_path(str(root))
         disc2 = BDDisc.from_path(str(root))
         assert disc1.fingerprint == disc2.fingerprint
+
+    def test_identity_property_exposes_diagnostics(self, tmp_path):
+        """`.identity` exposes non-empty diagnostics and is the stored field itself."""
+        unit_key = b"diagnostics_key_present"
+        root_with_aacs = _make_bd_dir(
+            tmp_path / "with_aacs",
+            mpls_files={"00001.mpls": _make_long_playlist()},
+            aacs_files={"Unit_Key_RO.inf": unit_key},
+        )
+        disc_with_aacs = BDDisc.from_path(str(root_with_aacs))
+        assert len(disc_with_aacs.identity.diagnostics) > 0
+        assert disc_with_aacs.identity is disc_with_aacs._identity_set
+
+        root_no_aacs = _make_bd_dir(
+            tmp_path / "no_aacs",
+            mpls_files={"00001.mpls": _make_long_playlist()},
+        )
+        disc_no_aacs = BDDisc.from_path(str(root_no_aacs))
+        assert len(disc_no_aacs.identity.diagnostics) > 0
+        assert disc_no_aacs.identity is disc_no_aacs._identity_set
+
+    def test_fingerprint_and_tier_are_thin_proxies_to_identity_primary(self, tmp_path):
+        """.fingerprint/.tier are thin proxies computed from .identity.primary."""
+        unit_key = b"proxy_check_key"
+        root = _make_bd_dir(
+            tmp_path,
+            mpls_files={"00001.mpls": _make_long_playlist()},
+            aacs_files={"Unit_Key_RO.inf": unit_key},
+        )
+        disc = BDDisc.from_path(str(root))
+        assert disc.fingerprint == disc.identity.primary.fingerprint
+        expected_tier = (
+            2 if disc.identity.primary.fingerprint_version in ("bd2", "uhd2") else 1
+        )
+        assert disc.tier == expected_tier
+        assert disc.tier == 2
 
 
 # ===================================================================
@@ -305,6 +350,10 @@ class TestBDDiscNegative:
         assert disc.format_type == "bluray"
         # All playlists filtered out — playlists list is empty for Tier 1
         assert disc.playlists == []
+        # .identity view is consistent with the legacy .tier/.fingerprint
+        # proxies in this degenerate case: Tier 1 is primary, no aliases.
+        assert disc.identity.primary.method == "aacs-disc-id"
+        assert disc.identity.aliases == []
 
     def test_mixed_valid_and_malformed(self, tmp_path):
         """Some MPLS files malformed, some valid → succeeds with valid ones."""
@@ -412,8 +461,8 @@ class TestCLIBDFingerprint:
         assert output.startswith("bd2-")
         assert len(output) == 44  # "bd2-" (4) + 40 hex
 
-    def test_cli_fingerprint_bd_tier1(self, tmp_path):
-        """CLI fingerprints a BD folder with AACS → bd1-aacs- prefix."""
+    def test_cli_fingerprint_bd_with_aacs_shows_bd2_primary(self, tmp_path):
+        """CLI fingerprints a BD folder with AACS → bd2- primary (Tier 2 always primary)."""
         from click.testing import CliRunner
         from ovid.cli import main as cli_main
 
@@ -427,7 +476,7 @@ class TestCLIBDFingerprint:
 
         assert result.exit_code == 0
         output = result.output.strip()
-        assert output.startswith("bd1-aacs-")
+        assert output.startswith("bd2-")
 
     def test_cli_fingerprint_uhd(self, tmp_path):
         """CLI fingerprints UHD disc → uhd2- prefix."""
@@ -703,3 +752,44 @@ class TestBuildSubmitPayloadBD:
 
         assert payload["format"] == "DVD"
         assert payload["fingerprint"].startswith("dvd1-")
+
+
+# ===================================================================
+# Playlist consolidation — .playlists reflects the same survivor set
+# used for the Tier-2 hash (FPRINT-06)
+# ===================================================================
+
+
+class TestBDDiscPlaylistConsolidation:
+    """BDDisc.playlists reflects the same survivor set as the Tier-2 hash."""
+
+    def test_playlists_excludes_loop_padded_decoy_not_just_short_ones(self, tmp_path):
+        """A loop-padded decoy playlist (long total duration, repeated clip_id)
+        is excluded from BDDisc.playlists, not just from the canonical string."""
+        valid_playlist = _make_long_playlist(duration_seconds=120.0)
+
+        # Decoy: 3 play items all sharing clip_id "00002", each 30s (90s
+        # total — clears the 60s minimum-duration filter), but the repeated
+        # clip_id marks it as a loop-padded decoy under MAX_CLIP_REPEATS.
+        decoy_play_items = [
+            {"clip_id": "00002", "in_time": 0.0, "out_time": 30.0},
+            {"clip_id": "00002", "in_time": 30.0, "out_time": 60.0},
+            {"clip_id": "00002", "in_time": 60.0, "out_time": 90.0},
+        ]
+        decoy_playlist = make_mpls_file(
+            version="0200",
+            play_items=decoy_play_items,
+            chapter_marks=[],
+        )
+
+        root = _make_bd_dir(
+            tmp_path,
+            mpls_files={
+                "00001.mpls": valid_playlist,
+                "00002.mpls": decoy_playlist,
+            },
+        )
+
+        disc = BDDisc.from_path(str(root))
+        assert disc.tier == 2
+        assert len(disc.playlists) == 1
