@@ -60,6 +60,10 @@ from locust import HttpUser, between, events, task
 # --- Budgets (INFRA-03) ---------------------------------------------------
 P95_BUDGET_MS = 500
 ERROR_RATIO_BUDGET = 0.01  # 1%
+# Minimum request count for the run to be considered meaningful (WR-03). Below
+# this, p95/fail_ratio are statistically meaningless (or undefined on zero
+# requests) and must not be allowed to report a silent PASS.
+MIN_EXPECTED_REQUESTS = int(os.environ.get("OVID_LOADTEST_MIN_REQUESTS", "100"))
 
 # --- Dataset coupling (must match api/scripts/seed.py) --------------------
 BULK_FINGERPRINT_PREFIX = "dvd1-seed-"
@@ -164,8 +168,18 @@ class OvidUser(HttpUser):
 
 @events.quitting.add_listener
 def _p95_gate(environment, **_kwargs) -> None:
-    """Native exit-code gate: fail the run on p95 > 500ms or error ratio > 1%."""
+    """Native exit-code gate: fail the run on too little traffic, p95 > 500ms,
+    or error ratio > 1%."""
     stats = environment.stats.total
+
+    if stats.num_requests < MIN_EXPECTED_REQUESTS:
+        logging.error(
+            "LOAD TEST FAIL: only %d requests recorded (< %d expected) — harness generated no meaningful load",
+            stats.num_requests, MIN_EXPECTED_REQUESTS,
+        )
+        environment.process_exit_code = 1
+        return
+
     p95 = stats.get_response_time_percentile(0.95)
     fail_pct = stats.fail_ratio * 100
 
