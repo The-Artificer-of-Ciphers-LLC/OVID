@@ -22,6 +22,7 @@ from app.deps import get_db
 from app.disc_identity import (
     DiscIdentityConflict,
     attach_lookup_aliases,
+    register_fingerprint,
     resolve_disc_identity,
     resolve_existing_disc_for_identities,
 )
@@ -779,8 +780,14 @@ def register_disc(
         # rolls back only this savepoint, never the outer transaction, so
         # we can cleanly recover and re-resolve to the true winner.
         with db.begin_nested():
+            # D-03: the server — not the client — picks the primary among
+            # the submitted identity strings, preferring dvdread1-* when
+            # present. The demoted candidate(s) are attached as aliases
+            # below instead of re-declared against the client's original
+            # fingerprint.
+            primary_fp, alias_fps = _select_primary(body.fingerprint, body.fingerprint_aliases)
             disc = Disc(
-                fingerprint=body.fingerprint,
+                fingerprint=primary_fp,
                 format=body.format,
                 disc_label=body.disc_label,
                 status="pending_identification",
@@ -788,6 +795,12 @@ def register_disc(
                 seq_num=next_seq(db),
             )
             db.add(disc)
+            db.flush()
+            # WR-02: register the chosen primary inside the SAME savepoint
+            # as the Disc insert, so a cross-table collision (another
+            # worker's alias-attach for this same fingerprint) rolls back
+            # atomically together (T-05-12).
+            register_fingerprint(db, primary_fp, disc.id)
             db.flush()
     except IntegrityError:
         # Another worker won the race for this fingerprint between our
@@ -810,7 +823,7 @@ def register_disc(
         )
 
     try:
-        attach_lookup_aliases(db, disc, body.fingerprint, body.fingerprint_aliases)
+        attach_lookup_aliases(db, disc, primary_fp, alias_fps)
     except DiscIdentityConflict as exc:
         db.rollback()
         return _identity_conflict_response(request_id, exc.fingerprint)
@@ -882,9 +895,16 @@ def submit_disc(
             db.add(release)
             db.flush()
 
+            # D-03: the server — not the client — picks the primary among
+            # the submitted identity strings, preferring dvdread1-* when
+            # present. The demoted candidate(s) are attached as aliases
+            # below instead of re-declared against the client's original
+            # fingerprint.
+            primary_fp, alias_fps = _select_primary(body.fingerprint, body.fingerprint_aliases)
+
             # Create disc
             disc = Disc(
-                fingerprint=body.fingerprint,
+                fingerprint=primary_fp,
                 format=body.format,
                 region_code=body.region_code,
                 upc=body.upc,
@@ -896,6 +916,12 @@ def submit_disc(
                 submitted_by=current_user.id,
             )
             db.add(disc)
+            db.flush()
+            # WR-02: register the chosen primary inside the SAME savepoint
+            # as the Disc insert, so a cross-table collision (another
+            # worker's alias-attach for this same fingerprint) rolls back
+            # atomically together (T-05-12).
+            register_fingerprint(db, primary_fp, disc.id)
             db.flush()
     except IntegrityError:
         # Another submitter/worker won the race for this fingerprint
@@ -919,7 +945,7 @@ def submit_disc(
         )
 
     try:
-        attach_lookup_aliases(db, disc, body.fingerprint, body.fingerprint_aliases)
+        attach_lookup_aliases(db, disc, primary_fp, alias_fps)
 
         # Link disc ↔ release
         db.execute(

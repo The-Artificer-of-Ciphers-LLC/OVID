@@ -7,7 +7,7 @@ from app.models import Disc, DiscIdentityAlias, DiscRelease, Release
 
 VALID_PAYLOAD = {
     "fingerprint": "dvd1-submit-primary",
-    "fingerprint_aliases": ["dvdread1-submit-alias"],
+    "fingerprint_aliases": ["bd1-submit-alias"],
     "format": "DVD",
     "region_code": "1",
     "release": {
@@ -36,13 +36,13 @@ class TestDiscIdentityAliases:
 
         alias = (
             db_session.query(DiscIdentityAlias)
-            .filter(DiscIdentityAlias.fingerprint == "dvdread1-submit-alias")
+            .filter(DiscIdentityAlias.fingerprint == "bd1-submit-alias")
             .one()
         )
         disc = db_session.query(Disc).filter_by(fingerprint="dvd1-submit-primary").one()
         assert alias.disc_id == disc.id
 
-        lookup = client.get("/v1/disc/dvdread1-submit-alias")
+        lookup = client.get("/v1/disc/bd1-submit-alias")
         assert lookup.status_code == 200
         assert lookup.json()["fingerprint"] == "dvd1-submit-primary"
 
@@ -144,7 +144,7 @@ class TestDiscIdentityAliases:
         resp = client.post("/v1/disc", json=VALID_PAYLOAD, headers=auth_header)
         assert resp.status_code == 201
 
-        edits = client.get("/v1/disc/dvdread1-submit-alias/edits")
+        edits = client.get("/v1/disc/bd1-submit-alias/edits")
         assert edits.status_code == 200
         assert edits.json()["fingerprint"] == "dvd1-submit-primary"
 
