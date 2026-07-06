@@ -12,6 +12,15 @@ Workload mix (D-13):
   * ~20%  GET  /v1/search?q=Seed — search on the shared seed title token
   * ~10%  POST /v1/disc         — authenticated novel-fingerprint submissions
 
+Read-limit handling (CR-01): ~90% of this workload is unauthenticated/
+authenticated GET reads generated from one load-generator host, which would
+trip the default read-tier limits (``UNAUTH_LIMIT`` 100/min, ``AUTH_LIMIT``
+500/min) long before p95 could be measured. The load-test CI stack raises
+those tiers via ``OVID_UNAUTH_LIMIT``/``OVID_AUTH_LIMIT`` (see
+``.github/workflows/loadtest.yml``) so read traffic isn't throttled and p95
+reflects real handler latency — only the write ceiling (``AUTH_WRITE_LIMIT``,
+see below) remains active, by design.
+
 Dataset coupling: ``api/scripts/seed.py --count N`` seeds discs with
 fingerprints ``dvd1-seed-{0..N-1}`` and titles ``Seed Movie {i}``. This file
 reproduces that scheme via ``BULK_FINGERPRINT_PREFIX`` / ``SEARCH_TOKEN`` so

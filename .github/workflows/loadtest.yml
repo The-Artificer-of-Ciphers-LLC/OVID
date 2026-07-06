@@ -39,6 +39,13 @@ jobs:
       # the API refuses to boot (D-06) — both are set so the limiter under test
       # is the real shared Redis-backed backbone (INFRA-01).
       OVID_WORKERS: "4"
+      # Raise the READ-tier limits so the load generator's ~90% GET traffic is
+      # never throttled by the default 100/min (unauth) / 500/min (auth) tiers
+      # — without this the run measures limiter 429s, not real p95 (CR-01).
+      # AUTH_WRITE_LIMIT is deliberately left untouched: the write ceiling
+      # should still be exercised (see loadtest/locustfile.py).
+      OVID_UNAUTH_LIMIT: "100000000/minute"
+      OVID_AUTH_LIMIT: "100000000/minute"
 
     services:
       postgres:
