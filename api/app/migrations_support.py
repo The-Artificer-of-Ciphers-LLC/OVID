@@ -83,3 +83,42 @@ def promote_one_disc(connection: Connection, dvd1_fingerprint: str) -> bool:
         },
     )
     return True
+
+
+def promote_all_dvdread1_discs(connection: Connection) -> int:
+    """Bulk-promote every disc that has a recorded ``dvdread1-*`` alias.
+
+    Enumerates every disc currently on a ``dvd1-*`` primary fingerprint,
+    then calls :func:`promote_one_disc` for each — committing after EVERY
+    candidate (promoted or not) so the enumeration's own transaction
+    segment never grows unbounded across a large table. This is
+    SQLAlchemy 2.0's "commit as you go" pattern
+    [docs.sqlalchemy.org/en/20/core/connections.html]: the connection
+    auto-begins a new transaction segment on the next ``execute()`` call
+    after ``commit()``.
+
+    Per-disc commits make an interrupted run safely resumable: re-running
+    this function from scratch after a partial pass only re-processes
+    already-promoted discs, which :func:`promote_one_disc` treats as a
+    no-op (idempotency guard), and discs not yet reached are simply
+    promoted on the next pass.
+
+    Returns the total number of discs promoted in this run.
+    """
+    candidates = [
+        row[0]
+        for row in connection.execute(
+            text("SELECT fingerprint FROM discs WHERE fingerprint LIKE 'dvd1-%'")
+        ).all()
+    ]
+
+    promoted_count = 0
+    for i, dvd1_fingerprint in enumerate(candidates, start=1):
+        if promote_one_disc(connection, dvd1_fingerprint):
+            promoted_count += 1
+        connection.commit()
+        if i % 100 == 0:
+            print(f"  ...promoted {promoted_count}/{i} discs processed")
+
+    print(f"Promotion complete: {promoted_count} discs promoted to dvdread1-* primary")
+    return promoted_count
