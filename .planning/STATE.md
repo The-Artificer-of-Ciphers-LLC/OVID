@@ -2,19 +2,18 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-current_phase: 05
 current_phase_name: adr-0001-completion-dvdread1-promotion
 status: executing
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-07-06T22:12:20.353Z"
-last_activity: 2026-07-06
-last_activity_desc: Phase 05 execution started
+stopped_at: Completed 05-06-PLAN.md
+last_updated: "2026-07-06T23:00:03.473Z"
+last_activity: 2026-07-06 — Phase 05 execution started
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 28
-  completed_plans: 26
+  completed_plans: 27
   percent: 50
+current_phase: 05
 ---
 
 # Project State
@@ -30,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 05 (adr-0001-completion-dvdread1-promotion) — EXECUTING
 Current Phase Name: adr-0001-completion-dvdread1-promotion
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-07-06 — Phase 05 execution started
 Last Activity Description: Phase 05 execution started
@@ -80,6 +79,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 05 P03 | 15min | 1 tasks | 2 files |
 | Phase 05 P04 | 20min | 3 tasks | 6 files |
 | Phase 05 P05 | 4min | 2 tasks | 3 files |
+| Phase 05 P06 | 20min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -134,6 +134,8 @@ Recent decisions affecting current work:
 - [Phase 05-04]: arm/identify.py's _load_original() hardened to degrade gracefully (try/except around exec_module) instead of crashing the module's own import when ARM-only deps (pydvdid, arm.config, arm.ripper.utils, arm.ui) are absent — required to make arm.identify importable/testable outside the ARM container
 - [Phase 05-04]: arm-tests CI job installs ovid-client editable (not just requests+pytest as the plan literally specified) because the tests monkeypatch real ovid.disc.Disc.from_path/ovid.bd_disc.BDDisc.from_path and construct real DiscIdentitySet instances
 - [Phase ?]: [Phase 05-05]: _select_primary() colocated with _method_of() as a pure fingerprint+aliases -> (primary, remaining_aliases) function, wired into register_disc/submit_disc's new-disc SAVEPOINTs alongside register_fingerprint() inside the same savepoint (T-05-12 atomic rollback together); mixed-fleet zero-fragmentation guarantee proven by explicit regression test
+- [Phase ?]: [Phase 05-06]: backfill_fingerprint_registry() dedupes by fingerprint value across discs+aliases before insert (a pre-existing cross-table collision would otherwise violate the registry's global UNIQUE)
+- [Phase ?]: [Phase 05-06]: sqlite3.register_adapter(datetime,...) registered in migrations_support.py to unify raw-text()-SQL datetime storage with the ORM's own DateTime bind_processor - fixes a real tz-aware/tz-naive read-back inconsistency across insert paths; no effect on PostgreSQL
 
 ### Pending Todos
 
@@ -155,6 +157,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T22:10:39.835Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-07-06T23:00:03.467Z
+Stopped at: Completed 05-06-PLAN.md
 Resume file: None
