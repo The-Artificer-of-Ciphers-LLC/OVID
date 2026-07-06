@@ -22,7 +22,9 @@ findings:
   warning: 5
   info: 4
   total: 10
-status: issues_found
+status: resolved
+resolved: 2026-07-06
+resolution_commits: [daad488, 85a9eac, 72e873f]
 ---
 
 # Phase 04: Code Review Report
@@ -30,7 +32,9 @@ status: issues_found
 **Reviewed:** 2026-07-06T00:00:00Z
 **Depth:** deep
 **Files Reviewed:** 13
-**Status:** issues_found
+**Status:** resolved — all 10 findings fixed post-review (commits daad488, 85a9eac, 72e873f)
+
+> **Resolution (2026-07-06):** All 10 findings fixed inline per no-defer policy. **CR-01** (0-stream vs 1-empty-stream canonical collision) fixed test-first — new 7-field block `{pic}:{dur}:{cc}:{audio_count}:{audio}:{subtitle_count}:{subtitle}`; pinned hash recomputed to `bd2-a9b2941ab6cd447c0c3ece709a348ff6c6c26ae3`. `OVID_BD2_VERSION` unchanged (pre-release correction — `bd2-*` has no shipped consumers). WR-01/02/03/05 + IN-01..04 fixed; WR-04 (Windows CI) documented as deliberately out of scope per FPRINT-05 (Linux+macOS only). Verified independently: 242 passed, 16 skipped; CR-01 regression test green.
 
 ## Summary
 
