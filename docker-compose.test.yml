@@ -22,10 +22,29 @@ services:
     ports: !override
       - "5434:5432"
 
+  # Shared rate-limit store for the multi-worker (gunicorn -w 4) api service.
+  # Internal-only, ephemeral — counters are short-window and disposable, so no
+  # persistence (no volume, no AOF/RDB). Backs slowapi's RedisStorage (INFRA-01).
+  redis:
+    image: redis:7-alpine
+    container_name: ovid-test-redis
+    restart: unless-stopped
+    # Ephemeral: disable RDB snapshots (--save "") and AOF (--appendonly no).
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   api:
     container_name: ovid-test-api
     # No source mount in test — use the baked-in image
     volumes: !reset []
+    # Wait for redis (shared rate-limit store) as well as db.
+    depends_on:
+      redis:
+        condition: service_healthy
     # Expose on 8200 to avoid conflict with dev (8000) and prod (8100)
     ports: !override
       - "8200:8000"
@@ -34,6 +53,10 @@ services:
       main:app --bind 0.0.0.0:8000
     environment:
       DATABASE_URL:          postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}
+      # Shared cross-worker rate-limit counters (gunicorn -w 4). OVID_WORKERS must
+      # match -w; with >1 workers and no REDIS_URL the api refuses to boot (D-06).
+      REDIS_URL:             redis://redis:6379/0
+      OVID_WORKERS:          "4"
       SECRET_KEY:            ${OVID_SECRET_KEY}
       OVID_MODE:             ${OVID_MODE:-standalone}
       LOG_LEVEL:             ${LOG_LEVEL:-debug}
