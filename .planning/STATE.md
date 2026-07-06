@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: redis-backed-rate-limiting-performance
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-07-06T12:48:40.205Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-07-06T12:57:09.964Z"
 last_activity: 2026-07-06
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 03 (redis-backed-rate-limiting-performance) — EXECUTING
 Current Phase Name: redis-backed-rate-limiting-performance
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-07-06 -- Phase 03 execution started
 Last Activity Description: Phase 03 execution started
@@ -65,6 +65,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 02 P05 | 10min | 2 tasks | 6 files |
 | Phase 03 P01 | 9min | 3 tasks | 5 files |
 | Phase 03 P02 | 10min | 2 tasks | 2 files |
+| Phase 03 P03 | 35m | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting current work:
 - [Phase 02]: [Phase 02-05]: docs/privacy.md created as a new top-level privacy-policy page (D-06 IP-hash disclosure) and wired into mkdocs.yml nav; D-14 cooldown-vs-slowapi-limiter note cross-referenced from api-reference.md, OVID-technical-spec.md, and privacy.md.
 - [Phase ?]: 03-02: Stacked AUTH_WRITE_LIMIT ceiling on all three disc write routes (INFRA-04/D-07); resolve uses shared_limit with a fixed scope because its {fingerprint} path param defeats slowapi's default url key style
 - [Phase ?]: 03-02: anti_sybil left Postgres-backed and untouched (D-10); coarse write ceiling and narrow confirmation cooldown proven independent, layered not double-counted
+- [Phase 03]: 03-03: Redis wired into prod+test compose only (redis:7-alpine, internal-only, ephemeral); base compose unchanged so single-worker self-host stays on memory:// (D-05a)
+- [Phase 03]: 03-03: Redis-outage behavior documented as fail-open self-healing (D-01/D-02) with a fail-fast multi-worker boot guard (D-06) across self-hosting/deployment/technical-spec docs
 
 ### Pending Todos
 
@@ -118,6 +121,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T12:48:02.935Z
-Stopped at: Phase 3 context gathered
+Last session: 2026-07-06T12:57:09.958Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: .planning/phases/03-redis-backed-rate-limiting-performance/03-CONTEXT.md
