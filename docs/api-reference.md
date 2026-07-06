@@ -67,15 +67,13 @@ Returns full disc metadata including release info, titles, and tracks. The path 
   "edition_name": "Special Edition",
   "disc_number": 1,
   "total_discs": 2,
-  "releases": [
-    {
-      "title": "The Lord of the Rings: The Fellowship of the Ring",
-      "year": 2001,
-      "content_type": "movie",
-      "tmdb_id": 120,
-      "imdb_id": "tt0120737"
-    }
-  ],
+  "release": {
+    "title": "The Lord of the Rings: The Fellowship of the Ring",
+    "year": 2001,
+    "content_type": "movie",
+    "tmdb_id": 120,
+    "imdb_id": "tt0120737"
+  },
   "titles": [
     {
       "title_index": 1,
@@ -114,8 +112,8 @@ Returns full disc metadata including release info, titles, and tracks. The path 
 ```json
 {
   "request_id": "550e8400-...",
-  "error": "disc_not_found",
-  "message": "No disc with fingerprint dvd1-a3f92c..."
+  "error": "not_found",
+  "message": "No disc with fingerprint 'dvd1-a3f92c...'"
 }
 ```
 
@@ -190,7 +188,6 @@ Creates a new disc entry with release metadata, titles, and tracks in a single t
 ```json
 {
   "request_id": "550e8400-...",
-  "disc_id": "uuid-here",
   "fingerprint": "dvd1-a3f92c...",
   "status": "unverified",
   "message": "Disc submitted successfully"
@@ -207,13 +204,19 @@ Creates a new disc entry with release metadata, titles, and tracks in a single t
 }
 ```
 
-**Response 409 — duplicate:**
+**Response 409 — duplicate submission by the same user:**
+
+Returned only when the fingerprint already exists **and the same
+authenticated user already submitted it**. A *different* user re-submitting
+an existing fingerprint does not get a 409 for the duplicate alone — the
+server instead evaluates the resubmission for auto-verification or dispute
+(see [Confirming an Existing Disc](#confirming-an-existing-disc) below).
 
 ```json
 {
   "request_id": "550e8400-...",
-  "error": "duplicate_fingerprint",
-  "message": "A disc with this fingerprint already exists"
+  "error": "conflict",
+  "message": "Disc already submitted by this user"
 }
 ```
 
@@ -269,8 +272,8 @@ limiter (see [Rate Limiting Notes](#rate-limiting-notes) below).
 ```json
 {
   "request_id": "550e8400-...",
-  "error": "disc_not_found",
-  "message": "No disc with fingerprint dvd1-a3f92c..."
+  "error": "not_found",
+  "message": "No disc with fingerprint 'dvd1-a3f92c...'"
 }
 ```
 
@@ -319,7 +322,7 @@ Search releases by title with optional filters. Returns paginated results.
 ```json
 {
   "request_id": "550e8400-...",
-  "error": "missing_query",
+  "error": "bad_request",
   "message": "Query parameter 'q' is required"
 }
 ```
@@ -388,13 +391,13 @@ All error responses use a consistent shape:
 
 | HTTP | Code | Description |
 |------|------|-------------|
-| 400 | `missing_query` | Required query parameter missing |
+| 400 | `bad_request` | Required query parameter missing |
 | 400 | `invalid_url` | Invalid IndieAuth URL |
 | 401 | `missing_token` | No Authorization header |
 | 401 | `invalid_token` | Token malformed or signature invalid |
 | 401 | `expired_token` | Token has expired |
-| 404 | `disc_not_found` | No disc matches the fingerprint |
-| 409 | `duplicate_fingerprint` | Fingerprint already exists |
+| 404 | `not_found` | No disc matches the fingerprint |
+| 409 | `conflict` | Same user re-submitting a disc they already submitted |
 | 422 | (Pydantic) | Request body validation failure |
 | 501 | `not_configured` | OAuth provider not configured |
 | 502 | `provider_error` | Upstream OAuth provider error |
