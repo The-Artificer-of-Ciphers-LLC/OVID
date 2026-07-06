@@ -110,6 +110,32 @@ docker compose build
 docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api alembic upgrade head
 ```
 
+#### One-time dvdread1-* promotion cutover
+
+The `900000000006_promote_dvdread1_primary` migration (part of ADR 0001's
+staged libdvdread identity migration) promotes any disc that already
+carries a `dvdread1-*` alias to have that value as its primary
+fingerprint. Unlike a self-hosted mirror (which is already permanently
+read-only and just picks this up via its normal update routine — see
+[Promoting to dvdread1-* Primary](self-hosting.md#promoting-to-dvdread1-primary-one-time-cutover)
+in the self-hosting runbook), **the canonical server accepts live writes
+and genuinely needs write-quiesce for this migration** — it is not
+already read-only the way a mirror is.
+
+Use the same one-command wrapper, with the prod-specific compose files:
+
+```bash
+python scripts/promote_dvdread1.py -f docker-compose.yml -f docker-compose.prod.yml
+```
+
+This captures the server's current `OVID_MODE` (`canonical`), toggles it
+to `mirror` (read-only) for the migration, and restores `canonical`
+afterward — even if the migration step fails. As documented in the
+self-hosting runbook, this **also briefly interrupts reads**, not just
+writes, during each of the two `api` service restarts it performs — plan
+for a short window of full API unavailability, not just a write-only
+quiesce.
+
 ### 4. Start the Stack
 
 ```bash

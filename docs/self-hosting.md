@@ -186,6 +186,74 @@ The sync worker will automatically pick up any schema changes after the migratio
 
 ---
 
+## Promoting to dvdread1-* Primary (One-Time Cutover)
+
+ADR 0001 (the staged libdvdread disc-identity migration) has a final,
+one-time promotion step: existing discs that already carry a
+`dvdread1-*` identity alias get that alias promoted to their primary
+fingerprint, with the prior `dvd1-*` value demoted to a permanent alias.
+`dvd1-*` stays fully resolvable — nothing is deleted, only reordered.
+
+This happens via an Alembic migration (`900000000006_promote_dvdread1_primary`),
+so it ships as part of a normal `alembic upgrade head` run. Whether you
+need anything *extra* beyond that depends on which mode you self-host in:
+
+### Mirror-mode operators: no toggle needed
+
+If you're running the mirror-mode Quick Start above (`OVID_MODE=mirror`),
+your instance is **already permanently read-only** — see the "How Mirror
+Mode Works" table at the top of this page. You pick up the promotion the
+same way you pick up every other schema change: your existing
+**Updating** step already runs `docker compose exec api alembic upgrade
+head`. Nothing new to do here.
+
+### Standalone-mode operators: use the cutover wrapper
+
+If you self-host in **standalone** mode and accept local writes, the
+promotion migration must not race a concurrent submission (a write
+landing on a disc mid-promotion). `scripts/promote_dvdread1.py` closes
+that gap by doing, as a single command:
+
+1. Toggle the `api` service to `OVID_MODE=mirror` (read-only) and restart it.
+2. Run `alembic upgrade head`.
+3. Restore the `api` service to whatever `OVID_MODE` it was running
+   before step 1, and restart it again.
+
+It captures your *actual* running `OVID_MODE` before touching anything
+and restores that exact value on completion — including if the migration
+step itself fails — so you're never left stranded in read-only mode and
+never silently switched to the wrong mode.
+
+```bash
+python scripts/promote_dvdread1.py -f docker-compose.yml
+```
+
+Example output:
+
+```
+Captured current OVID_MODE='standalone' for restore.
+Target compose files: docker-compose.yml
+This performs TWO api service restarts (toggle read-only, then
+restore) — reads are briefly interrupted too, not just writes,
+during each restart.
+Proceed? [y/N] y
+Restored OVID_MODE='standalone'.
+```
+
+**This also briefly interrupts reads, not just writes.** Each of the two
+`api` service restarts the wrapper performs takes the API down entirely
+for a few seconds while the container recreates — on top of the
+write-only 405s that mirror mode itself returns while it's up. Do not
+run this expecting a write-only quiesce with zero read impact; plan the
+cutover for a low-traffic window if that matters to you.
+
+Always pass `--compose-file`/`-f` explicitly for your deployment — the
+script has no default compose file, so it can never accidentally target
+the wrong stack. Repeat the flag the same way `docker compose -f` does
+(e.g. add `-f docker-compose.prod.yml` for a prod-style override).
+
+---
+
 ## Data Export (CC0 Dump)
 
 OVID's community-contributed disc metadata is licensed under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) — you can export the entire database as NDJSON:
