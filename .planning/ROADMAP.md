@@ -122,7 +122,22 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. Tier 2 playlist filter/sort/tie-break constants are frozen as a versioned part of the fingerprint spec — never tuned as loose implementation values — defending against studio obfuscation-playlist decoys (FPRINT-06 [guardrail]).
   6. A real BD/UHD fixture corpus, including at least one heavily-obfuscated disc, backs the regression suite, and the fingerprint spec is updated with OVID-BD-2 Tier 1 & Tier 2 in `docs/fingerprint-spec.md` (FPRINT-07, DOCS-01).
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+**Wave 1** *(parallel — disjoint files)*
+
+- [ ] 04-01-PLAN.md — bd2_spec.py frozen constants module + content-based dedup/tie-break in build_bd_canonical_string [Wave 1, tdd] (FPRINT-01, FPRINT-02, FPRINT-06)
+- [ ] 04-02-PLAN.md — identify_bd() alias-pair identity resolution in disc_identity.py [Wave 1, tdd] (FPRINT-03)
+- [ ] 04-04-PLAN.md — CI: add macos-latest to the ovid-client-tests job matrix [Wave 1] (FPRINT-05)
+
+**Wave 2** *(blocked on Wave 1 — needs bd2_spec.py + identify_bd())*
+
+- [ ] 04-03-PLAN.md — BDDisc refactor: remove Tier-1 short-circuit, expose .identity, consolidate playlist filtering [Wave 2, depends 04-01/04-02, tdd] (FPRINT-03, FPRINT-04, FPRINT-06)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 04-05-PLAN.md — obfuscated fixture corpus + pinned determinism test + real_disc-gated cross-drive test [Wave 3, depends 04-01/04-03] (FPRINT-05, FPRINT-06, FPRINT-07)
+- [ ] 04-06-PLAN.md — docs: OVID-BD-2 fingerprint-spec.md section + manual pre-release verification step [Wave 3, depends 04-01/04-03] (DOCS-01, FPRINT-01, FPRINT-04, FPRINT-05)
 
 ### Phase 5: ADR 0001 Completion — dvdread1-* Promotion
 
@@ -199,7 +214,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | 1. Alias-Layer Hardening & Repo Hygiene | 6/6 | Complete    | 2026-07-05 |
 | 2. Two-Contributor Verification Workflow | 5/5 | Complete    | 2026-07-05 |
 | 3. Redis-Backed Rate Limiting & Performance | 4/4 | Complete    | 2026-07-06 |
-| 4. Blu-ray/UHD Fingerprinting | 0/TBD | Not started | - |
+| 4. Blu-ray/UHD Fingerprinting | 0/6 | Not started | - |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 0/TBD | Not started | - |
 | 6. OAuth & Account Linking | 0/TBD | Not started | - |
 | 7. Web UI Production Readiness | 0/TBD | Not started | - |
