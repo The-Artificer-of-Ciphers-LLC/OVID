@@ -101,3 +101,33 @@ No gaps block phase-goal achievement. All four ROADMAP success criteria are impl
 
 _Verified: 2026-07-05_
 _Verifier: Claude (gsd-verifier)_
+
+## Remediation Addendum
+
+**Added:** 2026-07-05
+**Reason:** subsequent deep adversarial code review
+
+The initial goal verification above (2026-07-05) confirmed all 4 must-haves (VERIFY-01, VERIFY-03, VERIFY-04, D-09 anti-echo redaction) held under the happy-path two-contributor flow and its existing test suite (297 passed). A subsequent **deep, adversarial code review** (`02-REVIEW.md`) went further — tracing the full call chain rather than trusting the happy-path tests — and found 3 CRITICAL bypasses that each independently let a single actor satisfy these same must-haves without a genuine second, independent contributor:
+
+- **CR-01** (self-confirmation via register → identify → resubmit) directly undermined must-have #1 (VERIFY-01: distinct-contributor confirmation, self-confirmation rejected) — `_identify_existing_disc` never set `submitted_by`, so a stale registrant pointer let one human satisfy both self-confirmation guards on their own resubmission.
+- **CR-02** (zero-title vacuous `structural_match`) directly undermined must-have #1's proof-of-possession requirement and is adjacent to must-have #4 (D-09 anti-echo redaction) — a title-less disc could be "confirmed" using nothing but publicly-searchable release metadata, exactly the echo attack the redaction gate exists to prevent.
+- **W6** (single-actor verify-bypass via `/resolve`) directly undermined must-have #1/#3 — a trusted/editor/admin role could flip a merely-`unverified` (never-disputed) disc straight to `verified` with a single action, no second contributor involved.
+
+An independent adversarial verifier live-reproduced CR-01 end-to-end before any fix landed, confirming it was a real, exploitable bypass and not a review artifact.
+
+All three were fixed TDD-style (failing regression test committed first, then the minimal fix) and are now covered by dedicated regression tests:
+
+| Finding | Must-have affected | Fix commit | Regression test |
+|---|---|---|---|
+| CR-01 | VERIFY-01 (truth #1) | `938cdac` (red: `1679f5b`) | `api/tests/test_identify_self_confirm.py` |
+| CR-02 | VERIFY-01 / D-09 (truths #1, #4) | `fd5c808` (red: `625b522`) | `api/tests/test_structural_match.py`, `api/tests/test_disc_submit.py` |
+| W6 | VERIFY-01 / VERIFY-03 (truths #1, #2) | `a34b98e` (red: `ba09d48`) | `api/tests/test_dispute.py` |
+
+The remaining critical (CR-03, anti-Sybil IP-diversity dead behind the production reverse proxy) and the confirmed warnings (W2, W3, W4) were also fixed, but bear on must-have #3's (VERIFY-04) *robustness under production topology and concurrency* rather than reversing this verification's original truth assertions. See `02-REVIEW-FIX.md` for the complete finding→verdict→resolution→commit mapping.
+
+Full regression suite after all remediation: **310 passed** (was 297 at initial verification). With these fixes, all four must-haves verified above now hold not only under the happy-path tests originally exercised, but also under the adversarial conditions the deep review specifically probed for.
+
+---
+
+_Addendum added: 2026-07-05_
+_Source: 02-REVIEW.md (deep adversarial review), 02-REVIEW-FIX.md (remediation record)_
