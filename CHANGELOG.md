@@ -156,6 +156,9 @@ This project uses [Semantic Versioning](https://semver.org/) in the form `0.MILE
 - All five OAuth providers configured with `https://api.oviddb.org` callback URLs
 - oviddb.org is publicly accessible — soft launch
 
+### Removed
+- `POST /v1/disc/{fingerprint}/verify` — retired; two-contributor confirmation now happens via re-submission through the disc submission endpoint rather than a dedicated verify call
+
 ### Fixed
 - CLI binary builds include Blu-ray module hidden imports for PyInstaller
 - `arm/identify.py` mount race condition: retry loop + `findmnt` verification replaces single blind `mount` call
