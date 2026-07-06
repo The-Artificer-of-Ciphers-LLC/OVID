@@ -14,7 +14,7 @@
 - [x] **FPRINT-03**: When both tiers are computable for a disc, the client returns BOTH in one `DiscIdentitySet` (they become an alias pair) rather than short-circuiting on Tier 1 success
 - [x] **FPRINT-04**: 4K UHD Blu-ray discs are fingerprinted via the same tiered path, with format recorded on the disc record
 - [x] **FPRINT-05**: The same disc produces identical BD/UHD fingerprints across ≥2 drives and both Linux and macOS (determinism regression test)
-- [ ] **FPRINT-06 [guardrail]**: Tier 2 playlist filter/sort constants are versioned as part of the fingerprint spec (defends against studio "obfuscation playlist" decoys), not tuned as loose implementation values
+- [x] **FPRINT-06 [guardrail]**: Tier 2 playlist filter/sort constants are versioned as part of the fingerprint spec (defends against studio "obfuscation playlist" decoys), not tuned as loose implementation values
 - [x] **FPRINT-07**: A real BD/UHD fixture corpus (including ≥1 heavily-obfuscated disc) backs the regression suite, following the existing private/`real_disc` fixture pattern
 
 ### Disc Identity & Alias Migration (IDENT)
