@@ -10,7 +10,7 @@ The entire slowapi/limits API surface this phase depends on was verified against
 
 Three findings materially shape the plan: (1) the in-memory fallback is a **single global limit that replaces all per-route limits during a Redis outage** — not a per-route fallback — so the fallback cap must be chosen to also cover the read path; (2) slowapi lowercases `methods=` at registration, so `methods=["POST"]` is correct and works, and stacked `@limiter.limit` decorators **accumulate** (both are evaluated) because registration is keyed by `func.__module__.func.__name__` and preserved through `functools.wraps`; (3) `redis-py`'s `from_url` does **not** eagerly connect, so the D-03 outage test can construct a real redis-backed `Limiter` and monkeypatch `RedisStorage.incr` to raise `ConnectionError` **without any live Redis** — exactly matching the repo's fs-mock IO-failure convention.
 
-Two compatibility guardrails: `limits 5.8.0` constrains its redis extra to `redis>3,<8.0.0`, but the current redis-py is **8.0.1** — an unpinned `redis` dependency would install 8.x and fall outside limits' supported range. Pin `redis>=5,<8`. And `scripts/seed.py` currently seeds exactly **one** disc; D-13's "low-thousands of rows" requires extending it (a Wave 0 gap).
+Two compatibility guardrails: `limits 5.8.0` constrains its redis extra to `redis>3,<8.0.0`, but the current redis-py is **8.0.1** — an unpinned `redis` dependency would install 8.x and fall outside limits' supported range. Pin `redis>=5,<8`. And `api/scripts/seed.py` EXISTS and currently seeds exactly **one** disc; D-13's "low-thousands of rows" requires extending it (a Wave 0 gap, not creating the script from scratch).
 
 **Primary recommendation:** Read `REDIS_URL` in `rate_limit.py`; when set, build the `Limiter` with `storage_uri=redis://…`, `swallow_errors=True`, `in_memory_fallback_enabled=True`, and a single conservative `in_memory_fallback=[FALLBACK_LIMIT]`; add a module-level fail-fast guard raising when `OVID_WORKERS > 1` and `REDIS_URL` is unset; stack `@limiter.limit(AUTH_WRITE_LIMIT, methods=["POST"])` above the existing `@limiter.limit(_dynamic_limit)` on the three write routes; add `redis>=5,<8` to `api/requirements.txt` and a `redis:7-alpine` service to the prod+test compose files only; validate p95 with a Locust job gated via the `events.quitting` hook.
 
@@ -118,7 +118,7 @@ Both are long-established, first-party official projects. Registry lookups were 
 | `api/app/routes/disc.py` | Stack second `@limiter.limit(AUTH_WRITE_LIMIT, methods=["POST"])` on `submit_disc` (POST /disc), register (POST /disc/register), `resolve_dispute_endpoint` (POST /disc/{fingerprint}/resolve) |
 | `api/requirements.txt` | `redis>=5,<8` |
 | `docker-compose.prod.yml`, `docker-compose.test.yml` | `redis:7-alpine` service + `REDIS_URL` + `OVID_WORKERS=4` env; `docker-compose.yml` UNCHANGED |
-| `scripts/seed.py` | Extend for bulk low-thousands seeding (D-13) — Wave 0 gap |
+| `api/scripts/seed.py` | Extend for bulk low-thousands seeding (D-13) — Wave 0 gap (exists, modify) |
 | `loadtest/` (new) | Locustfile + `requirements.txt` + p95 gate |
 | `.github/workflows/loadtest.yml` (new) | `workflow_dispatch` + `schedule`, non-blocking |
 
@@ -333,7 +333,7 @@ Do **not** publish a host port for `redis` in prod (internal-only, like the prod
    - Recommendation: Same `AUTH_WRITE_LIMIT` for all three initially (simplest, named constant); split only if usage data later warrants.
 2. **Does the CI load-test job build the API image or run gunicorn directly with GitHub `services:` for redis/postgres?**
    - What we know: D-14 requires `gunicorn -w 4` + live Redis + Postgres (not SQLite/TestClient).
-   - Recommendation: Use GitHub Actions `services: {postgres, redis}`, `pip install -r api/requirements.txt`, launch `gunicorn -w 4 -k uvicorn.workers.UvicornWorker` in the background, seed via the extended `scripts/seed.py`, then run Locust. Avoids docker-compose-in-CI complexity while honoring D-14.
+   - Recommendation: Use GitHub Actions `services: {postgres, redis}`, `pip install -r api/requirements.txt`, launch `gunicorn -w 4 -k uvicorn.workers.UvicornWorker` in the background, seed via the extended `api/scripts/seed.py`, then run Locust. Avoids docker-compose-in-CI complexity while honoring D-14.
 
 ## Environment Availability
 
@@ -385,7 +385,7 @@ Do **not** publish a host port for `redis` in prod (internal-only, like the prod
 - [ ] `api/tests/test_startup_guard.py` — D-06 fail-fast
 - [ ] `loadtest/locustfile.py` + `loadtest/requirements.txt` — INFRA-03
 - [ ] `.github/workflows/loadtest.yml` — non-blocking scheduled job
-- [ ] `scripts/seed.py` bulk-seed mode (low-thousands rows, D-13) — currently seeds ONE disc
+- [ ] `api/scripts/seed.py` bulk-seed mode (low-thousands rows, D-13) — exists, currently seeds ONE disc
 - [ ] Regression check: existing `test_rate_limit.py` still passes unchanged (env-driven default keeps `memory://` in test env)
 
 ## Security Domain
@@ -417,7 +417,7 @@ Do **not** publish a host port for `redis` in prod (internal-only, like the prod
 - Installed source `api/.venv/.../slowapi/wrappers.py` — `methods` lowercasing (line 89)
 - Installed source `api/.venv/.../limits/` — `RedisStorage.__init__` (lazy `from_url`), `FixedWindowRateLimiter.hit`→`incr`, storage class names
 - `api/.venv/.../limits-5.8.0.dist-info/METADATA` — redis extra constraint `redis!=4.5.2,!=4.5.3,<8.0.0,>3`
-- Repo code: `rate_limit.py`, `main.py`, `anti_sybil.py`, `routes/disc.py`, `conftest.py`, `test_rate_limit.py`, `scripts/seed.py`, compose files, `Dockerfile`, `03-CONTEXT.md`, `REQUIREMENTS.md`
+- Repo code: `rate_limit.py`, `main.py`, `anti_sybil.py`, `routes/disc.py`, `conftest.py`, `test_rate_limit.py`, `api/scripts/seed.py`, compose files, `Dockerfile`, `03-CONTEXT.md`, `REQUIREMENTS.md`
 
 ### Secondary (MEDIUM confidence)
 - Context7 `/locustio/locust` — headless/CSV, `@task` weights, `events.quitting` + `get_response_time_percentile(0.95)` + `process_exit_code`
