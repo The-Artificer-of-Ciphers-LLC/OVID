@@ -57,7 +57,7 @@
 - [x] **INFRA-01**: Rate limiting uses Redis-backed slowapi storage so limits are correct across gunicorn workers (fixes in-memory multi-worker defect); a `redis` service is added to the relevant compose files
 - [ ] **INFRA-02 [guardrail]**: Fail-open vs fail-closed behavior on Redis outage is an explicit, documented decision (and tested)
 - [ ] **INFRA-03**: API p95 ≤ 500ms is validated by a load test run against the ACTUAL Redis-backed, multi-worker gunicorn config
-- [ ] **INFRA-04**: Basic abuse prevention (submission/confirmation throttles) is live
+- [x] **INFRA-04**: Basic abuse prevention (submission/confirmation throttles) is live
 
 ### ARM Integration (ARM)
 
@@ -155,7 +155,7 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 | INFRA-01 | Phase 3 | Complete |
 | INFRA-02 | Phase 3 | Complete |
 | INFRA-03 | Phase 3 | Pending |
-| INFRA-04 | Phase 3 | Pending |
+| INFRA-04 | Phase 3 | Complete |
 | ARM-01 | Phase 8 | Pending |
 | ARM-02 | Phase 8 | Pending |
 | OPS-01 | Phase 8 | Pending |

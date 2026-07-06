@@ -93,7 +93,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A load test run against the actual Redis-backed, multi-worker gunicorn configuration shows API p95 latency ≤500ms (INFRA-03).
   4. Submission and confirmation actions are throttled per account as basic abuse prevention, live in production (INFRA-04).
 
-**Plans**: 1/4 plans executed
+**Plans**: 2/4 plans executed
 
 **Wave 1**
 
@@ -101,7 +101,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 2** *(blocked on Wave 1 — needs `AUTH_WRITE_LIMIT` + the redis-configured limiter)*
 
-- [ ] 03-02-PLAN.md — stacked per-account `methods=["POST"]` write throttle on the three write routes, Phase-2 cooldown seam preserved (INFRA-04) [Wave 2, depends 03-01, tdd]
+- [x] 03-02-PLAN.md — stacked per-account `methods=["POST"]` write throttle on the three write routes, Phase-2 cooldown seam preserved (INFRA-04) [Wave 2, depends 03-01, tdd]
 - [ ] 03-03-PLAN.md — internal-only `redis` service in prod+test compose + `.env.example` + outage/guard docs (INFRA-01, INFRA-02) [Wave 2, depends 03-01]
 
 **Wave 3** *(blocked on Wave 2 — validates the complete backbone)*
@@ -198,7 +198,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 |-------|----------------|--------|-----------|
 | 1. Alias-Layer Hardening & Repo Hygiene | 6/6 | Complete    | 2026-07-05 |
 | 2. Two-Contributor Verification Workflow | 5/5 | Complete    | 2026-07-05 |
-| 3. Redis-Backed Rate Limiting & Performance | 1/4 | In Progress|  |
+| 3. Redis-Backed Rate Limiting & Performance | 2/4 | In Progress|  |
 | 4. Blu-ray/UHD Fingerprinting | 0/TBD | Not started | - |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 0/TBD | Not started | - |
 | 6. OAuth & Account Linking | 0/TBD | Not started | - |
