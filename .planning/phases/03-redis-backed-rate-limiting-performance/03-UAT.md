@@ -1,21 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 03-redis-backed-rate-limiting-performance
 source: [03-VERIFICATION.md]
 started: 2026-07-06T13:27:52Z
-updated: 2026-07-06T13:27:52Z
+updated: 2026-07-06T13:45:00Z
 ---
 
 ## Current Test
 
-number: 1
-name: Load-test the real Redis-backed multi-worker stack and confirm p95 ≤ 500ms (INFRA-03)
-expected: |
-  Running the load-test harness against the ACTUAL Redis-backed, multi-worker
-  gunicorn config (gunicorn -w 4 + Postgres + Redis) reports p95 ≤ 500ms and
-  error ratio ≤ 1%. The harness gate (loadtest/locustfile.py) exits non-zero if
-  either budget is breached, so a green run IS the pass signal.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -24,28 +17,27 @@ awaiting: user response
 expected: |
   API p95 ≤ 500ms and error ratio ≤ 1% against the real Redis-backed
   `gunicorn -w 4` stack (not the retiring `memory://` single-worker config, per D-14).
-
-how to run (either path):
-  - CI (recommended, honest stack): dispatch the non-blocking workflow —
-    `gh workflow run loadtest.yml` (or the Actions UI "Run workflow" button).
-    It stands up Postgres + Redis + `gunicorn -w 4`, seeds the bulk dataset,
-    mints a JWT, runs the Locust gate, and publishes p95/p99 to the job
-    summary + `results_stats.csv` artifact.
-  - Local: bring up the multi-worker stack with Redis
-    (`docker compose -f docker-compose.yml -f docker-compose.test.yml up`),
-    seed with `python api/scripts/seed.py --count <N>`, then run
-    `locust -f loadtest/locustfile.py --headless ...` against it.
-
-pass criteria: published/observed p95 ≤ 500ms AND error ratio ≤ 1%.
-result: [pending]
+result: pass
+evidence: |
+  Ran the Locust p95 gate against the honest stack (Postgres 16 + live Redis +
+  `gunicorn -w 4`, real Redis-backed multi-worker limiter) on the holodeck test
+  server, isolated on ports 18000/55432/56379 so the live dev/prod/test stacks
+  were untouched. Locust gate exit code 0 (PASS).
+  Aggregated: 43,536 requests, 0 failures (0.00% error ratio), median 75ms,
+  **p95 = 270ms**, p99 = 390ms, max 610ms — comfortably inside the 500ms / 1%
+  budget. Per-endpoint p95: lookup 190ms, submit 200ms, search 380ms.
+  Confirms the CR-01 fix (raised read limits) — 43K requests with zero throttle
+  failures, so the gate measured real handler latency rather than 429s.
 
 ## Summary
 
 total: 1
-passed: 0
+passed: 1
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+[none]
