@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
 current_phase_name: adr-0001-completion-dvdread1-promotion
-status: executing
-stopped_at: Completed 05-06-PLAN.md
-last_updated: "2026-07-06T23:00:03.473Z"
+status: verifying
+stopped_at: Completed 05-07-PLAN.md
+last_updated: "2026-07-06T23:46:00.394Z"
 last_activity: 2026-07-06 — Phase 05 execution started
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 28
-  completed_plans: 27
-  percent: 50
+  completed_plans: 28
+  percent: 63
 current_phase: 05
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 Phase: 05 (adr-0001-completion-dvdread1-promotion) — EXECUTING
 Current Phase Name: adr-0001-completion-dvdread1-promotion
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-06 — Phase 05 execution started
 Last Activity Description: Phase 05 execution started
 
@@ -80,6 +80,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 05 P04 | 20min | 3 tasks | 6 files |
 | Phase 05 P05 | 4min | 2 tasks | 3 files |
 | Phase 05 P06 | 20min | 3 tasks | 4 files |
+| Phase 05 P07 | 20min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 05-05]: _select_primary() colocated with _method_of() as a pure fingerprint+aliases -> (primary, remaining_aliases) function, wired into register_disc/submit_disc's new-disc SAVEPOINTs alongside register_fingerprint() inside the same savepoint (T-05-12 atomic rollback together); mixed-fleet zero-fragmentation guarantee proven by explicit regression test
 - [Phase ?]: [Phase 05-06]: backfill_fingerprint_registry() dedupes by fingerprint value across discs+aliases before insert (a pre-existing cross-table collision would otherwise violate the registry's global UNIQUE)
 - [Phase ?]: [Phase 05-06]: sqlite3.register_adapter(datetime,...) registered in migrations_support.py to unify raw-text()-SQL datetime storage with the ORM's own DateTime bind_processor - fixes a real tz-aware/tz-naive read-back inconsistency across insert paths; no effect on PostgreSQL
+- [Phase 05]: [Phase 05-07]: scripts/promote_dvdread1.py drives docker compose subprocess calls exclusively (never imports api/app internals) since MirrorModeMiddleware is wired at process-import time and only a service restart flips it; captures the operator's CURRENT OVID_MODE and restores it in a finally block (never a hardcoded default) even when alembic upgrade head fails
+- [Phase 05]: [Phase 05-07]: docs/self-hosting.md and docs/deployment.md both explicitly state the cutover interrupts reads too, not just writes (Pitfall 3) - mirror operators already always-read-only need no toggle; the canonical server and standalone self-hosters are the actual audience for scripts/promote_dvdread1.py
 
 ### Pending Todos
 
@@ -157,6 +160,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T23:00:03.467Z
-Stopped at: Completed 05-06-PLAN.md
+Last session: 2026-07-06T23:46:00.388Z
+Stopped at: Completed 05-07-PLAN.md
 Resume file: None

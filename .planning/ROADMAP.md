@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Two-Contributor Verification Workflow** - Make the two-contributor trust model live and resistant to cheap Sybil abuse (completed 2026-07-05)
 - [x] **Phase 3: Redis-Backed Rate Limiting & Performance** - Fix multi-worker rate-limit scaling and validate the p95 latency budget against the real deployment config (completed 2026-07-06)
 - [x] **Phase 4: Blu-ray/UHD Fingerprinting** - Bring BD/UHD discs to fingerprinting parity with the DVD path (Tier 1 AACS + Tier 2 BDMV, coexisting as an alias pair) (completed 2026-07-06)
-- [ ] **Phase 5: ADR 0001 Completion — dvdread1-* Promotion** - Complete alias submission and promote `dvdread1-*` to the primary DVD fingerprint, keeping `dvd1-*` a permanent alias
+- [x] **Phase 5: ADR 0001 Completion — dvdread1-* Promotion** - Complete alias submission and promote `dvdread1-*` to the primary DVD fingerprint, keeping `dvd1-*` a permanent alias (completed 2026-07-06)
 - [ ] **Phase 6: OAuth & Account Linking** - All four OAuth providers working end-to-end with secure, confirm-gated account linking
 - [ ] **Phase 7: Web UI Production Readiness** - Search, disc detail, submission, and account settings live at oviddb.org
 - [ ] **Phase 8: Launch Readiness — ARM, Seeding & Announcement** - ARM upstream review, ≥500-entry seeding, DNS redirects, remaining docs, and the public announcement
@@ -152,7 +152,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Carry-forward from Phase 1 code review (WR-02, user-scoped to this phase):** `discs.fingerprint` and `disc_identity_aliases.fingerprint` carry independent UNIQUE constraints with no cross-table arbitration. Phase 1 hardened the same-table alias write race (IDENT-02), but a race between "insert a new disc with fingerprint F" and "attach F as an alias to a *different* disc" is arbitrated by neither constraint and can silently split identity. Because promotion here increases write concurrency on the shared fingerprint namespace, this phase must add cross-table arbitration (e.g. a shared fingerprint registry table or an application-level advisory lock) plus the accompanying migration. Source: `.planning/phases/01-alias-layer-hardening-repo-hygiene/01-REVIEW.md` (WR-02).
 
-**Plans**: 6/7 plans executed
+**Plans**: 7/7 plans complete
 
 **Wave 1** *(parallel — disjoint files)*
 
@@ -168,7 +168,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-07-PLAN.md — D-04/D-05 cutover wrapper script + self-hosting.md/deployment.md docs [Wave 3, depends 05-06] (IDENT-04)
+- [x] 05-07-PLAN.md — D-04/D-05 cutover wrapper script + self-hosting.md/deployment.md docs [Wave 3, depends 05-06] (IDENT-04)
 
 ### Phase 6: OAuth & Account Linking
 
@@ -231,7 +231,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | 2. Two-Contributor Verification Workflow | 5/5 | Complete    | 2026-07-05 |
 | 3. Redis-Backed Rate Limiting & Performance | 4/4 | Complete    | 2026-07-06 |
 | 4. Blu-ray/UHD Fingerprinting | 6/6 | Complete    | 2026-07-06 |
-| 5. ADR 0001 Completion — dvdread1-* Promotion | 6/7 | In Progress|  |
+| 5. ADR 0001 Completion — dvdread1-* Promotion | 7/7 | Complete   | 2026-07-06 |
 | 6. OAuth & Account Linking | 0/TBD | Not started | - |
 | 7. Web UI Production Readiness | 0/TBD | Not started | - |
 | 8. Launch Readiness — ARM, Seeding & Announcement | 0/TBD | Not started | - |
