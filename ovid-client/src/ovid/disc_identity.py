@@ -80,33 +80,45 @@ def identify_dvd(
     *,
     read_libdvdread_disc_id: Callable[[str], str] = read_libdvdread_disc_id,
 ) -> DiscIdentitySet:
-    """Identify a DVD while keeping OVID-DVD-1 primary during Phase 1."""
-    primary = ovid_dvd1_identity(canonical)
-    aliases: list[DiscIdentity] = []
-    diagnostics: list[DiscIdentityDiagnostic] = []
+    """Identify a DVD, preferring the libdvdread Disc ID (dvdread1-*) as primary.
+
+    Mirrors ``identify_bd()``'s Tier-2-primary/Tier-1-alias pattern (D-03,
+    RESEARCH.md Open Question #1): OVID-DVD-1 (``dvd1-*``) is always computed
+    first, exactly as before. Whenever ``read_libdvdread_disc_id`` succeeds,
+    the resulting ``dvdread1-*`` identity becomes primary and the ``dvd1-*``
+    identity is demoted to the sole alias — this is the flip. When libdvdread
+    is unavailable (``LibdvdreadError``) or returns an invalid Disc ID
+    (``ValueError``), ``dvd1-*`` remains primary with zero aliases, unchanged
+    from today — a disc computed with no ``dvdread1-*`` string stays
+    permanently ``dvd1-*``-primary client-side.
+    """
+    dvd1_identity = ovid_dvd1_identity(canonical)
 
     try:
         disc_id_hex = read_libdvdread_disc_id(path)
-        aliases.append(libdvdread_identity(disc_id_hex))
-        diagnostics.append(
-            DiscIdentityDiagnostic(code="libdvdread_disc_id_available")
-        )
+        dvdread1_identity = libdvdread_identity(disc_id_hex)
     except ValueError as exc:
-        diagnostics.append(
-            DiscIdentityDiagnostic(
-                code="libdvdread_invalid_disc_id",
-                message=str(exc),
-            )
+        return DiscIdentitySet(
+            primary=dvd1_identity,
+            aliases=[],
+            diagnostics=[
+                DiscIdentityDiagnostic(
+                    code="libdvdread_invalid_disc_id",
+                    message=str(exc),
+                )
+            ],
         )
     except LibdvdreadError as exc:
-        diagnostics.append(
-            DiscIdentityDiagnostic(code=exc.code, message=str(exc))
+        return DiscIdentitySet(
+            primary=dvd1_identity,
+            aliases=[],
+            diagnostics=[DiscIdentityDiagnostic(code=exc.code, message=str(exc))],
         )
 
     return DiscIdentitySet(
-        primary=primary,
-        aliases=aliases,
-        diagnostics=diagnostics,
+        primary=dvdread1_identity,
+        aliases=[dvd1_identity],
+        diagnostics=[DiscIdentityDiagnostic(code="libdvdread_disc_id_available")],
     )
 
 
