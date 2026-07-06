@@ -116,6 +116,38 @@ OAuth variables (`GITHUB_CLIENT_ID`, `APPLE_CLIENT_ID`, etc.) are **not required
 
 ---
 
+## Rate Limiting & Redis (you don't need it)
+
+**Self-hosted mirror and standalone instances do not need Redis.** The default
+`docker compose up` / `docker compose --profile mirror up -d` stack runs a
+**single** API worker, and the built-in rate limiter is already correct there.
+Leave `REDIS_URL` unset — no extra service, no extra RAM on your Pi/NAS.
+
+Here's the full picture, so nothing is surprising:
+
+- **Backend is env-driven.** The API rate limiter (`slowapi`) chooses its store
+  from the `REDIS_URL` environment variable:
+  - **unset** → per-worker in-memory counters (`memory://`). Correct for a
+    single worker — this is the self-hosting default.
+  - **set** → a shared Redis store, so counters stay correct across *multiple*
+    workers. Only the multi-worker prod/test stacks (`gunicorn -w 4`) set this;
+    those compose files ship their own internal `redis` service.
+- **When Redis is required.** Only when you run **more than one** API worker
+  (`OVID_WORKERS`/`WEB_CONCURRENCY` > 1). With multiple workers on `memory://`
+  each worker keeps its own counter, so the effective limit inflates up to Nx.
+- **Fail-fast guard.** To make that mistake impossible, the API **refuses to
+  boot** if `OVID_WORKERS` > 1 while `REDIS_URL` is unset — a loud startup error
+  instead of silently-inflated limits. Single-worker self-hosting never trips
+  this (leave both unset).
+- **Redis outage behavior.** If you *do* run a multi-worker stack and Redis
+  becomes unreachable, the limiter does **not** fail closed. It degrades to a
+  bounded per-worker in-memory fallback and automatically switches back to Redis
+  once it recovers. Rate limiting here is abuse-prevention over public/CC0 data,
+  not an authorization boundary — a Redis blip must never take down the
+  read-heavy lookup path that ARM depends on.
+
+---
+
 ## Using with ARM
 
 Once your mirror is running, point ARM at your local OVID instance instead of the public API. This gives you:

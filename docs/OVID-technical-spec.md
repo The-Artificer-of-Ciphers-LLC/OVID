@@ -675,6 +675,24 @@ runs before the structural match; see `docs/privacy.md` for the IP-hash data
 category and the distinction between this per-account cooldown and the
 general Redis-backed `slowapi` API rate limiter (Phase 3).
 
+**General API rate limiter — backend and outage decision (Phase 3, INFRA-01/02).**
+The general `slowapi` limiter selects its store from the `REDIS_URL` environment
+variable: set → a shared Redis store so counters are correct across all
+`gunicorn -w N` workers (the prod/test config); unset → the historical
+single-worker `memory://` store, which is correct only at one worker and is the
+default for the single-worker dev/mirror/self-host stack. A fail-fast startup
+guard refuses to boot when `OVID_WORKERS`/`WEB_CONCURRENCY` > 1 while `REDIS_URL`
+is unset, so a multi-worker deploy can never silently inflate its limits Nx.
+On a Redis **outage** the limiter is **fail-open, not fail-closed**: it degrades
+to a bounded per-worker in-memory fallback and self-heals when Redis returns.
+This is a deliberate decision — OVID's rate limiting is abuse-prevention over
+public/CC0 data, not an authorization boundary, so a transient Redis blip must
+never take down the read-heavy, ARM-facing lookup path over a newly introduced
+dependency. The per-route fail-open/fail-closed split is deferred (D-04). The
+p95 ≤ 500 ms budget is validated against this real Redis-backed, multi-worker
+config by the INFRA-03 load-test harness (not against the retiring `memory://`
+limiter). See `docs/deployment.md` §"Rate Limiting Backend (Redis)".
+
 ---
 
 #### Search Releases

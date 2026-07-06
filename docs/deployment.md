@@ -121,8 +121,53 @@ The production services start with container name prefixes (`ovid-prod-*`) and o
 | Container | Host port | Internal port | Description |
 |---|---|---|---|
 | `ovid-prod-db` | — (not exposed) | 5432 | PostgreSQL 16 |
+| `ovid-prod-redis` | — (not exposed) | 6379 | Redis 7 — shared rate-limit store |
 | `ovid-prod-api` | 8100 | 8000 | FastAPI + Gunicorn (4 workers) |
 | `ovid-prod-web` | 3100 | 3000 | Next.js production server |
+
+The `redis` service is defined in `docker-compose.prod.yml` (and
+`docker-compose.test.yml`) and is **internal-only** — it publishes no host port,
+mirroring the prod `db`. It is ephemeral by design (`--save "" --appendonly no`,
+no volume): rate-limit counters are short-window and disposable, so there is
+nothing to persist across restarts. See **Rate Limiting Backend (Redis)** below
+for why it exists and how it behaves.
+
+### Rate Limiting Backend (Redis)
+
+The prod and test stacks run the API under `gunicorn -w 4` (four workers). The
+API rate limiter (`slowapi`) needs a **shared** counter store so a limit like
+"100 requests/minute" is enforced across all four workers rather than per-worker.
+
+- **Env-driven backend selection.** The limiter reads `REDIS_URL`:
+  - **set** (prod/test: `redis://redis:6379/0`) → shared `RedisStorage`;
+    counters are correct across every worker.
+  - **unset** (single-worker dev/mirror/self-host) → per-worker `memory://`,
+    which is correct only at one worker. This is why the base
+    `docker-compose.yml` has no `redis` service and needs none.
+- **When Redis is required.** Whenever `OVID_WORKERS` (or `WEB_CONCURRENCY`) > 1.
+  On `memory://` each worker keeps an independent counter, so N workers inflate
+  every rate limit up to Nx.
+- **Fail-fast guard.** The API **refuses to boot** if `OVID_WORKERS` > 1 while
+  `REDIS_URL` is unset — a loud startup `RuntimeError` instead of silently
+  serving inflated limits. The prod/test compose files always pass
+  `OVID_WORKERS=4` and `REDIS_URL` together, so a correct deploy never trips it;
+  the guard exists to catch a misconfigured hand-rolled deploy.
+- **Redis outage behavior (fail-open, self-healing — the documented decision).**
+  On a Redis outage the limiter does **not** fail closed. It degrades to a
+  bounded per-worker in-memory fallback (a single conservative global cap per
+  worker while Redis is down) and automatically probes Redis and switches back
+  when it recovers. This is a deliberate choice: OVID's rate limiting is
+  **abuse-prevention over public/CC0 data, not an authorization boundary**, so a
+  transient Redis blip must never take down the read-heavy, ARM-facing lookup
+  path over a newly introduced dependency. Pure fail-open (dropping all
+  protection) was rejected because the library ships this self-healing middle
+  path for free. A per-route-type fail-open/fail-closed split is deferred
+  (D-04) — revisit only if write-path abuse becomes a materially distinct threat.
+
+If you ever expose Redis beyond the compose network, switch to `rediss://` with
+AUTH; the current internal-only, no-published-port setup needs neither. A p95
+≤ 500 ms load test against this exact Redis-backed multi-worker config is run by
+the load-test harness (INFRA-03) — see `docs/OVID-technical-spec.md`.
 
 ### 5. Configure Reverse Proxy (redshirt)
 
