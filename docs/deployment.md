@@ -204,6 +204,8 @@ Key details:
 - **Proxy targets:** holodeck at `192.168.0.28` (LAN IP) — web UI on port 3100, API on port 8100
 - **HTTP/2:** Enabled on port-443 blocks
 
+**Trusted proxy IP (required for accurate rate limiting / anti-Sybil signals):** nginx above sets `X-Real-IP`/`X-Forwarded-For` to the real visitor's IP, but the API only honors those headers from a connection it trusts. Set `OVID_FORWARDED_ALLOW_IPS` in `.env` on holodeck to the IP address the `api` container actually observes as the connecting peer for the proxied request — this is passed to gunicorn as `--forwarded-allow-ips` (see `docker-compose.prod.yml`). With this reverse-proxy chain (redshirt → holodeck's published Docker port), that peer address is whatever Docker's bridge networking presents to the container, which is **not necessarily** `192.168.0.28` or redshirt's own IP — confirm the actual value from the API container's access log (or a temporary debug request) rather than assuming it. If `OVID_FORWARDED_ALLOW_IPS` is left at its default (`127.0.0.1`) and that never matches, the app silently falls back to treating every request as coming from the proxy hop — rate limiting and anti-Sybil IP-diversity (see `api/app/anti_sybil.py`) then see one constant "client IP" for all traffic instead of real visitor IPs.
+
 ### 6. TLS Certificate Renewal
 
 Certs are issued by Let's Encrypt via certbot running as a Docker service (`certbot_www`) on redshirt. A **weekly cron job** already handles automatic renewal:
