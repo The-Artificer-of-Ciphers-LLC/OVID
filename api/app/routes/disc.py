@@ -27,7 +27,7 @@ from app.disc_identity import (
 )
 from app.models import Disc, DiscEdit, DiscRelease, DiscTitle, DiscTrack, Release, User
 from app.structural_match import structural_match
-from app.rate_limit import _dynamic_limit, limiter
+from app.rate_limit import AUTH_WRITE_LIMIT, _dynamic_limit, limiter
 from app.sync import next_seq
 from app.verification import (
     VerificationTransitionError,
@@ -588,6 +588,17 @@ async def list_disputed_discs(
 # POST /v1/disc/{fingerprint}/resolve
 # ---------------------------------------------------------------------------
 @router.post("/disc/{fingerprint}/resolve")
+# Stacked write ceiling (INFRA-04 / D-07). Unlike submit_disc / register_disc —
+# whose URLs are constant so the default "url" key style already buckets every
+# POST from a key together — this route carries a `{fingerprint}` path param.
+# Under slowapi's default url key style the per-limit scope is the request PATH,
+# so each distinct fingerprint would get its own counter and the ceiling would
+# never accumulate. `shared_limit` pins an explicit constant scope so the write
+# cap is keyed per-user (user:{id}) across ALL fingerprints on this endpoint,
+# independent of the other two write routes' buckets (RESEARCH Pattern 3). This
+# route is POST-only (@router.post), so the `methods=["POST"]` filter used on
+# the other two is redundant here.
+@limiter.shared_limit(AUTH_WRITE_LIMIT, scope="disc_write:resolve")
 @limiter.limit(_dynamic_limit)
 async def resolve_dispute_endpoint(
     fingerprint: str,
@@ -697,6 +708,7 @@ def _handle_existing_registered_disc(
 # POST /v1/disc/register — fingerprint-only registration (no release metadata)
 # ---------------------------------------------------------------------------
 @router.post("/disc/register", response_model=DiscSubmitResponse, status_code=201)
+@limiter.limit(AUTH_WRITE_LIMIT, methods=["POST"])
 @limiter.limit(_dynamic_limit)
 def register_disc(
     body: DiscRegisterRequest,
@@ -787,6 +799,7 @@ def register_disc(
 # POST /v1/disc
 # ---------------------------------------------------------------------------
 @router.post("/disc", response_model=DiscSubmitResponse, status_code=201)
+@limiter.limit(AUTH_WRITE_LIMIT, methods=["POST"])
 @limiter.limit(_dynamic_limit)
 def submit_disc(
     body: DiscSubmitRequest,
