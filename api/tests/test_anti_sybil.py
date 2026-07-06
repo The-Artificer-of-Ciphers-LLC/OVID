@@ -111,6 +111,48 @@ class TestIpSubnetHash:
 
 
 # ---------------------------------------------------------------------------
+# 1b. client_ip_hash (CR-03): the request.client.host -> hash wrapper's
+# contract is unchanged by the ASGI-layer reverse-proxy fix (gunicorn's
+# --forwarded-allow-ips in docker-compose.prod.yml, verified by inspection —
+# not exercised by TestClient, which bypasses the uvicorn worker entirely).
+# That fix rewrites request.client.host upstream of this function; these
+# tests pin down that client_ip_hash itself keeps deriving distinct hashes
+# from distinct request.client.host values, whatever populates them.
+# ---------------------------------------------------------------------------
+class TestClientIpHash:
+    @pytest.fixture(autouse=True)
+    def _salt_env(self, monkeypatch):
+        monkeypatch.setenv("OVID_IP_HASH_SALT", SALT)
+
+    def test_distinct_client_ips_yield_distinct_hashes(self):
+        a = anti_sybil.client_ip_hash(_request("1.2.3.10"))
+        b = anti_sybil.client_ip_hash(_request("9.9.9.9"))
+        assert a is not None
+        assert b is not None
+        assert a != b
+
+    def test_same_subnet_client_ips_yield_equal_hash(self):
+        a = anti_sybil.client_ip_hash(_request("1.2.3.10"))
+        b = anti_sybil.client_ip_hash(_request("1.2.3.200"))
+        assert a == b
+
+    def test_matches_ip_subnet_hash_directly(self):
+        # Thin-wrapper contract: must agree with the lower-level primitive
+        # for the same IP/salt (D-06 parity between the confirmation gate and
+        # the original-submission create-edit, per the module docstring).
+        request = _request("1.2.3.10")
+        assert anti_sybil.client_ip_hash(request) == anti_sybil.ip_subnet_hash(
+            "1.2.3.10", SALT_BYTES
+        )
+
+    def test_no_client_returns_none(self):
+        assert anti_sybil.client_ip_hash(_request_no_client()) is None
+
+    def test_none_host_returns_none(self):
+        assert anti_sybil.client_ip_hash(_request(None)) is None
+
+
+# ---------------------------------------------------------------------------
 # 2. Confirmation cooldown floor (D-13)
 # ---------------------------------------------------------------------------
 class TestCooldown:
@@ -142,6 +184,41 @@ class TestCooldown:
         _seed_verify_edits(
             db_session, user.id, ids["disc_id"],
             count=anti_sybil.CONFIRMATION_MAX_PER_WINDOW + 1, minutes_ago=10,
+        )
+        gate = anti_sybil.evaluate_confirmation(
+            db_session, disc, user, _request_no_client()
+        )
+        assert gate.hard_blocked is True
+
+    def test_at_exactly_max_per_window_next_confirmation_hard_blocked(self, db_session):
+        # W4 off-by-one: CONFIRMATION_MAX_PER_WINDOW prior confirmations have
+        # already succeeded this hour (the actor's Nth..MAXth actions were all
+        # allowed); the next (MAX+1th) attempt must be hard-blocked. Before
+        # the fix, `hourly > CONFIRMATION_MAX_PER_WINDOW` evaluated
+        # MAX > MAX -> False and wrongly let a 6th action through.
+        user = seed_test_user(db_session)
+        ids = seed_test_disc(db_session, status="unverified")
+        disc = db_session.get(Disc, ids["disc_id"])
+        _seed_verify_edits(
+            db_session, user.id, ids["disc_id"],
+            count=anti_sybil.CONFIRMATION_MAX_PER_WINDOW, minutes_ago=10,
+        )
+        gate = anti_sybil.evaluate_confirmation(
+            db_session, disc, user, _request_no_client()
+        )
+        assert gate.hard_blocked is True
+
+    def test_at_exactly_max_per_day_next_confirmation_hard_blocked(self, db_session):
+        # Same off-by-one class applies to the daily bound on the adjacent
+        # condition (`daily > CONFIRMATION_MAX_PER_DAY`). Edits are spaced
+        # beyond the hourly window (90 min) but within the 24h daily window,
+        # isolating the daily check from the hourly one.
+        user = seed_test_user(db_session)
+        ids = seed_test_disc(db_session, status="unverified")
+        disc = db_session.get(Disc, ids["disc_id"])
+        _seed_verify_edits(
+            db_session, user.id, ids["disc_id"],
+            count=anti_sybil.CONFIRMATION_MAX_PER_DAY, minutes_ago=90,
         )
         gate = anti_sybil.evaluate_confirmation(
             db_session, disc, user, _request_no_client()
