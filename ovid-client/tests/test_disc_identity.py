@@ -30,7 +30,7 @@ def test_libdvdread_identity_uses_distinct_version() -> None:
     assert identity.method == "libdvdread-disc-id"
 
 
-def test_identify_dvd_keeps_ovid_dvd1_primary_in_phase_one() -> None:
+def test_identify_dvd_prefers_dvdread1_primary_when_available() -> None:
     canonical = "OVID-DVD-1|1|1|1:60:1::"
 
     identity_set = identify_dvd(
@@ -40,11 +40,15 @@ def test_identify_dvd_keeps_ovid_dvd1_primary_in_phase_one() -> None:
     )
 
     assert isinstance(identity_set, DiscIdentitySet)
-    assert identity_set.primary.fingerprint == compute_fingerprint(canonical)
-    assert identity_set.primary.fingerprint_version == "dvd1"
+    assert identity_set.primary.fingerprint_version == "dvdread1"
+    assert (
+        identity_set.primary.fingerprint
+        == "dvdread1-00112233445566778899aabbccddeeff"
+    )
     assert [identity.fingerprint for identity in identity_set.aliases] == [
-        "dvdread1-00112233445566778899aabbccddeeff"
+        compute_fingerprint(canonical)
     ]
+    assert identity_set.aliases[0].fingerprint_version == "dvd1"
     assert identity_set.diagnostics[0].code == "libdvdread_disc_id_available"
 
 
