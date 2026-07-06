@@ -74,6 +74,8 @@ from __future__ import annotations
 
 import struct
 
+from ovid.mpls_parser import MplsPlaylist, parse_mpls
+
 TICK_RATE = 45_000  # 45 kHz
 
 
@@ -311,3 +313,134 @@ def make_mpls_file(
     struct.pack_into(">I", header, 12, mark_offset)
 
     return bytes(header) + playlist_section + mark_section
+
+
+def build_heavily_obfuscated_fixture(is_uhd: bool = False) -> list[tuple[str, MplsPlaylist]]:
+    """Build a 23-playlist synthetic BDMV corpus exercising all three D-06 defenses.
+
+    Composition (fixed, FPRINT-07 — see 04-05-PLAN.md Task 1 for the exact spec):
+      1. Main feature ``00001.mpls`` — single play item, clip_id "00001",
+         0-7200s (2 hours), 2 audio streams, 2 subtitle streams, 20 chapter marks.
+      2. Byte-identical duplicate ``00050.mpls`` — same clip_id/in/out/streams/
+         chapters as the main feature under a renumbered filename. Exercises the
+         clip-sequence dedup defense (a studio-renumbered decoy copy collapses to
+         the same canonical survivor as the original).
+      3. Loop-padded decoy ``00099.mpls`` — 3 play items all sharing clip_id
+         "00098", contiguous in/out spans covering 0-90s total. The clip repeats
+         3 times, exceeding ``MAX_CLIP_REPEATS`` (2), exercising the max-clip-
+         repeat filter.
+      4. Twenty short filler/menu decoys ``00010.mpls``-``00029.mpls``, each a
+         single play item with a distinct clip_id ("00110"-"00129") and a
+         duration under ``MIN_DURATION_SECONDS`` (60s), exercising the
+         min-duration filter across a realistically large obfuscated corpus.
+
+    This function does not pre-filter — that is ``select_canonical_playlists()``'s
+    job (exercised by the tests in Task 2). It returns the full unfiltered list
+    of ``(filename, MplsPlaylist)`` tuples in insertion order.
+
+    Args:
+        is_uhd: If True, all playlists carry the "0300" (UHD) MPLS version
+            header; otherwise "0200" (standard BD).
+
+    Returns:
+        A list of exactly 23 ``(filename, MplsPlaylist)`` tuples. Passing this
+        list through ``ovid.bd_fingerprint.select_canonical_playlists()`` yields
+        exactly 1 survivor (the main feature).
+    """
+    version = "0300" if is_uhd else "0200"
+
+    audio_streams = [
+        (0x81, "eng", 6),   # AC3, English, 5.1
+        (0x86, "jpn", 8),   # DTS-HD MA, Japanese, 7.1
+    ]
+    subtitle_streams = [
+        (0x90, "eng"),      # PGS English
+        (0x90, "spa"),      # PGS Spanish
+    ]
+
+    def _chapters(count: int, total_seconds: float) -> list[dict]:
+        step = total_seconds / count
+        return [
+            {"mark_type": 1, "play_item_ref": 0, "timestamp": i * step}
+            for i in range(count)
+        ]
+
+    entries: list[tuple[str, bytes]] = []
+
+    # 1. Main feature: 00001.mpls, clip_id "00001", 0-7200s, 2 audio, 2 sub, 20 chapters.
+    main_play_items = [
+        {
+            "clip_id": "00001",
+            "in_time": 0.0,
+            "out_time": 7200.0,
+            "audio_streams": audio_streams,
+            "subtitle_streams": subtitle_streams,
+        }
+    ]
+    main_chapters = _chapters(20, 7200.0)
+    main_bytes = make_mpls_file(
+        version=version,
+        play_items=main_play_items,
+        chapter_marks=main_chapters,
+    )
+    entries.append(("00001.mpls", main_bytes))
+
+    # 2. Byte-identical duplicate under a renumbered filename — exercises dedup.
+    entries.append(("00050.mpls", main_bytes))
+
+    # 3. Loop-padded decoy: 00099.mpls, 3 play items sharing clip_id "00098",
+    #    contiguous in/out spans covering 0-90s total (repeat count 3 > MAX_CLIP_REPEATS=2).
+    loop_play_items = [
+        {
+            "clip_id": "00098",
+            "in_time": 0.0,
+            "out_time": 30.0,
+            "audio_streams": audio_streams,
+            "subtitle_streams": subtitle_streams,
+        },
+        {
+            "clip_id": "00098",
+            "in_time": 30.0,
+            "out_time": 60.0,
+            "audio_streams": audio_streams,
+            "subtitle_streams": subtitle_streams,
+        },
+        {
+            "clip_id": "00098",
+            "in_time": 60.0,
+            "out_time": 90.0,
+            "audio_streams": audio_streams,
+            "subtitle_streams": subtitle_streams,
+        },
+    ]
+    loop_bytes = make_mpls_file(
+        version=version,
+        play_items=loop_play_items,
+        chapter_marks=[],
+    )
+    entries.append(("00099.mpls", loop_bytes))
+
+    # 4. Twenty short filler/menu decoys: 00010.mpls-00029.mpls, distinct clip
+    #    ids "00110"-"00129", durations 5-55s in 5-second increments (cycled to
+    #    cover all 20 filenames), all under MIN_DURATION_SECONDS (60s).
+    for i in range(20):
+        filler_num = 10 + i
+        clip_id = f"{110 + i:05d}"
+        duration = 5.0 + (i % 11) * 5.0  # cycles 5, 10, ..., 55
+        filler_play_items = [
+            {
+                "clip_id": clip_id,
+                "in_time": 0.0,
+                "out_time": duration,
+                "audio_streams": [(0x81, "eng", 2)],
+                "subtitle_streams": [],
+            }
+        ]
+        filler_bytes = make_mpls_file(
+            version=version,
+            play_items=filler_play_items,
+            chapter_marks=[],
+        )
+        entries.append((f"{filler_num:05d}.mpls", filler_bytes))
+
+    return [(fname, parse_mpls(data)) for fname, data in entries]
