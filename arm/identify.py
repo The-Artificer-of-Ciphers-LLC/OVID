@@ -64,7 +64,24 @@ def _load_original() -> Any:
         )
         if spec and spec.loader:
             mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
+            try:
+                spec.loader.exec_module(mod)
+            except Exception as exc:  # noqa: BLE001
+                # identify_original.py imports ARM-only runtime dependencies
+                # (pydvdid, arm.config, arm.ripper.utils, arm.ui) that are
+                # only present inside the actual ARM container — not in this
+                # repo's local/test/CI environment. Degrade gracefully rather
+                # than crashing this module's own import at load time; the
+                # existing `if original and hasattr(...)` guard in identify()
+                # already handles a None original by logging and continuing
+                # with the ARM job unmodified.
+                logger.warning(
+                    "Original identify.py at %s failed to load: %s — "
+                    "delegation will fall back to the unmodified job",
+                    original_path,
+                    exc,
+                )
+                return None
             _original_module = mod
             return mod
 
