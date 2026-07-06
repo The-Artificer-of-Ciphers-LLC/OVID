@@ -184,7 +184,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Alias-Layer Hardening & Repo Hygiene | 6/6 | Complete    | 2026-07-05 |
-| 2. Two-Contributor Verification Workflow | 5/5 | Complete   | 2026-07-05 |
+| 2. Two-Contributor Verification Workflow | 5/5 | Complete    | 2026-07-05 |
 | 3. Redis-Backed Rate Limiting & Performance | 0/TBD | Not started | - |
 | 4. Blu-ray/UHD Fingerprinting | 0/TBD | Not started | - |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 0/TBD | Not started | - |

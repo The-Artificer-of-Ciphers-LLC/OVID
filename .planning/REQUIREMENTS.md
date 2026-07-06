@@ -42,8 +42,8 @@
 
 - [x] **VERIFY-01**: A submitted disc entry is `unverified` until a second, DISTINCT contributor independently confirms the fingerprint (never self-confirmation)
 - [x] **VERIFY-02**: Verification status transitions are consolidated into a single guarded service module (no scattered route-level mutations)
-- [ ] **VERIFY-03 [guardrail]**: An already-`verified` disc cannot be flipped back to `disputed`/`unverified` by a later third submission without an explicit dispute path
-- [ ] **VERIFY-04 [guardrail]**: Baseline anti-Sybil weighting (account-age / IP-diversity signals) and confirmation-action rate limits gate the verification step — distinct `user_id` alone is not accepted as proof of independence
+- [x] **VERIFY-03 [guardrail]**: An already-`verified` disc cannot be flipped back to `disputed`/`unverified` by a later third submission without an explicit dispute path
+- [x] **VERIFY-04 [guardrail]**: Baseline anti-Sybil weighting (account-age / IP-diversity signals) and confirmation-action rate limits gate the verification step — distinct `user_id` alone is not accepted as proof of independence
 
 ### Web UI (WEBUI)
 
