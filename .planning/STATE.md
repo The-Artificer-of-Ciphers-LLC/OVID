@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase_name: Blu-ray/UHD Fingerprinting
 status: executing
 stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-07-06T17:54:02.094Z"
+last_updated: "2026-07-06T17:59:47.874Z"
 last_activity: 2026-07-06 -- Phase 04 execution started
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 21
-  completed_plans: 17
+  completed_plans: 18
   percent: 38
 current_phase: 04
 ---
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 04 (Blu-ray/UHD Fingerprinting) — EXECUTING
 Current Phase Name: Blu-ray/UHD Fingerprinting
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-07-06 -- Phase 04 execution started
 Last Activity Description: Phase 04 execution started
@@ -69,6 +69,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 03 P04 | 22min | 3 tasks | 5 files |
 | Phase 04 P01 | 30min | 2 tasks | 3 files |
 | Phase 04 P02 | 15min | 2 tasks | 2 files |
+| Phase 04 P04 | 10m | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,7 @@ Recent decisions affecting current work:
 - [Phase ?]: OVID_BD2_VERSION frozen at 'OVID-BD-2' — v1 ruleset freeze, not a version bump (D-08)
 - [Phase ?]: Tie-break/dedup key is the full (clip_id, in_time, out_time) tuple per play item, never filename — closes studio playlist-renumbering obfuscation (FPRINT-06)
 - [Phase 04-02]: identify_bd() Tier-2-primary/Tier-1-alias identity resolver added, mirroring identify_dvd() exactly (FPRINT-03)
+- [Phase 04]: Only touched the ovid-client-tests job in ci.yml; other jobs (api-tests, e2e-tests, web-tests, docs-build) left unchanged since e2e-tests already waits for all matrix legs of a dependency job by default.
 
 ### Pending Todos
 
@@ -128,6 +130,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T17:54:02.089Z
+Last session: 2026-07-06T17:58:45.145Z
 Stopped at: Completed 04-02-PLAN.md
 Resume file: None
