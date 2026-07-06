@@ -114,3 +114,14 @@ None - no external service configuration required.
 ---
 *Phase: 05-adr-0001-completion-dvdread1-promotion*
 *Completed: 2026-07-06*
+
+## Self-Check: PASSED
+
+- FOUND: api/app/migrations_support.py
+- FOUND: api/tests/test_promote_dvdread1_migration.py
+- FOUND: .planning/phases/05-adr-0001-completion-dvdread1-promotion/05-02-SUMMARY.md
+- FOUND commit: 6855c69 (test - RED task 1)
+- FOUND commit: 159815b (feat - GREEN task 1)
+- FOUND commit: 7c4149a (test - RED task 2)
+- FOUND commit: 2174f31 (feat - GREEN task 2)
+- FOUND commit: db0295c (docs - plan summary)
