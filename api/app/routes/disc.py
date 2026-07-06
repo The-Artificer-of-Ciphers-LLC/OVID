@@ -199,6 +199,20 @@ def _identify_existing_disc(
 
         identify(db, existing, current_user)
 
+        # CR-01: the metadata supplier — not the original bare-fingerprint
+        # registrant — becomes the owner of the unverified claim. Without
+        # this, submitted_by stays pinned to the registrant forever, so the
+        # actual submitter of the first (and only) structural claim is never
+        # recognized as "the submitter" by the self-confirm guards in
+        # verify() and the same-submitter 409 check in _handle_existing_disc
+        # — letting them freely resubmit their own claim and auto-verify it
+        # alone. Safe to set unconditionally here: this line only runs after
+        # identify() has succeeded, which itself only succeeds on the
+        # pending_identification -> unverified transition (identify() raises
+        # otherwise) — an already-verified/disputed disc's submitter is
+        # never touched by this function.
+        existing.submitted_by = current_user.id
+
         # Assign sync sequence numbers so mirrors can track this change
         seq = next_seq(db)
         existing.seq_num = seq
