@@ -24,6 +24,7 @@ needs no ``WHERE``-guard resumability — Alembic's own revision tracking
 guarantees the migration calling it runs exactly once.
 """
 
+import sqlite3
 import uuid
 from datetime import datetime, timezone
 
@@ -33,6 +34,45 @@ from sqlalchemy.engine import Connection
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _register_sqlite_datetime_adapter() -> None:
+    """Register a ``sqlite3`` datetime adapter matching SQLAlchemy's own
+    ``DATETIME`` bind_processor storage format exactly (naive,
+    space-separated, microsecond-precision — see
+    ``sqlalchemy.dialects.sqlite.base.DATETIME.bind_processor``).
+
+    Raw ``text()`` SQL binds in this module are untyped (``NullType``) and
+    bypass the ORM's ``DateTime`` type decorator entirely. Without this
+    registration, the stdlib ``sqlite3`` driver falls back to its own
+    default adapter, which is (a) deprecated as of Python 3.12 and (b)
+    preserves ``tzinfo`` in its ``str(datetime)`` output (e.g. a
+    ``"...+00:00"`` suffix for our UTC-aware ``_utcnow()`` values) — a
+    DIFFERENT stored string than ORM-driven inserts into the exact same
+    column (which strip ``tzinfo``). That mismatch is a genuine read-back
+    inconsistency, not merely a cosmetic warning: querying the same column
+    later via the ORM would return tz-aware ``datetime`` objects for
+    raw-SQL-inserted rows and tz-naive ones for ORM-inserted rows, and
+    comparing/sorting the two together raises ``TypeError: can't compare
+    offset-naive and offset-aware datetimes`` (relevant to D-06's
+    ``(created_at, id)`` alias ordering). This adapter unifies both paths
+    on SQLAlchemy's own storage format so every row round-trips
+    identically regardless of which code path inserted it. Registering it
+    has no effect on PostgreSQL — it only configures the stdlib
+    ``sqlite3`` module's process-global adapter registry; ``psycopg2`` is
+    a separate driver and is unaffected.
+    """
+
+    def _adapt(dt: datetime) -> str:
+        return (
+            f"{dt.year:04d}-{dt.month:02d}-{dt.day:02d} "
+            f"{dt.hour:02d}:{dt.minute:02d}:{dt.second:02d}.{dt.microsecond:06d}"
+        )
+
+    sqlite3.register_adapter(datetime, _adapt)
+
+
+_register_sqlite_datetime_adapter()
 
 
 def promote_one_disc(connection: Connection, dvd1_fingerprint: str) -> bool:
