@@ -64,6 +64,7 @@ def _make_long_playlist(
     audio_streams: list | None = None,
     subtitle_streams: list | None = None,
     chapter_count: int = 5,
+    clip_id: str = "00001",
 ) -> bytes:
     """Build an MPLS file with a single play item of given duration."""
     if audio_streams is None:
@@ -73,7 +74,7 @@ def _make_long_playlist(
 
     play_items = [
         {
-            "clip_id": "00001",
+            "clip_id": clip_id,
             "in_time": 0.0,
             "out_time": duration_seconds,
             "audio_streams": audio_streams,
@@ -176,12 +177,27 @@ class TestBDCanonicalString:
         with pytest.raises(ValueError, match="No valid playlists"):
             build_bd_canonical_string([("00001.mpls", short)], is_uhd=False)
 
-    def test_deterministic_sort_by_duration_then_filename(self):
-        """Playlists are sorted by duration descending, then filename ascending."""
-        pl_120 = parse_mpls(_make_long_playlist(duration_seconds=120.0))
+    def test_deduped_playlists_still_sort_by_duration_then_clip_sequence(self):
+        """Distinct-content playlists sort by duration descending, then clip-sequence.
+
+        NOTE: this test previously used two byte-identical 120s fixtures
+        (both default clip_id "00001") to exercise the filename tie-break.
+        Under the frozen ruleset (FPRINT-06/D-06), byte-identical clip
+        sequences are a real dedup collision — those two playlists would
+        now correctly collapse into one canonical block. To keep this test
+        exercising the *tie-break* path (not the dedup path), `pl_120b` is
+        given a distinct clip_id so all three playlists remain distinct
+        after dedup, and the tie-break is verified to be clip-sequence
+        based rather than filename based.
+        """
+        pl_120 = parse_mpls(_make_long_playlist(duration_seconds=120.0, chapter_count=5))
         pl_180 = parse_mpls(_make_long_playlist(duration_seconds=180.0))
-        # Same duration — should sort by filename
-        pl_120b = parse_mpls(_make_long_playlist(duration_seconds=120.0))
+        # Same duration as pl_120, but distinct clip_id (avoids the dedup
+        # collision) AND a distinct chapter_count (makes the two 120s blocks
+        # content-distinguishable so tie-break order is observable).
+        pl_120b = parse_mpls(
+            _make_long_playlist(duration_seconds=120.0, clip_id="00002", chapter_count=3)
+        )
 
         canonical = build_bd_canonical_string(
             [
@@ -192,14 +208,78 @@ class TestBDCanonicalString:
             is_uhd=False,
         )
         parts = canonical.split("|")
-        assert parts[1] == "3"  # 3 playlists survive
+        assert parts[1] == "3"  # all 3 playlists remain distinct after dedup
 
-        # First block should be the 180s playlist, then the two 120s by filename
+        # First block should be the 180s playlist.
         # 180s → int(180) = 180
         assert ":180:" in parts[2]
-        # 120s blocks should be 00002 then 00003 (by filename order)
-        assert ":120:" in parts[3]
-        assert ":120:" in parts[4]
+        # 120s blocks: clip-sequence tie-break sorts clip_id "00001" (pl_120,
+        # chapter_count=5) before clip_id "00002" (pl_120b, chapter_count=3),
+        # regardless of filename ("00002.mpls" sorts before "00003.mpls").
+        assert parts[3].split(":")[2] == "5"
+        assert parts[4].split(":")[2] == "3"
+
+    def test_max_clip_repeats_filter_excludes_loop_padded_decoy(self):
+        """A playlist whose clip_id repeats more than MAX_CLIP_REPEATS times
+        (a loop-padded decoy playlist) is excluded from the canonical string."""
+        decoy_data = make_mpls_file(
+            version="0200",
+            play_items=[
+                {"clip_id": "00099", "in_time": 0.0, "out_time": 30.0},
+                {"clip_id": "00099", "in_time": 30.0, "out_time": 60.0},
+                {"clip_id": "00099", "in_time": 60.0, "out_time": 90.0},
+            ],
+        )
+        decoy = parse_mpls(decoy_data)
+        normal = parse_mpls(_make_long_playlist(duration_seconds=120.0, clip_id="00001"))
+
+        canonical = build_bd_canonical_string(
+            [("00099.mpls", decoy), ("00001.mpls", normal)], is_uhd=False
+        )
+        parts = canonical.split("|")
+        assert parts[1] == "1"  # only the non-repeating playlist survives
+
+    def test_dedup_by_clip_sequence_excludes_duplicate_decoy(self):
+        """Two playlists with byte-identical clip sequences collapse to one
+        canonical block, regardless of filename."""
+        pl_a = parse_mpls(_make_long_playlist(duration_seconds=120.0))
+        pl_b = parse_mpls(_make_long_playlist(duration_seconds=120.0))
+
+        canonical = build_bd_canonical_string(
+            [("00001.mpls", pl_a), ("00099.mpls", pl_b)], is_uhd=False
+        )
+        parts = canonical.split("|")
+        assert parts[1] == "1"  # second playlist is a dedup-collapsed duplicate
+
+    def test_tie_break_is_clip_sequence_not_filename(self):
+        """Tie-break between same-duration playlists is by clip-sequence
+        content, never by .mpls filename."""
+        pl_a = parse_mpls(
+            _make_long_playlist(duration_seconds=120.0, clip_id="00005", chapter_count=1)
+        )
+        pl_b = parse_mpls(
+            _make_long_playlist(duration_seconds=120.0, clip_id="00001", chapter_count=9)
+        )
+
+        canonical = build_bd_canonical_string(
+            [("00001.mpls", pl_a), ("00002.mpls", pl_b)], is_uhd=False
+        )
+        parts = canonical.split("|")
+        # clip_id "00001" (playlist B) sorts first by clip-sequence tie-break,
+        # despite its filename ("00002.mpls") sorting after "00001.mpls".
+        assert ":9:" in parts[2]
+
+    def test_canonical_string_uses_ovid_bd2_version_constant(self):
+        """The canonical-string version prefix is sourced from the frozen
+        bd2_spec module, not a hardcoded literal (D-08: v1 is frozen as-is,
+        no version bump this phase)."""
+        from ovid import bd2_spec
+
+        assert bd2_spec.OVID_BD2_VERSION == "OVID-BD-2"
+
+        pl = parse_mpls(_make_long_playlist(duration_seconds=120.0))
+        canonical = build_bd_canonical_string([("00001.mpls", pl)], is_uhd=False)
+        assert canonical.split("|")[0] == bd2_spec.OVID_BD2_VERSION
 
     def test_playlist_block_contents(self):
         """Each playlist block includes play_item_count, duration, chapters, audio, subs."""
