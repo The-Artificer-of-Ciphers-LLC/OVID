@@ -1,0 +1,8 @@
+# Load-test harness dependencies — ISOLATED from api/requirements.txt.
+# Locust is NOT an API runtime dependency; it only runs in the (non-blocking)
+# scheduled load-test job and for manual pre-release p95 validation.
+#
+# Package Legitimacy Audit (03-RESEARCH): `locust` verdict OK — long-established
+# first-party project (github.com/locustio/locust). Pinned below limits' style
+# to the 2.x line (2.44 is the current release; <3.0 guards the next major).
+locust>=2.44,<3.0
