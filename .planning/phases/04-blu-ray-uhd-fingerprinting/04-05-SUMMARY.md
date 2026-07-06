@@ -134,3 +134,7 @@ The obfuscated fixture, pinned golden test, and real-disc test scaffold are all 
 ---
 *Phase: 04-blu-ray-uhd-fingerprinting*
 *Completed: 2026-07-06*
+
+## Self-Check: PASSED
+
+All created/modified files and referenced commit hashes verified present in the working tree and git history.
