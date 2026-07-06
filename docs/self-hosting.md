@@ -135,10 +135,13 @@ Here's the full picture, so nothing is surprising:
 - **When Redis is required.** Only when you run **more than one** API worker
   (`OVID_WORKERS`/`WEB_CONCURRENCY` > 1). With multiple workers on `memory://`
   each worker keeps its own counter, so the effective limit inflates up to Nx.
-- **Fail-fast guard.** To make that mistake impossible, the API **refuses to
-  boot** if `OVID_WORKERS` > 1 while `REDIS_URL` is unset — a loud startup error
-  instead of silently-inflated limits. Single-worker self-hosting never trips
-  this (leave both unset).
+- **Fail-fast guard.** The guard doesn't make this mistake *impossible* — it
+  fires when `OVID_WORKERS`/`WEB_CONCURRENCY` is set (and greater than 1)
+  while `REDIS_URL` is unset, turning that into a loud startup `RuntimeError`
+  instead of silently-inflated limits. The prod/test compose commands now
+  derive `-w` from that same `OVID_WORKERS` value (WR-02), so operators using
+  the provided stacks can't let `-w` and the guard drift apart. Single-worker
+  self-hosting never trips this (leave both unset).
 - **Redis outage behavior.** If you *do* run a multi-worker stack and Redis
   becomes unreachable, the limiter does **not** fail closed. It degrades to a
   bounded per-worker in-memory fallback and automatically switches back to Redis

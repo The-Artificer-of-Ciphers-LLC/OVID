@@ -51,15 +51,18 @@ services:
     ports: !override
       - "8100:8000"
     command: >-
-      gunicorn -w 4 -k uvicorn.workers.UvicornWorker
+      gunicorn -w "${OVID_WORKERS:-4}" -k uvicorn.workers.UvicornWorker
       main:app --bind 0.0.0.0:8000
       --forwarded-allow-ips "${OVID_FORWARDED_ALLOW_IPS:-127.0.0.1}"
     environment:
       DATABASE_URL:          postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}
-      # Shared cross-worker rate-limit counters (gunicorn -w 4). OVID_WORKERS must
-      # match -w; with >1 workers and no REDIS_URL the api refuses to boot (D-06).
+      # Shared cross-worker rate-limit counters. OVID_WORKERS is the single
+      # source of truth for both `-w` above and this env var (WR-02) — both
+      # are interpolated from the same OVID_WORKERS value so they can't
+      # drift apart; with >1 workers and no REDIS_URL the api refuses to
+      # boot (D-06).
       REDIS_URL:             redis://redis:6379/0
-      OVID_WORKERS:          "4"
+      OVID_WORKERS:          "${OVID_WORKERS:-4}"
       SECRET_KEY:            ${OVID_SECRET_KEY}
       OVID_MODE:             canonical
       LOG_LEVEL:             ${LOG_LEVEL:-info}
