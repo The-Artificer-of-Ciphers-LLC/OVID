@@ -15,7 +15,7 @@
 - [x] **FPRINT-04**: 4K UHD Blu-ray discs are fingerprinted via the same tiered path, with format recorded on the disc record
 - [x] **FPRINT-05**: The same disc produces identical BD/UHD fingerprints across ≥2 drives and both Linux and macOS (determinism regression test)
 - [ ] **FPRINT-06 [guardrail]**: Tier 2 playlist filter/sort constants are versioned as part of the fingerprint spec (defends against studio "obfuscation playlist" decoys), not tuned as loose implementation values
-- [ ] **FPRINT-07**: A real BD/UHD fixture corpus (including ≥1 heavily-obfuscated disc) backs the regression suite, following the existing private/`real_disc` fixture pattern
+- [x] **FPRINT-07**: A real BD/UHD fixture corpus (including ≥1 heavily-obfuscated disc) backs the regression suite, following the existing private/`real_disc` fixture pattern
 
 ### Disc Identity & Alias Migration (IDENT)
 
@@ -128,7 +128,7 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 | FPRINT-04 | Phase 4 | Complete |
 | FPRINT-05 | Phase 4 | Complete |
 | FPRINT-06 | Phase 4 | Complete |
-| FPRINT-07 | Phase 4 | Pending |
+| FPRINT-07 | Phase 4 | Complete |
 | IDENT-01 | Phase 1 | Complete |
 | IDENT-02 | Phase 1 | Complete |
 | IDENT-03 | Phase 5 | Pending |

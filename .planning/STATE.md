@@ -2,18 +2,19 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
+current_phase: 04
 current_phase_name: Blu-ray/UHD Fingerprinting
 status: executing
 stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-07-06T18:09:23.058Z"
-last_activity: 2026-07-06 -- Phase 04 execution started
+last_updated: "2026-07-06T18:18:48.313Z"
+last_activity: 2026-07-06
+last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 21
-  completed_plans: 19
+  completed_plans: 20
   percent: 38
-current_phase: 04
 ---
 
 # Project State
@@ -29,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 04 (Blu-ray/UHD Fingerprinting) — EXECUTING
 Current Phase Name: Blu-ray/UHD Fingerprinting
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-07-06 -- Phase 04 execution started
 Last Activity Description: Phase 04 execution started
@@ -71,6 +72,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 04 P02 | 15min | 2 tasks | 2 files |
 | Phase 04 P04 | 10m | 1 tasks | 1 files |
 | Phase 04 P03 | 25min | 2 tasks | 2 files |
+| Phase 04 P05 | 20min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -112,6 +114,8 @@ Recent decisions affecting current work:
 - [Phase 04]: Only touched the ovid-client-tests job in ci.yml; other jobs (api-tests, e2e-tests, web-tests, docs-build) left unchanged since e2e-tests already waits for all matrix legs of a dependency job by default.
 - [Phase ?]: [Phase 04-03]: canonical_string is independently re-derived in BDDisc._build() via build_bd_canonical_string() rather than reusing a value from identify_bd() — identify_bd()'s shipped DiscIdentitySet has no canonical-string field to reuse
 - [Phase ?]: [Phase 04-03]: BDDisc.playlists is empty in the degenerate Tier-1-primary case (mirrors pre-existing test_all_playlists_under_60s_with_aacs_uses_tier1 regression guarantee)
+- [Phase 04]: Pinned BD/UHD hash literals computed once via throwaway script, hardcoded as anti-tautology-compliant literals in test_bd_fingerprint_pinned.py
+- [Phase 04]: Filler playlist durations in build_heavily_obfuscated_fixture cycle through 5-55s in 5s increments across 20 files (11 distinct steps, cycled) — all remain under MIN_DURATION_SECONDS
 
 ### Pending Todos
 
@@ -133,6 +137,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T18:09:14.520Z
+Last session: 2026-07-06T18:18:00.852Z
 Stopped at: Completed 04-03-PLAN.md
 Resume file: None
