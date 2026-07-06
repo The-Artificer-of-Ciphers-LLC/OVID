@@ -55,7 +55,7 @@
 ### Rate Limiting & Performance (INFRA)
 
 - [x] **INFRA-01**: Rate limiting uses Redis-backed slowapi storage so limits are correct across gunicorn workers (fixes in-memory multi-worker defect); a `redis` service is added to the relevant compose files
-- [ ] **INFRA-02 [guardrail]**: Fail-open vs fail-closed behavior on Redis outage is an explicit, documented decision (and tested)
+- [x] **INFRA-02 [guardrail]**: Fail-open vs fail-closed behavior on Redis outage is an explicit, documented decision (and tested)
 - [x] **INFRA-03**: API p95 ≤ 500ms is validated by a load test run against the ACTUAL Redis-backed, multi-worker gunicorn config
 - [x] **INFRA-04**: Basic abuse prevention (submission/confirmation throttles) is live
 
