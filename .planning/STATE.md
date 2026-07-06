@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-current_phase_name: blu ray/uhd fingerprinting
-status: planning
-stopped_at: Phase 4 context gathered
-last_updated: "2026-07-06T17:03:22.692Z"
-last_activity: 2026-07-06 -- Phase 4 planning complete
+current_phase_name: Blu-ray/UHD Fingerprinting
+status: executing
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-07-06T17:40:07.177Z"
+last_activity: 2026-07-06 -- Phase 04 execution started
 progress:
   total_phases: 8
   completed_phases: 3
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 21
+  completed_plans: 16
   percent: 38
 current_phase: 04
 ---
@@ -23,16 +23,16 @@ current_phase: 04
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Given a disc in any drive, OVID returns the correct disc identity and structure — deterministically and reproducibly — so ripping tools can name, tag, and route content without manual correction.
-**Current focus:** Phase 04 — blu-ray/uhd-fingerprinting
+**Current focus:** Phase 04 — Blu-ray/UHD Fingerprinting
 
 ## Current Position
 
-Phase: 4
-Current Phase Name: blu ray/uhd fingerprinting
-Plan: Not started
-Status: Ready to plan Phase 4
-Last activity: 2026-07-06 -- Phase 4 planning complete
-Last Activity Description: Phase 4 planning complete — 6 plans ready
+Phase: 04 (Blu-ray/UHD Fingerprinting) — EXECUTING
+Current Phase Name: Blu-ray/UHD Fingerprinting
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-07-06 -- Phase 04 execution started
+Last Activity Description: Phase 04 execution started
 
 Progress: [███░░░░░░░] 38%
 
@@ -67,6 +67,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 03 P02 | 10min | 2 tasks | 2 files |
 | Phase 03 P03 | 35m | 2 tasks | 6 files |
 | Phase 03 P04 | 22min | 3 tasks | 5 files |
+| Phase 04 P01 | 30min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-03: Redis wired into prod+test compose only (redis:7-alpine, internal-only, ephemeral); base compose unchanged so single-worker self-host stays on memory:// (D-05a)
 - [Phase 03]: 03-03: Redis-outage behavior documented as fail-open self-healing (D-01/D-02) with a fail-fast multi-worker boot guard (D-06) across self-hosting/deployment/technical-spec docs
 - [Phase 03]: 03-04: INFRA-03 p95 proof validates the honest Redis-backed gunicorn -w 4 + Postgres stack via a non-blocking scheduled Locust job (D-12/D-14), never memory://; Plan-02 write-cap 429s marked non-failure (T-03-10)
+- [Phase ?]: OVID_BD2_VERSION frozen at 'OVID-BD-2' — v1 ruleset freeze, not a version bump (D-08)
+- [Phase ?]: Tie-break/dedup key is the full (clip_id, in_time, out_time) tuple per play item, never filename — closes studio playlist-renumbering obfuscation (FPRINT-06)
 
 ### Pending Todos
 
@@ -123,6 +126,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T15:51:33.025Z
-Stopped at: Phase 4 context gathered
+Last session: 2026-07-06T17:40:07.172Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: .planning/phases/04-blu-ray-uhd-fingerprinting/04-CONTEXT.md

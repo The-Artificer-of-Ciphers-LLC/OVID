@@ -9,8 +9,8 @@
 
 ### Blu-ray / UHD Fingerprinting (FPRINT)
 
-- [ ] **FPRINT-01**: `ovid-client` computes a Blu-ray Tier 1 fingerprint from the AACS Disc ID (`bd1-aacs-*`)
-- [ ] **FPRINT-02**: `ovid-client` computes a Blu-ray Tier 2 fingerprint from BDMV/PLAYLIST/CLIP structure (`bd2-*`)
+- [x] **FPRINT-01**: `ovid-client` computes a Blu-ray Tier 1 fingerprint from the AACS Disc ID (`bd1-aacs-*`)
+- [x] **FPRINT-02**: `ovid-client` computes a Blu-ray Tier 2 fingerprint from BDMV/PLAYLIST/CLIP structure (`bd2-*`)
 - [ ] **FPRINT-03**: When both tiers are computable for a disc, the client returns BOTH in one `DiscIdentitySet` (they become an alias pair) rather than short-circuiting on Tier 1 success
 - [ ] **FPRINT-04**: 4K UHD Blu-ray discs are fingerprinted via the same tiered path, with format recorded on the disc record
 - [ ] **FPRINT-05**: The same disc produces identical BD/UHD fingerprints across ≥2 drives and both Linux and macOS (determinism regression test)
@@ -122,12 +122,12 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FPRINT-01 | Phase 4 | Pending |
-| FPRINT-02 | Phase 4 | Pending |
+| FPRINT-01 | Phase 4 | Complete |
+| FPRINT-02 | Phase 4 | Complete |
 | FPRINT-03 | Phase 4 | Pending |
 | FPRINT-04 | Phase 4 | Pending |
 | FPRINT-05 | Phase 4 | Pending |
-| FPRINT-06 | Phase 4 | Pending |
+| FPRINT-06 | Phase 4 | Complete |
 | FPRINT-07 | Phase 4 | Pending |
 | IDENT-01 | Phase 1 | Complete |
 | IDENT-02 | Phase 1 | Complete |
