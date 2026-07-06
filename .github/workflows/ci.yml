@@ -8,8 +8,12 @@ on:
 
 jobs:
   ovid-client-tests:
-    name: ovid-client tests
-    runs-on: ubuntu-latest
+    name: ovid-client tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     defaults:
       run:
         working-directory: ovid-client
