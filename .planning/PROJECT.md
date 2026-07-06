@@ -34,12 +34,12 @@ Given a disc in any drive, OVID returns the correct disc identity and structure 
 - ✓ INFRA-02: Redis-outage behavior is a documented, tested fail-open decision — bounded, self-healing in-memory fallback (`FALLBACK_LIMIT`) proven by injected-`ConnectionError` tests, with a fail-fast boot guard refusing multi-worker startup without `REDIS_URL` — Phase 3
 - ✓ INFRA-03: API response time ≤500ms at p95 under load, validated against the honest Redis-backed `gunicorn -w 4` + Postgres stack (never `memory://`) via a non-blocking scheduled Locust job — measured p95 270ms — Phase 3
 - ✓ INFRA-04: Per-account write ceiling (`AUTH_WRITE_LIMIT`) live on all three disc write routes (submit/register/resolve), closing the novel-fingerprint flood gap independent of the anti-Sybil confirmation cooldown — Phase 3
+- ✓ Blu-ray/UHD tiered fingerprinting reaches parity with the DVD path: Tier 1 AACS Disc ID (`bd1-aacs-*`) and Tier 2 BDMV/PLAYLIST structure (`bd2-*`) as an alias pair, frozen `bd2_spec` constants, versioned OVID-BD-2 spec, with parsers, normalization, tests, and fixtures — Validated in Phase 4: Blu-ray/UHD Fingerprinting (FPRINT-01–07, DOCS-01; 21/21 must-haves passed, see `04-VERIFICATION.md`)
 
 ### Active
 
 <!-- Remaining v0.2.0 work. Hypotheses until shipped and validated at the v0.2.0 tag. -->
 
-- [ ] Blu-ray fingerprinting to real parity with the DVD path: Tier 1 (AACS Disc ID) and Tier 2 (BDMV/PLAYLIST structure), plus 4K UHD, with parsers, normalization, tests, and fixtures
 - [ ] libdvdread migration ADR Phase 2 completion: alias lookup + submission fully supported in API and database (multiple Disc Identity strings resolve to one physical pressing)
 - [ ] libdvdread migration ADR Phase 3: promote `dvdread1-*` to primary DVD fingerprint once alias lookup + submission exist, keeping `dvd1-*` stable as an alias
 - [ ] All four OAuth providers working end-to-end: GitHub, Google, Apple, Mastodon (instance discovery)
@@ -49,7 +49,7 @@ Given a disc in any drive, OVID returns the correct disc identity and structure 
 - [ ] Bulk-seed tooling + seed the database to ≥500 real disc entries
 - [ ] `oviddb.com` and `oviddb.net` redirecting to `oviddb.org`
 - [ ] Public announcement posted (GitHub, ARM forums, r/DataHoarder, Doom9)
-- [ ] v0.2.0 documentation set per PRD Documentation Release Plan: fingerprint spec update (OVID-BD-2 Tier 1 & 2), Web UI user guide, submission guide, ARM integration guide, OAuth setup guide, CC0 data-license explainer, CHANGELOG
+- [ ] Remaining v0.2.0 documentation set per PRD Documentation Release Plan: Web UI user guide, submission guide, ARM integration guide, OAuth setup guide, CC0 data-license explainer, CHANGELOG (fingerprint spec update, OVID-BD-2 Tier 1 & 2, validated in Phase 4)
 
 ### Out of Scope
 
@@ -65,7 +65,7 @@ Given a disc in any drive, OVID returns the correct disc identity and structure 
 
 ## Context
 
-- Brownfield: v0.1.0 shipped (DVD fingerprinting, API, CLI, schema). v0.2.0 is partially built — OAuth, Web UI, disc-identity aliasing, and the libdvdread Phase 1 fallback have landed but are not all verified end-to-end. Phase 2 (two-contributor verification workflow) is complete and independently verified end-to-end, including a deep adversarial code review and full remediation of the bypasses it found (see `02-VERIFICATION.md`, `02-REVIEW-FIX.md`). Phase 3 (Redis-backed rate limiting & performance) is complete: multi-worker rate limiting, the fail-open outage decision, the per-account write ceiling, and the p95 ≤500ms load-test proof are all live and verified (see `03-VERIFICATION.md`).
+- Brownfield: v0.1.0 shipped (DVD fingerprinting, API, CLI, schema). v0.2.0 is partially built — OAuth, Web UI, disc-identity aliasing, and the libdvdread Phase 1 fallback have landed but are not all verified end-to-end. Phase 2 (two-contributor verification workflow) is complete and independently verified end-to-end, including a deep adversarial code review and full remediation of the bypasses it found (see `02-VERIFICATION.md`, `02-REVIEW-FIX.md`). Phase 3 (Redis-backed rate limiting & performance) is complete: multi-worker rate limiting, the fail-open outage decision, the per-account write ceiling, and the p95 ≤500ms load-test proof are all live and verified (see `03-VERIFICATION.md`). Phase 4 (Blu-ray/UHD Fingerprinting) is complete: the BD/UHD fingerprinting path now reaches parity with the DVD path (Tier 1 `bd1-aacs-*` + Tier 2 `bd2-*` alias pair, frozen `bd2_spec`, versioned OVID-BD-2 spec), verified end-to-end with 21/21 must-haves passed (see `04-VERIFICATION.md`). Next focus: Phase 5, ADR-0001 completion (`dvdread1-*` promotion to primary).
 - The libdvdread migration is deliberately staged (ADR 0001) to avoid fragmenting existing lookups, submissions, tests, docs, and database records: `dvd1-*` stays the public fingerprint until aliases and dual submission exist.
 - Disc Identity (which exact pressing) and Normalized Disc Structure (playable titles/chapters/tracks) are separate concepts and stay separate.
 - Known code concerns to fold into this milestone: the ARM file-swap shim has no versioned interface; the IndieAuth localhost bypass must never be enabled in production; `api/disc.py` and `api/auth/routes.py` are large and growing. (Resolved: in-memory rate-limit counters not scaling across gunicorn workers — Phase 3; ad-hoc root scripts and ungitignored `uat_results.json` — Phase 1.)
@@ -112,4 +112,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-06 after Phase 3*
+*Last updated: 2026-07-06 after Phase 4*
