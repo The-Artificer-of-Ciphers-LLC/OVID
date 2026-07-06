@@ -74,6 +74,15 @@ def structural_match(
         db.query(DiscTitle).filter(DiscTitle.disc_id == existing_disc.id).all()
     )
 
+    # CR-02: an empty structure is not proof of possession. Without this
+    # check, two zero-title submissions "match" vacuously (the per-title
+    # loop below runs zero times) — a title-less disc would auto-verify off
+    # public release metadata alone, the exact echo attack this function
+    # exists to prevent. A real disc pressing always has >=1 title, so a
+    # title-less disc correctly stays unverifiable via this gate (fail-safe).
+    if not stored_titles or not body.titles:
+        return False
+
     if len(stored_titles) != len(body.titles):
         return False
 

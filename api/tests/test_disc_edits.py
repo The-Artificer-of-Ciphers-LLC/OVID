@@ -11,7 +11,37 @@ VALID_PAYLOAD = {
         "tmdb_id": 77777,
         "original_language": "en",
     },
-    "titles": [],
+    # CR-02: a non-empty, realistic structure — an empty title list can
+    # never structurally match (structural_match rejects zero-title
+    # comparisons as vacuous), so the auto-verify tests below need a real
+    # structural payload to exercise a legitimate confirmation.
+    "titles": [
+        {
+            "title_index": 0,
+            "title_type": "main_feature",
+            "duration_secs": 6000,
+            "chapter_count": 18,
+            "is_main_feature": True,
+            "display_name": "Test Film",
+            "audio_tracks": [
+                {
+                    "track_index": 0,
+                    "language_code": "en",
+                    "codec": "dts",
+                    "channels": 6,
+                    "is_default": True,
+                }
+            ],
+            "subtitle_tracks": [
+                {
+                    "track_index": 0,
+                    "language_code": "en",
+                    "codec": "pgs",
+                    "is_default": False,
+                }
+            ],
+        }
+    ],
 }
 
 
