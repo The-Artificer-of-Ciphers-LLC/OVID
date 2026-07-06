@@ -210,13 +210,40 @@ def evaluate_confirmation(
     confirmer_hash = client_ip_hash(request)
 
     # --- Layer 1: hard cooldown floor (Postgres, worker-safe; D-13) ---
+    # W3: lock the actor's row FIRST, before counting, so two concurrent
+    # confirmations by the SAME actor (the cooldown is actor-scoped, not
+    # disc-scoped — it counts a user's verify edits across ANY disc)
+    # serialize their check-then-act sequence instead of both reading the
+    # pre-insert count and both passing. On PostgreSQL this is a real
+    # "SELECT ... FOR UPDATE" that blocks a second concurrent request on this
+    # actor until the first request's transaction commits/rolls back — and
+    # the lock is held through the eventual verify()/DiscEdit-insert/
+    # db.commit() later in disc.py's caller, since nothing commits between
+    # here and there, so the second request's count correctly observes the
+    # first's newly-committed verify edit. On the SQLite test engine the
+    # clause is silently omitted by the dialect compiler (same established
+    # pattern as next_seq() in sync.py), and SQLite already serializes all
+    # writes to its single connection, so test correctness is unaffected.
+    # This closes a bounded rate-limit overshoot (defense-in-depth only —
+    # never an unauthorized state transition, since VERIFY-02 keeps every
+    # status write in verification.py regardless of this gate's outcome),
+    # not a security bypass.
+    db.query(User).filter(User.id == actor.id).with_for_update().first()
+
     now = datetime.now(timezone.utc)
     hourly = _recent_confirmation_count(
         db, actor.id, now - timedelta(hours=CONFIRMATION_COOLDOWN_WINDOW_HOURS)
     )
     daily = _recent_confirmation_count(db, actor.id, now - timedelta(hours=24))
+    # W4: boundaries must permit exactly CONFIRMATION_MAX_PER_WINDOW/DAY
+    # actions per window, not one extra. `_recent_confirmation_count` counts
+    # PRIOR actions only (this attempt's own edit, if any, isn't written
+    # until after this gate returns) — so after MAX successful confirmations
+    # the prior count equals MAX, and the old `MAX > MAX` check evaluated to
+    # False, wrongly letting a (MAX+1)th action through. `>=` makes the
+    # attempt whose prior count already equals the cap the one that blocks.
     hard_blocked = (
-        hourly > CONFIRMATION_MAX_PER_WINDOW or daily > CONFIRMATION_MAX_PER_DAY
+        hourly >= CONFIRMATION_MAX_PER_WINDOW or daily >= CONFIRMATION_MAX_PER_DAY
     )
 
     # --- Layer 3: weighted, offsetting, fail-open soft score (D-04/D-07) ---
