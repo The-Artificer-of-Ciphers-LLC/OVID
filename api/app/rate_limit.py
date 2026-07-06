@@ -1,11 +1,15 @@
 """Rate limiting configuration — slowapi with auth-aware key function.
 
-Uses in-memory storage (per-process). With gunicorn -w N, each worker
-has independent counters — effective rate limit is up to Nx the nominal
-value. Upgrade path: switch storage_uri to a Redis URL for shared state.
+Backend selection is env-driven (INFRA-01). When ``REDIS_URL`` is set the
+limiter uses a shared ``RedisStorage`` so counters are correct across gunicorn
+workers; when it is unset the limiter keeps the historical single-worker
+``memory://`` default. During a Redis outage the limiter degrades to a bounded,
+self-healing in-memory fallback (``FALLBACK_LIMIT`` per worker) instead of
+failing closed on the read-heavy ARM lookup path (INFRA-02, D-01/D-02/D-03).
 """
 
 import logging
+import os
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -21,6 +25,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 UNAUTH_LIMIT = "100/minute"
 AUTH_LIMIT = "500/minute"
+
+# Tunable launch-safe defaults (never magic numbers) --------------------------
+# Auth write-path throttle consumed by Plan 02 (D-08). Kept here so the write
+# limit lives beside the read tiers and shares the same env-driven backend.
+AUTH_WRITE_LIMIT = "20/minute;300/hour"
+# Single GLOBAL per-worker cap applied to EVERY route while Redis is unreachable
+# (slowapi replaces all per-route limits with the fallback during an outage), so
+# it is deliberately conservative enough to still protect the read path (D-01).
+FALLBACK_LIMIT = "60/minute"
 
 
 def _auth_aware_key(request: Request) -> str:
@@ -60,12 +73,24 @@ def _dynamic_limit(key: str) -> str:
     return UNAUTH_LIMIT
 
 
+# ---------------------------------------------------------------------------
+# Backend selection (INFRA-01) — read REDIS_URL once at import time
+# ---------------------------------------------------------------------------
+# REDIS_URL set   → shared RedisStorage (cross-worker-correct counters) with a
+#                   bounded in-memory fallback during an outage.
+# REDIS_URL unset → historical single-worker `memory://` default preserved; the
+#                   outage-fallback flags stay off so behavior is unchanged.
+REDIS_URL = os.environ.get("REDIS_URL")
+
 # Default limit is 100/min per-key.  Routes that need auth-aware
 # tiering apply @limiter.limit(_dynamic_limit) explicitly.
 limiter = Limiter(
     key_func=_auth_aware_key,
     default_limits=[UNAUTH_LIMIT],
-    storage_uri="memory://",
+    storage_uri=REDIS_URL or "memory://",
+    swallow_errors=bool(REDIS_URL),
+    in_memory_fallback_enabled=bool(REDIS_URL),
+    in_memory_fallback=[FALLBACK_LIMIT] if REDIS_URL else [],
 )
 
 
