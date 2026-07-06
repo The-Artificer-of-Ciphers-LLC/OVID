@@ -14,6 +14,14 @@ This module holds the D-01 promotion transform: rewriting a disc's primary
 Alembic migration file that wraps ``promote_all_dvdread1_discs()`` (Plan
 05-06) is a thin caller of this module — it contains no promotion logic of
 its own.
+
+It also holds the D-02 registry-backfill transform,
+``backfill_fingerprint_registry()``: a one-time, non-per-row-idempotent
+bulk populate of the ``fingerprint_registry`` table (Plan 05-01's WR-02
+arbitration table) from both ``discs.fingerprint`` and
+``disc_identity_aliases.fingerprint``. Unlike ``promote_one_disc``, this
+needs no ``WHERE``-guard resumability — Alembic's own revision tracking
+guarantees the migration calling it runs exactly once.
 """
 
 import uuid
@@ -122,3 +130,92 @@ def promote_all_dvdread1_discs(connection: Connection) -> int:
 
     print(f"Promotion complete: {promoted_count} discs promoted to dvdread1-* primary")
     return promoted_count
+
+
+def backfill_fingerprint_registry(connection: Connection) -> tuple[int, int]:
+    """One-time bulk backfill of ``fingerprint_registry`` from both source
+    tables (D-02, WR-02 arbitration).
+
+    Reads every ``(id, fingerprint)`` row from ``discs`` and every
+    ``(disc_id, fingerprint)`` row from ``disc_identity_aliases``, then
+    inserts one new ``fingerprint_registry`` row per source row. Each new
+    row's id is generated in Python (``uuid.uuid4()``) rather than relying
+    on a database-side UUID-generation function, so this transform is
+    dialect-portable and runs identically against SQLite and PostgreSQL —
+    the exact same code path is directly exercised (and asserted) by the
+    in-memory SQLite pytest harness, never skipped/mocked.
+
+    This is a one-time, non-per-row-idempotent bulk backfill: unlike
+    :func:`promote_one_disc`, it needs no ``WHERE``-guard resumability,
+    since Alembic's own revision tracking guarantees the caller's
+    ``upgrade()`` runs exactly once.
+
+    ``discs.fingerprint`` and ``disc_identity_aliases.fingerprint`` are each
+    independently UNIQUE *within their own table*, but nothing enforces
+    uniqueness *across* the two tables prior to this phase — the exact
+    cross-table gap WR-02 closes going forward. So pre-existing production
+    data could (in principle) already have the same string as both a
+    disc's primary fingerprint and a different disc's alias. The registry's
+    global ``UNIQUE(fingerprint)`` would reject a literal duplicate insert,
+    so this backfill deduplicates by fingerprint value, inserting each
+    distinct string exactly once (discs win ties, since they are processed
+    first).
+
+    Returns ``(count_from_discs, count_from_aliases)`` — the number of
+    registry rows actually inserted from each source table (post-dedupe).
+    """
+    disc_rows = connection.execute(
+        text("SELECT id, fingerprint FROM discs")
+    ).all()
+    alias_rows = connection.execute(
+        text("SELECT disc_id, fingerprint FROM disc_identity_aliases")
+    ).all()
+
+    seen_fingerprints: set[str] = set()
+    discs_inserted = 0
+    aliases_inserted = 0
+
+    for row in disc_rows:
+        if row.fingerprint in seen_fingerprints:
+            continue
+        seen_fingerprints.add(row.fingerprint)
+        connection.execute(
+            text(
+                "INSERT INTO fingerprint_registry "
+                "(id, fingerprint, disc_id, created_at) "
+                "VALUES (:id, :fingerprint, :disc_id, :now)"
+            ),
+            {
+                # .hex: raw text() binds are untyped (NullType) and bypass
+                # the ORM UUID type decorator's bind processor — see
+                # promote_one_disc's docstring above for the same gotcha.
+                "id": uuid.uuid4().hex,
+                "fingerprint": row.fingerprint,
+                "disc_id": row.id,
+                "now": _utcnow(),
+            },
+        )
+        discs_inserted += 1
+
+    for row in alias_rows:
+        if row.fingerprint in seen_fingerprints:
+            continue
+        seen_fingerprints.add(row.fingerprint)
+        connection.execute(
+            text(
+                "INSERT INTO fingerprint_registry "
+                "(id, fingerprint, disc_id, created_at) "
+                "VALUES (:id, :fingerprint, :disc_id, :now)"
+            ),
+            {
+                "id": uuid.uuid4().hex,
+                "fingerprint": row.fingerprint,
+                "disc_id": row.disc_id,
+                "now": _utcnow(),
+            },
+        )
+        aliases_inserted += 1
+
+    return discs_inserted, aliases_inserted
+
+    return len(disc_rows), len(alias_rows)
