@@ -2,19 +2,18 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-current_phase: 05
 current_phase_name: adr-0001-completion-dvdread1-promotion
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-07-06T21:24:40.542Z"
-last_activity: 2026-07-06
-last_activity_desc: Phase 05 execution started
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-07-06T21:34:58.299Z"
+last_activity: 2026-07-06 — Phase 05 execution started
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 28
-  completed_plans: 23
+  completed_plans: 24
   percent: 50
+current_phase: 05
 ---
 
 # Project State
@@ -30,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 05 (adr-0001-completion-dvdread1-promotion) — EXECUTING
 Current Phase Name: adr-0001-completion-dvdread1-promotion
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-07-06 — Phase 05 execution started
 Last Activity Description: Phase 05 execution started
@@ -77,6 +76,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 04 P06 | 8min | 2 tasks | 2 files |
 | Phase 05 P01 | 5min | 2 tasks | 3 files |
 | Phase 05 P02 | 10min | 2 tasks | 2 files |
+| Phase 05 P03 | 15min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -125,6 +125,8 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-01: FingerprintRegistry copies DiscIdentityAlias's exact column shape with only a disc_id index; table is write-only, no separate fingerprint index needed (D-02)
 - [Phase 05]: 05-01: register_fingerprint() is a bare db.add() with no flush/commit of its own; caller must invoke it inside its own db.begin_nested() savepoint so a UNIQUE violation surfaces through the existing except IntegrityError: re-resolve/converge path
 - [Phase ?]: [Phase 05-02]: promote_one_disc/promote_all_dvdread1_discs are Alembic-independent (zero alembic imports); UUIDs crossing raw text() SQL binds must use .hex (not str()) to match SQLite's non-native hex-no-dash storage format
+- [Phase ?]: [Phase 05-03]: identify_dvd() flipped to prefer dvdread1-* primary whenever libdvdread succeeds (dvd1-* demoted to sole alias), mirroring identify_bd()'s Tier-2-primary/Tier-1-alias pattern; fallback to dvd1-*-primary/zero-alias unchanged when libdvdread unavailable/invalid (D-03, closes RESEARCH.md Open Question #1)
+- [Phase ?]: [Phase 05-03]: libdvdread_identity()'s hex-validation ValueError must be raised/caught inside the same try block as read_libdvdread_disc_id() so both failure modes converge on identical exception handling
 
 ### Pending Todos
 
@@ -146,6 +148,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T21:23:51.639Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-07-06T21:34:58.294Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
