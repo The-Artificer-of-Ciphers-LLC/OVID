@@ -82,6 +82,24 @@ def _dynamic_limit(key: str) -> str:
 #                   outage-fallback flags stay off so behavior is unchanged.
 REDIS_URL = os.environ.get("REDIS_URL")
 
+# ---------------------------------------------------------------------------
+# Fail-fast multi-worker guard (D-06)
+# ---------------------------------------------------------------------------
+# On `memory://` each gunicorn worker keeps an independent counter, so running
+# more than one worker silently inflates every rate limit up to Nx. Refuse to
+# boot in that configuration — mirror auth/config._require_env's import-time
+# fail-fast. Read an explicit worker-count env var (OVID_WORKERS, falling back
+# to gunicorn's own WEB_CONCURRENCY); never scrape gunicorn argv.
+_worker_count = int(os.environ.get("OVID_WORKERS", os.environ.get("WEB_CONCURRENCY", "1")))
+if _worker_count > 1 and not REDIS_URL:
+    raise RuntimeError(
+        f"Rate limiting is misconfigured: OVID_WORKERS={_worker_count} (>1) but "
+        f"REDIS_URL is not set. On memory:// storage each worker keeps its own "
+        f"counter, so the effective rate limit inflates up to {_worker_count}x the "
+        f"nominal value. Set REDIS_URL to a shared Redis instance, or run a single "
+        f"worker (OVID_WORKERS=1)."
+    )
+
 # Default limit is 100/min per-key.  Routes that need auth-aware
 # tiering apply @limiter.limit(_dynamic_limit) explicitly.
 limiter = Limiter(
