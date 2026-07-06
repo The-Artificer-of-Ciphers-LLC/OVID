@@ -23,8 +23,11 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Rate-limit thresholds (R025)
 # ---------------------------------------------------------------------------
-UNAUTH_LIMIT = "100/minute"
-AUTH_LIMIT = "500/minute"
+# Env-configurable with identical defaults (CR-01) so the load-test harness can
+# raise the read tiers via OVID_UNAUTH_LIMIT/OVID_AUTH_LIMIT and measure real
+# handler p95 instead of limiter 429s — zero behavior change when unset.
+UNAUTH_LIMIT = os.environ.get("OVID_UNAUTH_LIMIT", "100/minute")
+AUTH_LIMIT = os.environ.get("OVID_AUTH_LIMIT", "500/minute")
 
 # Tunable launch-safe defaults (never magic numbers) --------------------------
 # Auth write-path throttle consumed by Plan 02 (D-08). Kept here so the write
