@@ -94,8 +94,17 @@ def resolve_dispute(db: Session, disc: Disc, actor: User, action: str) -> None:
 
     ``action="verify"`` promotes to ``verified``; ``action="reject"``
     reverts to ``unverified``. Guarded by :data:`LEGAL_TRANSITIONS`.
+
+    W6: requires ``disc.status == "disputed"`` up front. Without this,
+    ``(unverified, "verified") in LEGAL_TRANSITIONS`` (true in general — the
+    normal two-contributor auto-verify path uses it) would let this
+    function promote a merely-unverified disc straight to verified,
+    bypassing structural_match, the anti-Sybil gate, and the self-confirm
+    check that ``verify()`` enforces for that same transition elsewhere.
     """
     target = "verified" if action == "verify" else "unverified"
+    if disc.status != "disputed":
+        raise VerificationTransitionError(disc.id, disc.status, target)
     if (disc.status, target) not in LEGAL_TRANSITIONS:
         raise VerificationTransitionError(disc.id, disc.status, target)
 
