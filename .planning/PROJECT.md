@@ -29,6 +29,7 @@ Given a disc in any drive, OVID returns the correct disc identity and structure 
 - ✓ Multi-provider OAuth scaffolding (GitHub, Google, Apple, IndieAuth, Mastodon), env-gated — existing (partial; not verified end-to-end)
 - ✓ Next.js web UI scaffolding: search, disc detail, submission wizard, disputes, settings, OAuth callbacks — existing (partial)
 - ✓ Rate limiting via slowapi (in-memory) — existing (has multi-worker scaling defect, see Key Decisions)
+- ✓ Two-contributor verification workflow live (unverified → verified on independent fingerprint confirmation), rate-limited + anti-Sybil weighted — Phase 2 complete; VERIFY-01, VERIFY-03, VERIFY-04 validated end-to-end, including adversarial-review remediation (see `02-VERIFICATION.md`, `02-REVIEW-FIX.md`)
 
 ### Active
 
@@ -39,7 +40,6 @@ Given a disc in any drive, OVID returns the correct disc identity and structure 
 - [ ] libdvdread migration ADR Phase 3: promote `dvdread1-*` to primary DVD fingerprint once alias lookup + submission exist, keeping `dvd1-*` stable as an alias
 - [ ] All four OAuth providers working end-to-end: GitHub, Google, Apple, Mastodon (instance discovery)
 - [ ] Linked accounts: multiple providers connectable to one account; settings page add/remove with a minimum of one remaining; email-match merge offer on duplicate verified email
-- [ ] Two-contributor verification workflow live (unverified → verified on independent fingerprint confirmation)
 - [ ] Web UI production-ready: search, disc detail view, submit form live at `oviddb.org`
 - [ ] Rate limiting corrected for multi-worker deployment (Redis-backed slowapi storage) and basic abuse prevention live
 - [ ] API response time ≤500ms at p95 under load (validated with a load test)
@@ -63,7 +63,7 @@ Given a disc in any drive, OVID returns the correct disc identity and structure 
 
 ## Context
 
-- Brownfield: v0.1.0 shipped (DVD fingerprinting, API, CLI, schema). v0.2.0 is partially built — OAuth, Web UI, disc-identity aliasing, and the libdvdread Phase 1 fallback have landed but are not all verified end-to-end.
+- Brownfield: v0.1.0 shipped (DVD fingerprinting, API, CLI, schema). v0.2.0 is partially built — OAuth, Web UI, disc-identity aliasing, and the libdvdread Phase 1 fallback have landed but are not all verified end-to-end. Phase 2 (two-contributor verification workflow) is complete and independently verified end-to-end, including a deep adversarial code review and full remediation of the bypasses it found (see `02-VERIFICATION.md`, `02-REVIEW-FIX.md`).
 - The libdvdread migration is deliberately staged (ADR 0001) to avoid fragmenting existing lookups, submissions, tests, docs, and database records: `dvd1-*` stays the public fingerprint until aliases and dual submission exist.
 - Disc Identity (which exact pressing) and Normalized Disc Structure (playable titles/chapters/tracks) are separate concepts and stay separate.
 - Known code concerns to fold into this milestone: in-memory rate-limit counters don't scale across gunicorn workers; ad-hoc root scripts (`fix_test.py`, `test_script.py`, `verify_t11.py`) should be removed or moved under `scripts/`; the ARM file-swap shim has no versioned interface; the IndieAuth localhost bypass must never be enabled in production; `api/disc.py` and `api/auth/routes.py` are large and growing; UAT scripts are not CI-integrated and `uat_results.json` should be gitignored.
@@ -106,4 +106,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-05 after initialization*
+*Last updated: 2026-07-05 after Phase 2 completion*
