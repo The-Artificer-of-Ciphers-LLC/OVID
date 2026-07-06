@@ -144,6 +144,28 @@ PYTHONPATH=api python -m pytest tests/ -v
 
 API tests use an in-memory SQLite database — no Docker or PostgreSQL required for running them. Write tests for new features and bug fixes. If you're modifying existing behavior, update the relevant tests.
 
+### Manual pre-release verification (Blu-ray/UHD)
+
+Automated CI cannot exercise real optical hardware, so FPRINT-05's requirement — that a disc produces an identical fingerprint across at least 2 physical drives and both Linux and macOS — is proven by a documented manual step rather than a CI job.
+
+**Before tagging any release that touches Blu-ray/UHD fingerprinting**, a contributor with real BD/UHD hardware must run `ovid-client/tests/test_bd_real_disc.py` against a real disc:
+
+```bash
+cd ovid-client
+OVID_TEST_DISC_PATH=/path/to/drive1 python -m pytest tests/test_bd_real_disc.py -v -m real_disc
+```
+
+If a second drive is available, also set `OVID_TEST_DISC_PATH_2` to a second drive/path reading the same physical disc — this runs the cross-drive determinism check (`TestRealBDDiscCrossDrive`), asserting both drives produce the identical fingerprint:
+
+```bash
+cd ovid-client
+OVID_TEST_DISC_PATH=/path/to/drive1 \
+OVID_TEST_DISC_PATH_2=/path/to/drive2 \
+python -m pytest tests/test_bd_real_disc.py -v -m real_disc
+```
+
+This step must never be skipped for a release advertising Blu-ray/UHD support. It never requires committing any disc-derived bytes to the repository — only observing that the test suite passes locally on the contributor's own hardware.
+
 ### Repository structure
 
 ```
