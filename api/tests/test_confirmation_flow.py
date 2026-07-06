@@ -305,3 +305,74 @@ class TestAntiSybilGate:
         )
         assert verify_edit is not None
         assert verify_edit.ip_hash == ip_subnet_hash("9.9.9.9", salt)
+
+
+# ---------------------------------------------------------------------------
+# W2 — the identify-path audit edit must carry ip_hash, like the create edit
+# ---------------------------------------------------------------------------
+class TestIdentifyAuditIpHash:
+    def test_identify_disc_edit_carries_ip_hash(
+        self, client, db_session, auth_header, monkeypatch
+    ):
+        """The DiscEdit created by the identify path (register -> first
+        release metadata submission) must carry the submitter's salted
+        subnet hash, exactly like the create-edit path — otherwise the
+        IP-diversity anti-Sybil signal is permanently nulled for every
+        register->identify disc (D-06)."""
+        monkeypatch.setenv("OVID_IP_HASH_SALT", "test-salt")
+        salt = b"test-salt"
+        register_payload = {
+            "fingerprint": "bd-IDENTIFY-IP-001",
+            "format": "BD",
+            "disc_label": "IDENTIFY_IP",
+        }
+        client.post("/v1/disc/register", json=register_payload, headers=auth_header)
+
+        identify_payload = {
+            "fingerprint": "bd-IDENTIFY-IP-001",
+            "format": "BD",
+            "release": {
+                "title": "Identify IP Film",
+                "year": 2021,
+                "content_type": "movie",
+                "tmdb_id": 121212,
+                "original_language": "en",
+            },
+            "titles": [
+                {
+                    "title_index": 0,
+                    "title_type": "main_feature",
+                    "duration_secs": 5400,
+                    "chapter_count": 16,
+                    "is_main_feature": True,
+                    "display_name": "Identify IP Film",
+                    "audio_tracks": [
+                        {
+                            "track_index": 0,
+                            "language_code": "en",
+                            "codec": "ac3",
+                            "channels": 6,
+                            "is_default": True,
+                        }
+                    ],
+                    "subtitle_tracks": [],
+                }
+            ],
+        }
+        resp = _post_from_ip("5.6.7.8", identify_payload, auth_header)
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "unverified"
+
+        db_session.expire_all()
+        disc = (
+            db_session.query(Disc)
+            .filter(Disc.fingerprint == "bd-IDENTIFY-IP-001")
+            .first()
+        )
+        identify_edit = (
+            db_session.query(DiscEdit)
+            .filter(DiscEdit.disc_id == disc.id, DiscEdit.edit_type == "identify")
+            .first()
+        )
+        assert identify_edit is not None
+        assert identify_edit.ip_hash == ip_subnet_hash("5.6.7.8", salt)
