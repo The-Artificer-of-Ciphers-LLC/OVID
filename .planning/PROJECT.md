@@ -30,6 +30,10 @@ Given a disc in any drive, OVID returns the correct disc identity and structure 
 - ✓ Next.js web UI scaffolding: search, disc detail, submission wizard, disputes, settings, OAuth callbacks — existing (partial)
 - ✓ Rate limiting via slowapi (in-memory) — existing (has multi-worker scaling defect, see Key Decisions)
 - ✓ Two-contributor verification workflow live (unverified → verified on independent fingerprint confirmation), rate-limited + anti-Sybil weighted — Phase 2 complete; VERIFY-01, VERIFY-03, VERIFY-04 validated end-to-end, including adversarial-review remediation (see `02-VERIFICATION.md`, `02-REVIEW-FIX.md`)
+- ✓ INFRA-01: Rate limiting corrected for multi-worker deployment — env-driven Redis-backed slowapi storage (`REDIS_URL` selects shared `RedisStorage`), `redis:7-alpine` wired into prod + test compose (internal-only, ephemeral); single-worker self-host stays on `memory://` — Phase 3
+- ✓ INFRA-02: Redis-outage behavior is a documented, tested fail-open decision — bounded, self-healing in-memory fallback (`FALLBACK_LIMIT`) proven by injected-`ConnectionError` tests, with a fail-fast boot guard refusing multi-worker startup without `REDIS_URL` — Phase 3
+- ✓ INFRA-03: API response time ≤500ms at p95 under load, validated against the honest Redis-backed `gunicorn -w 4` + Postgres stack (never `memory://`) via a non-blocking scheduled Locust job — measured p95 270ms — Phase 3
+- ✓ INFRA-04: Per-account write ceiling (`AUTH_WRITE_LIMIT`) live on all three disc write routes (submit/register/resolve), closing the novel-fingerprint flood gap independent of the anti-Sybil confirmation cooldown — Phase 3
 
 ### Active
 
@@ -41,8 +45,6 @@ Given a disc in any drive, OVID returns the correct disc identity and structure 
 - [ ] All four OAuth providers working end-to-end: GitHub, Google, Apple, Mastodon (instance discovery)
 - [ ] Linked accounts: multiple providers connectable to one account; settings page add/remove with a minimum of one remaining; email-match merge offer on duplicate verified email
 - [ ] Web UI production-ready: search, disc detail view, submit form live at `oviddb.org`
-- [ ] Rate limiting corrected for multi-worker deployment (Redis-backed slowapi storage) and basic abuse prevention live
-- [ ] API response time ≤500ms at p95 under load (validated with a load test)
 - [ ] ARM integration PR merged or under active review with upstream
 - [ ] Bulk-seed tooling + seed the database to ≥500 real disc entries
 - [ ] `oviddb.com` and `oviddb.net` redirecting to `oviddb.org`
@@ -63,10 +65,10 @@ Given a disc in any drive, OVID returns the correct disc identity and structure 
 
 ## Context
 
-- Brownfield: v0.1.0 shipped (DVD fingerprinting, API, CLI, schema). v0.2.0 is partially built — OAuth, Web UI, disc-identity aliasing, and the libdvdread Phase 1 fallback have landed but are not all verified end-to-end. Phase 2 (two-contributor verification workflow) is complete and independently verified end-to-end, including a deep adversarial code review and full remediation of the bypasses it found (see `02-VERIFICATION.md`, `02-REVIEW-FIX.md`).
+- Brownfield: v0.1.0 shipped (DVD fingerprinting, API, CLI, schema). v0.2.0 is partially built — OAuth, Web UI, disc-identity aliasing, and the libdvdread Phase 1 fallback have landed but are not all verified end-to-end. Phase 2 (two-contributor verification workflow) is complete and independently verified end-to-end, including a deep adversarial code review and full remediation of the bypasses it found (see `02-VERIFICATION.md`, `02-REVIEW-FIX.md`). Phase 3 (Redis-backed rate limiting & performance) is complete: multi-worker rate limiting, the fail-open outage decision, the per-account write ceiling, and the p95 ≤500ms load-test proof are all live and verified (see `03-VERIFICATION.md`).
 - The libdvdread migration is deliberately staged (ADR 0001) to avoid fragmenting existing lookups, submissions, tests, docs, and database records: `dvd1-*` stays the public fingerprint until aliases and dual submission exist.
 - Disc Identity (which exact pressing) and Normalized Disc Structure (playable titles/chapters/tracks) are separate concepts and stay separate.
-- Known code concerns to fold into this milestone: in-memory rate-limit counters don't scale across gunicorn workers; ad-hoc root scripts (`fix_test.py`, `test_script.py`, `verify_t11.py`) should be removed or moved under `scripts/`; the ARM file-swap shim has no versioned interface; the IndieAuth localhost bypass must never be enabled in production; `api/disc.py` and `api/auth/routes.py` are large and growing; UAT scripts are not CI-integrated and `uat_results.json` should be gitignored.
+- Known code concerns to fold into this milestone: the ARM file-swap shim has no versioned interface; the IndieAuth localhost bypass must never be enabled in production; `api/disc.py` and `api/auth/routes.py` are large and growing. (Resolved: in-memory rate-limit counters not scaling across gunicorn workers — Phase 3; ad-hoc root scripts and ungitignored `uat_results.json` — Phase 1.)
 - External integrations: TMDB (metadata lookup), canonical OVID at `oviddb.org` (upstream for mirror sync — a v0.3 concern), ARM.
 
 ## Constraints
@@ -85,8 +87,12 @@ Given a disc in any drive, OVID returns the correct disc identity and structure 
 |----------|-----------|---------|
 | Stage the libdvdread disc-identity migration (dvd1 primary → aliases → dvdread1 primary) | Avoid fragmenting existing lookups, submissions, tests, docs, and DB records (ADR 0001) | ✓ Good — Phases 1–2 landing |
 | Include non-code v0.2.0 exit items (DNS redirects, announcement, ≥500-entry seeding) as roadmap tasks | User wants the full milestone exit tracked and driven, not just engineering | — Pending |
-| Move rate limiting to Redis-backed slowapi storage | In-memory counters multiply the effective limit by the gunicorn worker count — incorrect under prod deployment | — Pending |
+| Move rate limiting to Redis-backed slowapi storage | In-memory counters multiply the effective limit by the gunicorn worker count — incorrect under prod deployment | ✓ Good — Phase 3 |
 | Keep Disc Identity and Normalized Disc Structure as separate concepts | Identity answers "which pressing"; structure answers "what plays" — different lifecycles (ADR 0001) | ✓ Good |
+| D-00: Sequence the Redis backbone, write throttle, and load test so the load test runs LAST | A tight write limit and any p95 claim are hollow under `memory://` (worker-inflated); the load test must validate the real Redis-backed target config, not the retiring single-worker one | ✓ Good — Phase 3 |
+| D-01: Redis outage degrades to a bounded, self-healing in-memory fallback (`FALLBACK_LIMIT`) rather than failing closed | Never block the read-heavy ARM lookup path on a transient Redis outage; proven by injected `ConnectionError` on `RedisStorage.incr` | ✓ Good — Phase 3 |
+| D-06: Fail-fast import-time guard refuses to boot when `OVID_WORKERS`/`WEB_CONCURRENCY` > 1 without `REDIS_URL` | Turns silent per-worker rate-limit Nx inflation into a loud, immediate boot failure instead of a quiet multi-worker correctness bug | ✓ Good — Phase 3 |
+| CR-01: Made `UNAUTH_LIMIT`/`AUTH_LIMIT` env-configurable (`OVID_UNAUTH_LIMIT`/`OVID_AUTH_LIMIT`), same hardcoded defaults | The load-test harness needed to raise the read-tier limits so measured p95 reflects real handler latency, not limiter 429s | ✓ Good — Phase 3 |
 
 ## Evolution
 
@@ -106,4 +112,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-05 after Phase 2 completion*
+*Last updated: 2026-07-06 after Phase 3*
