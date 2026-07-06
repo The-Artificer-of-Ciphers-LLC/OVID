@@ -173,3 +173,7 @@ None — no external service configuration required. The new CI job requires no 
 ---
 *Phase: 05-adr-0001-completion-dvdread1-promotion*
 *Completed: 2026-07-06*
+
+## Self-Check: PASSED
+
+All 7 created/modified files verified present on disk; all 7 commit hashes (`742fff1`, `f7f2bb9`, `dec5049`, `08391df`, `e37103d`, `4cb0016`, `7696d78`) verified present in `git log --oneline --all`.

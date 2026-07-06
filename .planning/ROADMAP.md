@@ -152,14 +152,14 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Carry-forward from Phase 1 code review (WR-02, user-scoped to this phase):** `discs.fingerprint` and `disc_identity_aliases.fingerprint` carry independent UNIQUE constraints with no cross-table arbitration. Phase 1 hardened the same-table alias write race (IDENT-02), but a race between "insert a new disc with fingerprint F" and "attach F as an alias to a *different* disc" is arbitrated by neither constraint and can silently split identity. Because promotion here increases write concurrency on the shared fingerprint namespace, this phase must add cross-table arbitration (e.g. a shared fingerprint registry table or an application-level advisory lock) plus the accompanying migration. Source: `.planning/phases/01-alias-layer-hardening-repo-hygiene/01-REVIEW.md` (WR-02).
 
-**Plans**: 3/7 plans executed
+**Plans**: 4/7 plans executed
 
 **Wave 1** *(parallel — disjoint files)*
 
 - [x] 05-01-PLAN.md — WR-02 fingerprint_registry model + register_fingerprint() wiring into attach_lookup_aliases + regression test [Wave 1, tdd] (IDENT-04)
 - [x] 05-02-PLAN.md — promote_one_disc()/promote_all_dvdread1_discs() Alembic-independent promotion logic + tests [Wave 1, tdd] (IDENT-04)
 - [x] 05-03-PLAN.md — ovid-client identify_dvd() Tier-2 (dvdread1) primary flip + tests [Wave 1, tdd] (IDENT-03)
-- [ ] 05-04-PLAN.md — ARM identify_ovid.py/identify.py fingerprint_aliases fix + arm/tests/ + CI job [Wave 1, tdd] (IDENT-03)
+- [x] 05-04-PLAN.md — ARM identify_ovid.py/identify.py fingerprint_aliases fix + arm/tests/ + CI job [Wave 1, tdd] (IDENT-03)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -231,7 +231,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | 2. Two-Contributor Verification Workflow | 5/5 | Complete    | 2026-07-05 |
 | 3. Redis-Backed Rate Limiting & Performance | 4/4 | Complete    | 2026-07-06 |
 | 4. Blu-ray/UHD Fingerprinting | 6/6 | Complete    | 2026-07-06 |
-| 5. ADR 0001 Completion — dvdread1-* Promotion | 3/7 | In Progress|  |
+| 5. ADR 0001 Completion — dvdread1-* Promotion | 4/7 | In Progress|  |
 | 6. OAuth & Account Linking | 0/TBD | Not started | - |
 | 7. Web UI Production Readiness | 0/TBD | Not started | - |
 | 8. Launch Readiness — ARM, Seeding & Announcement | 0/TBD | Not started | - |

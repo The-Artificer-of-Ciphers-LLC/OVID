@@ -4,14 +4,14 @@ milestone: v0.2.0
 milestone_name: milestone
 current_phase_name: adr-0001-completion-dvdread1-promotion
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-07-06T21:34:58.299Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-07-06T21:55:35.988Z"
 last_activity: 2026-07-06 — Phase 05 execution started
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 28
-  completed_plans: 24
+  completed_plans: 25
   percent: 50
 current_phase: 05
 ---
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 05 (adr-0001-completion-dvdread1-promotion) — EXECUTING
 Current Phase Name: adr-0001-completion-dvdread1-promotion
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-07-06 — Phase 05 execution started
 Last Activity Description: Phase 05 execution started
@@ -77,6 +77,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 05 P01 | 5min | 2 tasks | 3 files |
 | Phase 05 P02 | 10min | 2 tasks | 2 files |
 | Phase 05 P03 | 15min | 1 tasks | 2 files |
+| Phase 05 P04 | 20min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 05-02]: promote_one_disc/promote_all_dvdread1_discs are Alembic-independent (zero alembic imports); UUIDs crossing raw text() SQL binds must use .hex (not str()) to match SQLite's non-native hex-no-dash storage format
 - [Phase ?]: [Phase 05-03]: identify_dvd() flipped to prefer dvdread1-* primary whenever libdvdread succeeds (dvd1-* demoted to sole alias), mirroring identify_bd()'s Tier-2-primary/Tier-1-alias pattern; fallback to dvd1-*-primary/zero-alias unchanged when libdvdread unavailable/invalid (D-03, closes RESEARCH.md Open Question #1)
 - [Phase ?]: [Phase 05-03]: libdvdread_identity()'s hex-validation ValueError must be raised/caught inside the same try block as read_libdvdread_disc_id() so both failure modes converge on identical exception handling
+- [Phase 05-04]: fingerprint_disc_with_identity() reads disc._identity_set directly via getattr; fingerprint_disc() is now a thin backward-compatible wrapper over it, mirroring build_submit_payload()'s alias-only-if-present convention in submit_to_ovid()
+- [Phase 05-04]: arm/identify.py's _load_original() hardened to degrade gracefully (try/except around exec_module) instead of crashing the module's own import when ARM-only deps (pydvdid, arm.config, arm.ripper.utils, arm.ui) are absent — required to make arm.identify importable/testable outside the ARM container
+- [Phase 05-04]: arm-tests CI job installs ovid-client editable (not just requests+pytest as the plan literally specified) because the tests monkeypatch real ovid.disc.Disc.from_path/ovid.bd_disc.BDDisc.from_path and construct real DiscIdentitySet instances
 
 ### Pending Todos
 
@@ -148,6 +152,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T21:34:58.294Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-07-06T21:55:35.983Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None
