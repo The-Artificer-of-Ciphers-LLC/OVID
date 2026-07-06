@@ -24,7 +24,9 @@ findings:
   warning: 4
   info: 3
   total: 8
-status: issues_found
+status: resolved
+resolved: 2026-07-06
+resolution: All 1 critical + 4 warnings fixed and verified (commits 68b7a32..65ef492). IN-01/IN-02 documented; IN-03 is an out-of-scope perf note (no correctness impact), acknowledged not fixed.
 ---
 
 # Phase 3: Code Review Report
@@ -247,6 +249,19 @@ out of v1 scope, so this is informational — if seeding tens of thousands ever
 becomes a need, periodically `db.expunge_all()` after a batch flush.
 
 ---
+
+## Resolution (2026-07-06)
+
+All actionable findings were fixed inline during phase execution and independently verified (full API suite 327 → **331 passed**, no new warnings; both merged compose stacks parse; `docker compose config` confirms `gunicorn -w "4"` resolves in lock-step with `OVID_WORKERS=4`).
+
+| Finding | Fix | Commit(s) |
+|---|---|---|
+| CR-01 (critical) | Read limits (`UNAUTH_LIMIT`/`AUTH_LIMIT`) made env-configurable with **identical defaults**; `loadtest.yml` raises them for the CI run so the gate measures handler p95, not limiter 429s | 68b7a32, 8e93831, 1af57d6 |
+| WR-04 | Empty `OVID_WORKERS` treated as unset; non-numeric raises the module's actionable `RuntimeError` instead of a bare `ValueError` | 05f371d, ecb638e |
+| WR-02 | Both gunicorn `-w` and the `OVID_WORKERS` env entry interpolate the same `${OVID_WORKERS:-4}` (single source, cannot drift); `self-hosting.md` "impossible" claim softened. *(Brief's literal snippet would have regressed — Compose interpolates `command:` from host/`.env`, not sibling `environment:`; corrected.)* | bb485e5 |
+| WR-03 | `_p95_gate` fails loud on a zero/too-few-request run (min-throughput floor as the first check) | 11a4665 |
+| WR-01 / IN-01 / IN-02 | Documented: outage relaxes the write ceiling to ~60/min × workers (fail-open on writes during a Redis outage, per deferred D-04); "bounded" clarified to per-key rate; `OVID_FORWARDED_ALLOW_IPS` companion setting noted | 65ef492 |
+| IN-03 (info) | Out-of-scope perf note (session retention for very large seed `N`); correctness unaffected — acknowledged, not changed | — |
 
 _Reviewed: 2026-07-06_
 _Reviewer: Claude (gsd-code-reviewer)_
