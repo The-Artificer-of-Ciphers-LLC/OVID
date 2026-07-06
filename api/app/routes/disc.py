@@ -131,6 +131,7 @@ def _identify_existing_disc(
     body: DiscSubmitRequest,
     current_user: User,
     request_id: str,
+    request: Request,
 ) -> JSONResponse:
     """Attach the first release metadata to a ``pending_identification`` disc.
 
@@ -218,13 +219,18 @@ def _identify_existing_disc(
         existing.seq_num = seq
         release.seq_num = seq
 
-        # Audit trail: record the identification event
+        # Audit trail: record the identification event. Capture the
+        # submitter's salted /24 subnet hash (D-06/W2), the same way the
+        # create-edit path does (client_ip_hash), so the IP-diversity
+        # anti-Sybil signal has a reference for register->identify discs too
+        # (fail-open to NULL when IP/salt absent).
         db.add(
             DiscEdit(
                 disc_id=existing.id,
                 user_id=current_user.id,
                 edit_type="identify",
                 edit_note="disc identified — first release metadata attached",
+                ip_hash=client_ip_hash(request),
             )
         )
 
@@ -297,7 +303,9 @@ def _handle_existing_disc(
         return _identity_conflict_response(request_id, exc.fingerprint)
 
     if existing.status == "pending_identification":
-        return _identify_existing_disc(db, existing, body, current_user, request_id)
+        return _identify_existing_disc(
+            db, existing, body, current_user, request_id, request
+        )
 
     # Same user submitting again → conflict
     if existing.submitted_by is not None and str(existing.submitted_by) == str(current_user.id):
