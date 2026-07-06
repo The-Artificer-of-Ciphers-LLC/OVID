@@ -93,7 +93,13 @@ REDIS_URL = os.environ.get("REDIS_URL")
 # boot in that configuration — mirror auth/config._require_env's import-time
 # fail-fast. Read an explicit worker-count env var (OVID_WORKERS, falling back
 # to gunicorn's own WEB_CONCURRENCY); never scrape gunicorn argv.
-_worker_count = int(os.environ.get("OVID_WORKERS", os.environ.get("WEB_CONCURRENCY", "1")))
+_raw_workers = os.environ.get("OVID_WORKERS") or os.environ.get("WEB_CONCURRENCY") or "1"
+try:
+    _worker_count = int(_raw_workers)
+except ValueError:
+    raise RuntimeError(
+        f"OVID_WORKERS/WEB_CONCURRENCY must be an integer, got {_raw_workers!r}."
+    )
 if _worker_count > 1 and not REDIS_URL:
     raise RuntimeError(
         f"Rate limiting is misconfigured: OVID_WORKERS={_worker_count} (>1) but "
