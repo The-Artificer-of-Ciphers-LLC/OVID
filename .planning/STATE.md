@@ -4,14 +4,14 @@ milestone: v0.2.0
 milestone_name: milestone
 current_phase_name: Blu-ray/UHD Fingerprinting
 status: executing
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-07-06T17:59:47.874Z"
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-07-06T18:09:23.058Z"
 last_activity: 2026-07-06 -- Phase 04 execution started
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 21
-  completed_plans: 18
+  completed_plans: 19
   percent: 38
 current_phase: 04
 ---
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 04 (Blu-ray/UHD Fingerprinting) — EXECUTING
 Current Phase Name: Blu-ray/UHD Fingerprinting
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-07-06 -- Phase 04 execution started
 Last Activity Description: Phase 04 execution started
@@ -70,6 +70,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 04 P01 | 30min | 2 tasks | 3 files |
 | Phase 04 P02 | 15min | 2 tasks | 2 files |
 | Phase 04 P04 | 10m | 1 tasks | 1 files |
+| Phase 04 P03 | 25min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,8 @@ Recent decisions affecting current work:
 - [Phase ?]: Tie-break/dedup key is the full (clip_id, in_time, out_time) tuple per play item, never filename — closes studio playlist-renumbering obfuscation (FPRINT-06)
 - [Phase 04-02]: identify_bd() Tier-2-primary/Tier-1-alias identity resolver added, mirroring identify_dvd() exactly (FPRINT-03)
 - [Phase 04]: Only touched the ovid-client-tests job in ci.yml; other jobs (api-tests, e2e-tests, web-tests, docs-build) left unchanged since e2e-tests already waits for all matrix legs of a dependency job by default.
+- [Phase ?]: [Phase 04-03]: canonical_string is independently re-derived in BDDisc._build() via build_bd_canonical_string() rather than reusing a value from identify_bd() — identify_bd()'s shipped DiscIdentitySet has no canonical-string field to reuse
+- [Phase ?]: [Phase 04-03]: BDDisc.playlists is empty in the degenerate Tier-1-primary case (mirrors pre-existing test_all_playlists_under_60s_with_aacs_uses_tier1 regression guarantee)
 
 ### Pending Todos
 
@@ -130,6 +133,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T17:58:45.145Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-07-06T18:09:14.520Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None

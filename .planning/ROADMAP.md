@@ -122,7 +122,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. Tier 2 playlist filter/sort/tie-break constants are frozen as a versioned part of the fingerprint spec — never tuned as loose implementation values — defending against studio obfuscation-playlist decoys (FPRINT-06 [guardrail]).
   6. A real BD/UHD fixture corpus, including at least one heavily-obfuscated disc, backs the regression suite, and the fingerprint spec is updated with OVID-BD-2 Tier 1 & Tier 2 in `docs/fingerprint-spec.md` (FPRINT-07, DOCS-01).
 
-**Plans**: 3/6 plans executed
+**Plans**: 4/6 plans executed
 
 **Wave 1** *(parallel — disjoint files)*
 
@@ -132,7 +132,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 2** *(blocked on Wave 1 — needs bd2_spec.py + identify_bd())*
 
-- [ ] 04-03-PLAN.md — BDDisc refactor: remove Tier-1 short-circuit, expose .identity, consolidate playlist filtering [Wave 2, depends 04-01/04-02, tdd] (FPRINT-03, FPRINT-04, FPRINT-06)
+- [x] 04-03-PLAN.md — BDDisc refactor: remove Tier-1 short-circuit, expose .identity, consolidate playlist filtering [Wave 2, depends 04-01/04-02, tdd] (FPRINT-03, FPRINT-04, FPRINT-06)
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -214,7 +214,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | 1. Alias-Layer Hardening & Repo Hygiene | 6/6 | Complete    | 2026-07-05 |
 | 2. Two-Contributor Verification Workflow | 5/5 | Complete    | 2026-07-05 |
 | 3. Redis-Backed Rate Limiting & Performance | 4/4 | Complete    | 2026-07-06 |
-| 4. Blu-ray/UHD Fingerprinting | 3/6 | In Progress|  |
+| 4. Blu-ray/UHD Fingerprinting | 4/6 | In Progress|  |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 0/TBD | Not started | - |
 | 6. OAuth & Account Linking | 0/TBD | Not started | - |
 | 7. Web UI Production Readiness | 0/TBD | Not started | - |
