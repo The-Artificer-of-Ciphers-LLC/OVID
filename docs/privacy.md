@@ -46,9 +46,16 @@ from the IP address of a user confirming an existing disc entry.
   a fresh throwaway account. It is never used to identify, geolocate, or track
   an individual, and by itself it never blocks a confirmation — see
   [Anti-Sybil confirmation gate](#anti-sybil-confirmation-gate) below.
-- **Retention:** the IP-hash is retained for approximately **90 days**, a
-  fraud-prevention-only retention window, after which it is eligible for
-  deletion. It is not retained indefinitely.
+- **Retention:** OVID's *target* retention window for the IP-hash is
+  approximately **90 days**, for fraud-prevention purposes only — it is not
+  intended to be kept indefinitely. **As of this writing, that window is not
+  enforced automatically: there is no scheduled job or process anywhere in
+  OVID that deletes `disc_edits.ip_hash` values once they age past 90
+  days.** Enforcing the window today is a manual/operator responsibility
+  (a self-hosted instance operator would need to periodically purge old
+  hashes themselves); automating this purge is a planned future capability,
+  not a currently-shipped one. Do not assume IP-hashes are automatically
+  purged after 90 days on any OVID instance today.
 - **Legal basis (GDPR):** even a salted, truncated hash of an IP address is
   treated as personal data under GDPR (it can, in principle, be linked back to
   an individual with additional information). OVID's basis for processing this
