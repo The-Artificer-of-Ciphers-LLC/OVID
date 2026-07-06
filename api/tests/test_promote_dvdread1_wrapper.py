@@ -16,7 +16,9 @@ import sys
 
 import pytest
 
-_repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_repo_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 _scripts_dir = os.path.join(_repo_root, "scripts")
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
