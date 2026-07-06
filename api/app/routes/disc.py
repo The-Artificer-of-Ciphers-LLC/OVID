@@ -319,6 +319,15 @@ def _handle_existing_disc(
 
     # Different user — anti-Sybil gate BEFORE any status write (VERIFY-04).
     # The gate only decides; it never mutates disc.status (VERIFY-02).
+    #
+    # D-10 seam: this Postgres-backed `evaluate_confirmation` cooldown is a
+    # NARROW in-handler semantic gate — it counts only successful verify-edits
+    # and stays on Postgres (worker-safe, never migrated onto Redis/slowapi).
+    # It is distinct from, and layered with, the COARSE pre-handler slowapi
+    # `AUTH_WRITE_LIMIT` volumetric ceiling on this route, which caps raw POST
+    # request rate over ALL write traffic from a key (including novel-fingerprint
+    # floods that never reach this branch). Defense-in-depth, not redundancy:
+    # the two measure different things and never decrement each other.
     gate = evaluate_confirmation(db, existing, current_user, request)
     if gate.hard_blocked:
         # Cooldown floor exceeded (D-13). Persist any alias attachments (parity
