@@ -1,0 +1,185 @@
+# Non-blocking load test (INFRA-03 / D-12 / D-14).
+#
+# Proves API p95 <= 500ms against the HONEST config — Postgres 16 + live Redis +
+# gunicorn -w 4 (the real Redis-backed multi-worker limiter from Plans 01-03),
+# NOT SQLite/TestClient or memory:// single-worker.
+#
+# This workflow is intentionally NOT triggered on push/pull_request, so it is
+# NEVER a per-PR merge gate: an absolute-ms assertion on GitHub's noisy shared
+# runners would flake and force a root-cause every time (D-12). The Locust exit
+# code still fails THIS job visibly when the budget is breached — surfacing the
+# regression — but that failure gates no PR.
+#
+# Manual / pre-release run:
+#   - GitHub UI: Actions -> "Load Test (p95)" -> "Run workflow" (workflow_dispatch)
+#   - Locally against a running honest stack:
+#       cd api && python scripts/seed.py --count 3000
+#       OVID_LOADTEST_TOKEN=<jwt> OVID_LOADTEST_SEED_COUNT=3000 \
+#         locust -f loadtest/locustfile.py --headless -u 100 -r 10 -t 3m \
+#         --host http://localhost:8000 --csv loadtest/results
+
+name: Load Test (p95)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly, off-peak: Mondays 04:17 UTC (D-12 / RESEARCH A6 — weekly cadence).
+    - cron: "17 4 * * 1"
+
+jobs:
+  load-test:
+    name: p95 load test (honest stack)
+    runs-on: ubuntu-latest
+    env:
+      SEED_COUNT: "3000"
+      OVID_SECRET_KEY: loadtest-ci-secret-key-not-a-real-credential-32b
+      DATABASE_URL: postgresql://ovid:ovidlocal@localhost:5432/ovid
+      REDIS_URL: redis://localhost:6379/0
+      # OVID_WORKERS must match `gunicorn -w 4`; with >1 workers and no REDIS_URL
+      # the API refuses to boot (D-06) — both are set so the limiter under test
+      # is the real shared Redis-backed backbone (INFRA-01).
+      OVID_WORKERS: "4"
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ovid
+          POSTGRES_PASSWORD: ovidlocal
+          POSTGRES_DB: ovid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ovid"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r api/requirements.txt
+          pip install -r loadtest/requirements.txt
+
+      - name: Run migrations (Postgres, honest schema)
+        working-directory: api
+        run: alembic upgrade head
+
+      - name: Seed load-test dataset (D-13 low-thousands)
+        working-directory: api
+        run: python scripts/seed.py --count "$SEED_COUNT"
+
+      - name: Mint load-test submit token (seeded contributor)
+        working-directory: api
+        run: |
+          python - <<'PY'
+          import os
+          import uuid
+
+          from app.database import SessionLocal
+          from app.models import User
+          from app.auth.jwt import create_access_token
+
+          db = SessionLocal()
+          try:
+              user = db.query(User).filter(User.username == "loadtester").first()
+              if user is None:
+                  user = User(
+                      id=uuid.uuid4(),
+                      username="loadtester",
+                      email="loadtester@seed.local",
+                      display_name="Load Tester",
+                      email_verified=True,
+                      role="contributor",
+                  )
+                  db.add(user)
+                  db.commit()
+                  db.refresh(user)
+              token = create_access_token(user.id)
+          finally:
+              db.close()
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+              fh.write(f"OVID_LOADTEST_TOKEN={token}\n")
+          print("Minted load-test token for seeded contributor 'loadtester'.")
+          PY
+
+      - name: Start API (gunicorn -w 4, live Redis + Postgres)
+        working-directory: api
+        run: |
+          nohup gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app \
+            --bind 127.0.0.1:8000 --timeout 60 > gunicorn.log 2>&1 &
+          echo "Waiting for /health ..."
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8000/health >/dev/null; then
+              echo "API healthy after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API failed to become healthy; gunicorn log:" >&2
+          cat gunicorn.log >&2
+          exit 1
+
+      - name: Run Locust p95 gate
+        env:
+          OVID_LOADTEST_SEED_COUNT: ${{ env.SEED_COUNT }}
+        run: |
+          locust -f loadtest/locustfile.py --headless \
+            -u 100 -r 10 -t 3m \
+            --host http://localhost:8000 \
+            --csv loadtest/results
+
+      - name: Publish p95/p99 to job summary
+        if: always()
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import csv
+          import os
+
+          path = "loadtest/results_stats.csv"
+          print("## Load test results\n")
+          print("Budget: p95 <= 500ms, error ratio <= 1% (honest stack: Postgres + Redis + gunicorn -w 4)\n")
+          if not os.path.exists(path):
+              print("_No results CSV was produced._")
+              raise SystemExit(0)
+          with open(path, encoding="utf-8") as fh:
+              rows = list(csv.DictReader(fh))
+          agg = next(
+              (r for r in rows if r.get("Name") in ("Aggregated", "Total")),
+              rows[-1] if rows else None,
+          )
+          if not agg:
+              print("_Results CSV was empty._")
+              raise SystemExit(0)
+          p95 = agg.get("95%") or agg.get("95%ile") or "n/a"
+          p99 = agg.get("99%") or agg.get("99%ile") or "n/a"
+          print(f"- **p95:** {p95} ms")
+          print(f"- **p99:** {p99} ms")
+          print(f"- **Requests:** {agg.get('Request Count', '?')}")
+          print(f"- **Failures:** {agg.get('Failure Count', '?')}")
+          PY
+
+      - name: Upload Locust results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: loadtest-results
+          path: loadtest/results_stats.csv
+          if-no-files-found: warn
