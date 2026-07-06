@@ -2,7 +2,8 @@
 
 from sqlalchemy.orm import Session
 
-from app.models import Disc, DiscEdit
+from app.models import Disc, DiscEdit, DiscIdentityAlias, DiscRelease, DiscTitle, DiscTrack, Release
+from app.routes.disc import _select_primary
 from tests.conftest import matrix_matching_submit_payload, seed_test_disc
 
 
@@ -491,3 +492,212 @@ class TestSubmitAgainstPendingIdentificationDisc:
         # withheld while the disc is unverified (anti-echo redaction, D-09).
         assert get_data["release"]["title"] == "New Film"
         assert get_data["titles"] == []
+
+
+# ---------------------------------------------------------------------------
+# D-03: server-side hybrid primary selection (_select_primary pure function)
+# ---------------------------------------------------------------------------
+class TestSelectPrimary:
+    def test_dvdread1_alias_promoted_to_primary(self):
+        """A dvdread1-* alias alongside a dvd1-* declared primary is
+        promoted — dvd1-* is demoted into the remaining alias list."""
+        assert _select_primary("dvd1-a", ["dvdread1-b"]) == (
+            "dvdread1-b",
+            ["dvd1-a"],
+        )
+
+    def test_dvdread1_already_primary_unchanged(self):
+        """Client already declared dvdread1-* as primary — no duplicate,
+        no reordering churn."""
+        assert _select_primary("dvdread1-c", ["dvd1-d"]) == (
+            "dvdread1-c",
+            ["dvd1-d"],
+        )
+
+    def test_no_dvdread1_present_unchanged(self):
+        """No dvdread1-* string anywhere in the submission — server has
+        nothing to prefer, so the submission passes through unchanged."""
+        assert _select_primary("dvd1-e", ["bd1-aacs-f"]) == (
+            "dvd1-e",
+            ["bd1-aacs-f"],
+        )
+
+    def test_dvdread1_alongside_unrelated_bd_alias(self):
+        """A dvdread1-* candidate alongside an unrelated BD alias is still
+        preferred — the BD alias's presence doesn't disturb the
+        preference."""
+        assert _select_primary("dvd1-g", ["dvdread1-h", "bd1-aacs-i"]) == (
+            "dvdread1-h",
+            ["dvd1-g", "bd1-aacs-i"],
+        )
+
+
+# ---------------------------------------------------------------------------
+# D-03: server-side hybrid primary selection wired into register_disc /
+# submit_disc's new-disc SAVEPOINTs + mixed-fleet zero-fragmentation guard
+# ---------------------------------------------------------------------------
+def _seed_promoted_disc(db: Session, submitted_by_id) -> dict:
+    """Seed a disc already promoted to dvdread1-* primary, mirroring
+    ``seed_test_disc``'s Matrix structure/insertion order but with
+    dvdread1-/dvd1-* prefixed fingerprint values, so a structurally-
+    matching resubmission (``matrix_matching_submit_payload``) is
+    possible against it.
+
+    Deliberately NOT a change to ``conftest.py``'s ``seed_test_disc``,
+    which intentionally uses non-prefixed fingerprints for its own
+    unrelated test population.
+    """
+    release = Release(
+        title="The Matrix",
+        year=1999,
+        content_type="movie",
+        tmdb_id=603,
+        imdb_id="tt0133093",
+        original_language="en",
+    )
+    db.add(release)
+    db.flush()
+
+    disc = Disc(
+        fingerprint="dvdread1-already-promoted",
+        format="DVD",
+        region_code="1",
+        upc="012345678901",
+        disc_label="THEMATRIX_D1",
+        disc_number=1,
+        total_discs=1,
+        edition_name="10th Anniversary",
+        status="verified",
+        submitted_by=submitted_by_id,
+    )
+    db.add(disc)
+    db.flush()
+
+    db.add(DiscIdentityAlias(disc_id=disc.id, fingerprint="dvd1-already-promoted"))
+
+    db.execute(
+        DiscRelease.__table__.insert().values(disc_id=disc.id, release_id=release.id)
+    )
+
+    title = DiscTitle(
+        disc_id=disc.id,
+        title_index=1,
+        title_type="main_feature",
+        duration_secs=8160,
+        chapter_count=39,
+        is_main_feature=True,
+        display_name="The Matrix",
+    )
+    db.add(title)
+    db.flush()
+
+    audio = DiscTrack(
+        disc_title_id=title.id,
+        track_type="audio",
+        track_index=0,
+        language_code="en",
+        codec="ac3",
+        channels=6,
+        is_default=True,
+    )
+    subtitle = DiscTrack(
+        disc_title_id=title.id,
+        track_type="subtitle",
+        track_index=0,
+        language_code="en",
+        codec="vobsub",
+        channels=None,
+        is_default=False,
+    )
+    db.add_all([audio, subtitle])
+    db.commit()
+
+    return {"disc_id": disc.id, "release_id": release.id, "title_id": title.id}
+
+
+class TestSelectPrimaryWiring:
+    def test_submit_disc_prefers_dvdread1_primary_on_new_disc(
+        self, client, auth_header, db_session: Session
+    ):
+        """POST /v1/disc for a brand-new fingerprint with a dvdread1-*
+        alias present -> the server picks the dvdread1-* string as the
+        persisted primary, demoting the client's declared dvd1-* primary
+        into a Lookup Alias."""
+        payload = {
+            **VALID_PAYLOAD,
+            "fingerprint": "dvd1-select-x",
+            "fingerprint_aliases": ["dvdread1-select-y"],
+            "format": "DVD",
+            "disc_label": "SELECT_PRIMARY_SUBMIT",
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["fingerprint"] == "dvdread1-select-y"
+
+        disc = (
+            db_session.query(Disc)
+            .filter(Disc.fingerprint == "dvdread1-select-y")
+            .one()
+        )
+        alias = (
+            db_session.query(DiscIdentityAlias)
+            .filter(DiscIdentityAlias.fingerprint == "dvd1-select-x")
+            .one()
+        )
+        assert alias.disc_id == disc.id
+
+    def test_register_disc_prefers_dvdread1_primary_on_new_disc(
+        self, client, auth_header, db_session: Session
+    ):
+        """POST /v1/disc/register mirrors the same server-side dvdread1-*
+        preference on the register-only (no release metadata) path."""
+        payload = {
+            "fingerprint": "dvd1-select-reg-x",
+            "fingerprint_aliases": ["dvdread1-select-reg-y"],
+            "format": "DVD",
+            "disc_label": "SELECT_PRIMARY_REGISTER",
+        }
+        resp = client.post("/v1/disc/register", json=payload, headers=auth_header)
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["fingerprint"] == "dvdread1-select-reg-y"
+
+        disc = (
+            db_session.query(Disc)
+            .filter(Disc.fingerprint == "dvdread1-select-reg-y")
+            .one()
+        )
+        alias = (
+            db_session.query(DiscIdentityAlias)
+            .filter(DiscIdentityAlias.fingerprint == "dvd1-select-reg-x")
+            .one()
+        )
+        assert alias.disc_id == disc.id
+
+    def test_old_client_resubmit_cannot_demote_promoted_disc(
+        self, client, db_session: Session, test_user, second_auth_header
+    ):
+        """An old client re-submitting dvd1-* as its declared primary
+        against an already-promoted (dvdread1-* primary) disc must never
+        demote it back to dvd1-* primary (D-03 mixed-fleet guarantee,
+        zero-fragmentation under a heterogeneous client fleet)."""
+        seeded = _seed_promoted_disc(db_session, test_user.id)
+
+        resp = client.post(
+            "/v1/disc",
+            json={
+                **matrix_matching_submit_payload(),
+                "fingerprint": "dvd1-already-promoted",
+            },
+            headers=second_auth_header,
+        )
+        assert resp.status_code == 200
+
+        db_session.expire_all()
+        disc = db_session.query(Disc).filter(Disc.id == seeded["disc_id"]).one()
+        assert disc.fingerprint.startswith("dvdread1-"), (
+            "an old client's dvd1-primary submission must never demote an "
+            "already-promoted disc back to dvd1 primary (D-03 mixed-fleet "
+            "guarantee)"
+        )
