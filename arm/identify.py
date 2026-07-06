@@ -31,14 +31,25 @@ logger = logging.getLogger("arm.identify")
 # ---------------------------------------------------------------------------
 
 try:
-    from arm.ripper.identify_ovid import lookup_ovid, fingerprint_disc, submit_to_ovid
+    from arm.ripper.identify_ovid import (
+        lookup_ovid,
+        fingerprint_disc,
+        fingerprint_disc_with_identity,
+        submit_to_ovid,
+    )
 except ImportError:
     try:
-        from identify_ovid import lookup_ovid, fingerprint_disc, submit_to_ovid  # type: ignore[no-redef]
+        from identify_ovid import (  # type: ignore[no-redef]
+            lookup_ovid,
+            fingerprint_disc,
+            fingerprint_disc_with_identity,
+            submit_to_ovid,
+        )
     except ImportError:
         logger.warning("identify_ovid module not found — OVID lookup disabled")
         lookup_ovid = None  # type: ignore[assignment]
         fingerprint_disc = None  # type: ignore[assignment]
+        fingerprint_disc_with_identity = None  # type: ignore[assignment]
         submit_to_ovid = None  # type: ignore[assignment]
 
 # ---------------------------------------------------------------------------
@@ -96,20 +107,21 @@ def _load_original() -> Any:
 # ---------------------------------------------------------------------------
 
 
-def _try_ovid(job: Any, disc_path: str) -> tuple[bool, str | None]:
+def _try_ovid(job: Any, disc_path: str) -> tuple[bool, str | None, list[str]]:
     """Attempt an OVID fingerprint lookup for the disc at *disc_path*.
 
     On a high/medium-confidence hit, populates ``job.title``, ``job.year``,
     ``job.video_type``, sets ``job.hasnicetitle = True``, and returns
-    ``(True, fingerprint)``.
+    ``(True, fingerprint, [])``.
 
-    On miss, returns ``(False, fingerprint)`` so the caller can submit
-    after ARM fills in OMDB metadata.
+    On miss, returns ``(False, fingerprint, aliases)`` so the caller can
+    submit — with every known Disc Identity string for this physical disc,
+    not just the primary — after ARM fills in OMDB metadata.
 
-    On fingerprint failure, returns ``(False, None)``.
+    On fingerprint failure, returns ``(False, None, [])``.
     """
     if lookup_ovid is None:
-        return False, None
+        return False, None, []
 
     api_url = os.environ.get("OVID_API_URL", "http://api:8000")
 
@@ -117,27 +129,28 @@ def _try_ovid(job: Any, disc_path: str) -> tuple[bool, str | None]:
         result = lookup_ovid(disc_path, api_url=api_url)
     except Exception:  # noqa: BLE001
         logger.warning("OVID lookup raised unexpectedly — falling back to OMDB")
-        return False, None
+        return False, None, []
 
     if result is None:
-        # Miss — but we still want the fingerprint for post-identify submit.
-        # lookup_ovid returns None on miss, but it logged the fingerprint.
-        # Re-fingerprint to capture the value (fast — already parsed).
-        fp = None
-        if fingerprint_disc is not None:
+        # Miss — but we still want the fingerprint (and any known alias
+        # Disc Identity strings) for post-identify submit. lookup_ovid
+        # returns None on miss, but it logged the fingerprint.
+        # Re-fingerprint to capture the values (fast — already parsed).
+        fp, aliases = None, []
+        if fingerprint_disc_with_identity is not None:
             try:
-                fp = fingerprint_disc(disc_path)
+                fp, aliases = fingerprint_disc_with_identity(disc_path)
             except Exception:  # noqa: BLE001
                 pass
         logger.info("OVID miss, falling back to OMDB")
-        return False, fp
+        return False, fp, aliases
 
     confidence = result.get("confidence")
     if confidence not in ("high", "medium"):
         logger.info(
             "OVID match confidence too low (%s), falling back to OMDB", confidence
         )
-        return False, result.get("fingerprint")
+        return False, result.get("fingerprint"), []
 
     # Populate the ARM job from OVID data
     if result.get("title"):
@@ -151,7 +164,7 @@ def _try_ovid(job: Any, disc_path: str) -> tuple[bool, str | None]:
     job.hasnicetitle = True
 
     logger.info("OVID lookup: %s", result.get("fingerprint", "unknown"))
-    return True, result.get("fingerprint")
+    return True, result.get("fingerprint"), []
 
 
 # ---------------------------------------------------------------------------
@@ -243,6 +256,7 @@ def identify(job: Any) -> Any:
     # ── Guard: OVID can be disabled via environment variable ──────────
     ovid_enabled = os.environ.get("OVID_ENABLED", "true").lower() != "false"
     ovid_fingerprint = None
+    ovid_fingerprint_aliases: list[str] = []
 
     if ovid_enabled:
         # ARM mounts discs at job.mountpoint (e.g. /mnt/dev/sr0)
@@ -253,7 +267,9 @@ def identify(job: Any) -> Any:
             # wasting time on an empty directory (which produces misleading
             # "No VIDEO_TS directory found" errors instead of the real cause).
             if _ensure_mounted(job):
-                hit, ovid_fingerprint = _try_ovid(job, disc_path)
+                hit, ovid_fingerprint, ovid_fingerprint_aliases = _try_ovid(
+                    job, disc_path
+                )
                 if hit:
                     # OVID populated the job — skip OMDB entirely
                     return job
@@ -283,6 +299,7 @@ def identify(job: Any) -> Any:
                 fingerprint=ovid_fingerprint,
                 disc_format=disc_format,
                 disc_label=disc_label,
+                fingerprint_aliases=ovid_fingerprint_aliases,
                 api_url=api_url,
             )
         except Exception:  # noqa: BLE001
