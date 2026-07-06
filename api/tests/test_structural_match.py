@@ -150,3 +150,18 @@ def test_duration_outside_tolerance_no_match(db_session: Session):
     disc, _ = _stored_disc(db_session)
     title = _matrix_title(duration_secs=8200)  # +40s, well outside tolerance
     assert structural_match(disc, _body([title]), db_session) is False
+
+
+# ---------------------------------------------------------------------------
+# CR-02 — a title-less structure must never vacuously match
+# ---------------------------------------------------------------------------
+def test_empty_titles_both_sides_no_match(db_session: Session):
+    """Zero stored titles vs. zero submitted titles: the per-title loop runs
+    zero times and the function must NOT treat that as a match. An empty
+    structure is not proof of physical possession — the docstring's own
+    "echo" attack this function exists to prevent."""
+    disc = Disc(fingerprint="dvd-EMPTY-001", format="DVD", status="unverified")
+    db_session.add(disc)
+    db_session.commit()
+    db_session.refresh(disc)
+    assert structural_match(disc, _body(titles=[]), db_session) is False

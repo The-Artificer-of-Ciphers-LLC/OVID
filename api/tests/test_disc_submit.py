@@ -250,6 +250,39 @@ class TestDiscSubmitAutoVerify:
         assert data["status"] == "disputed"
         assert "disputed" in data["message"]
 
+    def test_duplicate_zero_title_submission_does_not_auto_verify(
+        self,
+        client,
+        auth_header,
+        second_auth_header,
+    ):
+        """CR-02: a disc submitted with an empty title list must never
+        vacuously auto-verify off a second, distinct contributor's
+        zero-title submission — even with an identical, matching release.
+        An empty structure is not proof of physical possession (fail-safe);
+        the mismatch correctly routes to the dispute path for human review,
+        never a silent verify.
+        """
+        payload = {
+            "fingerprint": "bd-ZEROTITLE-001",
+            "format": "BD",
+            "release": {
+                "title": "Zero Title Film",
+                "year": 2022,
+                "content_type": "movie",
+                "tmdb_id": 555555,
+                "original_language": "en",
+            },
+            "titles": [],
+        }
+        first_resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert first_resp.status_code == 201
+
+        second_resp = client.post("/v1/disc", json=payload, headers=second_auth_header)
+        assert second_resp.status_code == 200
+        data = second_resp.json()
+        assert data["status"] != "verified"
+
     def test_mismatched_submission_against_verified_disc_stays_verified(
         self,
         client,
