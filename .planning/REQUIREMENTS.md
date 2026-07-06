@@ -11,7 +11,7 @@
 
 - [x] **FPRINT-01**: `ovid-client` computes a Blu-ray Tier 1 fingerprint from the AACS Disc ID (`bd1-aacs-*`)
 - [x] **FPRINT-02**: `ovid-client` computes a Blu-ray Tier 2 fingerprint from BDMV/PLAYLIST/CLIP structure (`bd2-*`)
-- [ ] **FPRINT-03**: When both tiers are computable for a disc, the client returns BOTH in one `DiscIdentitySet` (they become an alias pair) rather than short-circuiting on Tier 1 success
+- [x] **FPRINT-03**: When both tiers are computable for a disc, the client returns BOTH in one `DiscIdentitySet` (they become an alias pair) rather than short-circuiting on Tier 1 success
 - [ ] **FPRINT-04**: 4K UHD Blu-ray discs are fingerprinted via the same tiered path, with format recorded on the disc record
 - [ ] **FPRINT-05**: The same disc produces identical BD/UHD fingerprints across ≥2 drives and both Linux and macOS (determinism regression test)
 - [ ] **FPRINT-06 [guardrail]**: Tier 2 playlist filter/sort constants are versioned as part of the fingerprint spec (defends against studio "obfuscation playlist" decoys), not tuned as loose implementation values
@@ -124,7 +124,7 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 |-------------|-------|--------|
 | FPRINT-01 | Phase 4 | Complete |
 | FPRINT-02 | Phase 4 | Complete |
-| FPRINT-03 | Phase 4 | Pending |
+| FPRINT-03 | Phase 4 | Complete |
 | FPRINT-04 | Phase 4 | Pending |
 | FPRINT-05 | Phase 4 | Pending |
 | FPRINT-06 | Phase 4 | Complete |

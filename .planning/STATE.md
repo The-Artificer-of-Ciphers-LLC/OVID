@@ -4,14 +4,14 @@ milestone: v0.2.0
 milestone_name: milestone
 current_phase_name: Blu-ray/UHD Fingerprinting
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-07-06T17:40:07.177Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-07-06T17:54:02.094Z"
 last_activity: 2026-07-06 -- Phase 04 execution started
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 21
-  completed_plans: 16
+  completed_plans: 17
   percent: 38
 current_phase: 04
 ---
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 04 (Blu-ray/UHD Fingerprinting) — EXECUTING
 Current Phase Name: Blu-ray/UHD Fingerprinting
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-07-06 -- Phase 04 execution started
 Last Activity Description: Phase 04 execution started
@@ -68,6 +68,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 03 P03 | 35m | 2 tasks | 6 files |
 | Phase 03 P04 | 22min | 3 tasks | 5 files |
 | Phase 04 P01 | 30min | 2 tasks | 3 files |
+| Phase 04 P02 | 15min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,7 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-04: INFRA-03 p95 proof validates the honest Redis-backed gunicorn -w 4 + Postgres stack via a non-blocking scheduled Locust job (D-12/D-14), never memory://; Plan-02 write-cap 429s marked non-failure (T-03-10)
 - [Phase ?]: OVID_BD2_VERSION frozen at 'OVID-BD-2' — v1 ruleset freeze, not a version bump (D-08)
 - [Phase ?]: Tie-break/dedup key is the full (clip_id, in_time, out_time) tuple per play item, never filename — closes studio playlist-renumbering obfuscation (FPRINT-06)
+- [Phase 04-02]: identify_bd() Tier-2-primary/Tier-1-alias identity resolver added, mirroring identify_dvd() exactly (FPRINT-03)
 
 ### Pending Todos
 
@@ -126,6 +128,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T17:40:07.172Z
-Stopped at: Completed 04-01-PLAN.md
-Resume file: .planning/phases/04-blu-ray-uhd-fingerprinting/04-CONTEXT.md
+Last session: 2026-07-06T17:54:02.089Z
+Stopped at: Completed 04-02-PLAN.md
+Resume file: None
