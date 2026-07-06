@@ -76,3 +76,29 @@ def test_web_concurrency_fallback_env_is_honored() -> None:
         f"stderr: {result.stderr}"
     )
     assert "RuntimeError" in result.stderr, result.stderr
+
+
+def test_non_numeric_workers_raises_actionable_runtime_error() -> None:
+    """OVID_WORKERS='four' raises an actionable RuntimeError, not an opaque
+    ValueError (WR-04)."""
+    result = _import_rate_limit({"OVID_WORKERS": "four"})
+    assert result.returncode != 0, (
+        f"Expected a non-zero exit for non-numeric OVID_WORKERS, got 0.\n"
+        f"stdout: {result.stdout}\nstderr: {result.stderr}"
+    )
+    # The process's final, uncaught exception must be the actionable
+    # RuntimeError — not a bare ValueError terminating the interpreter.
+    last_line = result.stderr.rstrip().splitlines()[-1]
+    assert last_line.startswith("RuntimeError"), result.stderr
+    assert "four" in result.stderr, result.stderr
+    assert "OVID_WORKERS" in result.stderr, result.stderr
+
+
+def test_empty_workers_env_treated_as_unset() -> None:
+    """OVID_WORKERS='' (empty string) is treated as unset, defaulting to a
+    single worker rather than failing to parse (WR-04)."""
+    result = _import_rate_limit({"OVID_WORKERS": ""})
+    assert result.returncode == 0, (
+        f"Expected a clean import with empty OVID_WORKERS (treated as unset), "
+        f"got {result.returncode}.\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )
