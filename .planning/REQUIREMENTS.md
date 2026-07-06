@@ -22,7 +22,7 @@
 - [x] **IDENT-01**: The lookup response exposes all known `fingerprint_aliases` for a disc so callers can see every identity string that resolves to one pressing
 - [ ] **IDENT-02 [guardrail]**: The alias check-then-insert write path is race-safe under concurrent gunicorn workers (no duplicate/split pressings under load)
 - [ ] **IDENT-03**: The client submits all known Disc Identity strings (`dvd1-*`, `dvdread1-*`, BD tiers) on submission so the API can store them as aliases (ADR 0001 Phase 2 complete)
-- [ ] **IDENT-04**: `dvdread1-*` (libdvdread Disc ID) is promoted to the primary DVD fingerprint, with `dvd1-*` retained as a resolvable alias (ADR 0001 Phase 3)
+- [x] **IDENT-04**: `dvdread1-*` (libdvdread Disc ID) is promoted to the primary DVD fingerprint, with `dvd1-*` retained as a resolvable alias (ADR 0001 Phase 3)
 - [ ] **IDENT-05 [guardrail]**: A permanent CI regression test proves an existing `dvd1-*` string still resolves to its disc after every migration step (anti-fragmentation guarantee)
 
 ### OAuth & Accounts (AUTH)
@@ -132,7 +132,7 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 | IDENT-01 | Phase 1 | Complete |
 | IDENT-02 | Phase 1 | Complete |
 | IDENT-03 | Phase 5 | Pending |
-| IDENT-04 | Phase 5 | Pending |
+| IDENT-04 | Phase 5 | Complete |
 | IDENT-05 | Phase 1 | Complete |
 | AUTH-01 | Phase 6 | Pending |
 | AUTH-02 | Phase 6 | Pending |

@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-current_phase_name: adr 0001 completion — dvdread1 * promotion
+current_phase_name: adr-0001-completion-dvdread1-promotion
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-07-06T20:49:39.617Z"
-last_activity: 2026-07-06 -- Phase 5 planning complete
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-07-06T21:11:31.615Z"
+last_activity: 2026-07-06 — Phase 05 execution started
 progress:
   total_phases: 8
   completed_phases: 4
-  total_plans: 21
-  completed_plans: 21
+  total_plans: 28
+  completed_plans: 22
   percent: 50
-current_phase: 04
+current_phase: 05
 ---
 
 # Project State
@@ -23,16 +23,16 @@ current_phase: 04
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Given a disc in any drive, OVID returns the correct disc identity and structure — deterministically and reproducibly — so ripping tools can name, tag, and route content without manual correction.
-**Current focus:** Phase 04 — Blu-ray/UHD Fingerprinting
+**Current focus:** Phase 05 — adr-0001-completion-dvdread1-promotion
 
 ## Current Position
 
-Phase: 5
-Current Phase Name: adr 0001 completion — dvdread1 * promotion
-Plan: Not started
+Phase: 05 (adr-0001-completion-dvdread1-promotion) — EXECUTING
+Current Phase Name: adr-0001-completion-dvdread1-promotion
+Plan: 2 of 7
 Status: Ready to execute
-Last activity: 2026-07-06 -- Phase 5 planning complete
-Last Activity Description: Phase 5 planning complete — 7 plans ready
+Last activity: 2026-07-06 — Phase 05 execution started
+Last Activity Description: Phase 05 execution started
 
 Progress: [███░░░░░░░] 38%
 
@@ -74,6 +74,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 04 P03 | 25min | 2 tasks | 2 files |
 | Phase 04 P05 | 20min | 2 tasks | 3 files |
 | Phase 04 P06 | 8min | 2 tasks | 2 files |
+| Phase 05 P01 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,8 @@ Recent decisions affecting current work:
 - [Phase 04]: Filler playlist durations in build_heavily_obfuscated_fixture cycle through 5-55s in 5s increments across 20 files (11 distinct steps, cycled) — all remain under MIN_DURATION_SECONDS
 - [Phase 04-06]: Documented identify_bd() as-shipped, including the degenerate Tier-1-primary fallback and its diagnostic, rather than a simplified always-Tier-2 framing
 - [Phase 04-06]: Placed the manual pre-release cross-drive verification step in docs/contributing.md (no existing release-checklist doc) next to automated test-running instructions
+- [Phase 05]: 05-01: FingerprintRegistry copies DiscIdentityAlias's exact column shape with only a disc_id index; table is write-only, no separate fingerprint index needed (D-02)
+- [Phase 05]: 05-01: register_fingerprint() is a bare db.add() with no flush/commit of its own; caller must invoke it inside its own db.begin_nested() savepoint so a UNIQUE violation surfaces through the existing except IntegrityError: re-resolve/converge path
 
 ### Pending Todos
 
@@ -140,6 +143,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T19:37:17.974Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-adr-0001-completion-dvdread1-promotion/05-CONTEXT.md
+Last session: 2026-07-06T21:11:31.609Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None
