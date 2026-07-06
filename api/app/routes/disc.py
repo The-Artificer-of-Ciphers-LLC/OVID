@@ -95,6 +95,30 @@ def _method_of(fingerprint: str) -> str:
     return fingerprint.split("-", 1)[0]
 
 
+def _select_primary(
+    fingerprint: str, aliases: list[str]
+) -> tuple[str, list[str]]:
+    """Pick the server-side primary among submitted identity strings (D-03).
+
+    On a NEW disc submission the client's declared primary is advisory
+    only — the server prefers any ``dvdread1-*`` candidate present among
+    ``fingerprint`` + ``aliases``, promoting it to primary and demoting
+    the rest (including the client's original declared primary) into the
+    returned alias list. If no ``dvdread1-*`` candidate is present, the
+    submission passes through unchanged — the server has nothing to
+    prefer. This function is only ever reached on the new-disc creation
+    branch; ``Disc.fingerprint`` stays immutable on every existing-disc
+    code path (the mixed-fleet zero-fragmentation guarantee).
+    """
+    candidates = [fingerprint, *aliases]
+    preferred = next(
+        (fp for fp in candidates if _method_of(fp) == "dvdread1"), None
+    )
+    if preferred is None:
+        return fingerprint, aliases
+    return preferred, [fp for fp in candidates if fp != preferred]
+
+
 def _build_track_response(track: DiscTrack) -> TrackResponse:
     return TrackResponse(
         index=track.track_index,
