@@ -312,6 +312,77 @@ class TestBDCanonicalString:
         c2 = build_bd_canonical_string(playlists, is_uhd=False)
         assert c1 == c2
 
+    def test_zero_subtitle_streams_differs_from_one_empty_language_subtitle(self):
+        """Regression (CR-01): a playlist with zero subtitle streams and a
+        playlist with exactly one subtitle stream whose language could not be
+        decoded (empty/null language field — common for forced/unlabeled PG
+        tracks) must NOT produce the same canonical string or fingerprint.
+
+        Before the fix, both cases joined to an identical empty
+        ``subtitle_info`` field (``",".join([]) == ",".join(['']) == ""``),
+        silently collapsing two structurally different discs into the same
+        ``bd2-``/``uhd2-`` fingerprint.
+        """
+        audio = [(0x81, "eng", 6)]
+
+        no_subs_data = make_mpls_file(
+            version="0200",
+            play_items=[
+                {
+                    "clip_id": "00001",
+                    "in_time": 0.0,
+                    "out_time": 120.0,
+                    "audio_streams": audio,
+                    "subtitle_streams": [],
+                }
+            ],
+        )
+        one_empty_sub_data = make_mpls_file(
+            version="0200",
+            play_items=[
+                {
+                    "clip_id": "00001",
+                    "in_time": 0.0,
+                    "out_time": 120.0,
+                    "audio_streams": audio,
+                    "subtitle_streams": [(0x90, "")],  # empty/unparsed language
+                }
+            ],
+        )
+
+        pl_no_subs = parse_mpls(no_subs_data)
+        pl_one_empty_sub = parse_mpls(one_empty_sub_data)
+
+        # Sanity: confirm the parsed structures really do differ in
+        # subtitle stream count before asserting on the derived strings.
+        assert len(pl_no_subs.subtitle_streams) == 0
+        assert len(pl_one_empty_sub.subtitle_streams) == 1
+        assert pl_one_empty_sub.subtitle_streams[0].language == ""
+
+        canonical_no_subs = build_bd_canonical_string(
+            [("00001.mpls", pl_no_subs)], is_uhd=False
+        )
+        canonical_one_empty_sub = build_bd_canonical_string(
+            [("00001.mpls", pl_one_empty_sub)], is_uhd=False
+        )
+
+        assert canonical_no_subs != canonical_one_empty_sub, (
+            "0 subtitle streams and 1 empty-language subtitle stream "
+            "produced the identical canonical string — fingerprint "
+            "collision (CR-01)."
+        )
+
+        fp_no_subs = compute_bd_structure_fingerprint(
+            canonical_no_subs, is_uhd=False
+        )
+        fp_one_empty_sub = compute_bd_structure_fingerprint(
+            canonical_one_empty_sub, is_uhd=False
+        )
+        assert fp_no_subs != fp_one_empty_sub, (
+            "0 subtitle streams and 1 empty-language subtitle stream "
+            "produced the identical bd2- fingerprint — collision (CR-01)."
+        )
+
 
 class TestBDStructureFingerprint:
     """Tests for compute_bd_structure_fingerprint()."""
