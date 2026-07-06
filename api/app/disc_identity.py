@@ -1,12 +1,13 @@
 """Server-side Disc Identity resolution and Lookup Alias persistence."""
 
+import uuid
 from dataclasses import dataclass
 from typing import Iterable
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Disc, DiscIdentityAlias
+from app.models import Disc, DiscIdentityAlias, FingerprintRegistry
 
 
 @dataclass(frozen=True)
@@ -157,3 +158,18 @@ def attach_lookup_aliases(
             if winner.disc.id != disc.id:
                 raise DiscIdentityConflict(alias, winner.disc)
             # else: our own disc already owns this alias — idempotent no-op.
+
+
+def register_fingerprint(db: Session, fingerprint: str, disc_id: uuid.UUID) -> None:
+    """Register a fingerprint into the cross-table arbitration registry (WR-02).
+
+    The registry's global ``UNIQUE(fingerprint)`` column is what actually
+    arbitrates a cross-table race between a new-disc insert and an
+    alias-attach for the same fingerprint string on a different disc — the
+    caller is REQUIRED to invoke this inside the same ``db.begin_nested()``
+    savepoint as the accompanying ``Disc``/``DiscIdentityAlias`` insert, so
+    a UNIQUE violation here surfaces through that savepoint's existing
+    ``except IntegrityError:`` re-resolve/converge handling. This function
+    performs no flush or commit of its own.
+    """
+    db.add(FingerprintRegistry(fingerprint=fingerprint, disc_id=disc_id))

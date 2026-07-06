@@ -152,6 +152,41 @@ class DiscIdentityAlias(Base):
 
 
 # ---------------------------------------------------------------------------
+# fingerprint_registry — cross-table fingerprint arbitration (WR-02, D-02)
+# ---------------------------------------------------------------------------
+class FingerprintRegistry(Base):
+    """Write-only global registry of every fingerprint claimed by either
+    ``discs.fingerprint`` or ``disc_identity_aliases.fingerprint``.
+
+    A single global ``UNIQUE(fingerprint)`` column arbitrates the cross-table
+    race between "new disc claims F" and "attach F as an alias of a
+    different disc" (WR-02) — collapsing it into the same
+    insert/IntegrityError/re-resolve convergence idiom already used for
+    same-table alias races. This table is never read/queried by any lookup
+    path; ``resolve_disc_identity()`` is completely unchanged.
+    """
+
+    __tablename__ = "fingerprint_registry"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    fingerprint: Mapped[str] = mapped_column(
+        String(50), unique=True, nullable=False
+    )
+    disc_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("discs.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow
+    )
+
+    __table_args__ = (
+        Index("idx_fingerprint_registry_disc_id", "disc_id"),
+    )
+
+
+# ---------------------------------------------------------------------------
 # releases — canonical movie / TV release
 # ---------------------------------------------------------------------------
 class Release(Base):
