@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Alias-Layer Hardening & Repo Hygiene** - Close the alias write-path race and verification-consolidation gaps that must land before promotion; clean up ad-hoc repo cruft (completed 2026-07-05)
 - [x] **Phase 2: Two-Contributor Verification Workflow** - Make the two-contributor trust model live and resistant to cheap Sybil abuse (completed 2026-07-05)
-- [ ] **Phase 3: Redis-Backed Rate Limiting & Performance** - Fix multi-worker rate-limit scaling and validate the p95 latency budget against the real deployment config
+- [x] **Phase 3: Redis-Backed Rate Limiting & Performance** - Fix multi-worker rate-limit scaling and validate the p95 latency budget against the real deployment config (completed 2026-07-06)
 - [ ] **Phase 4: Blu-ray/UHD Fingerprinting** - Bring BD/UHD discs to fingerprinting parity with the DVD path (Tier 1 AACS + Tier 2 BDMV, coexisting as an alias pair)
 - [ ] **Phase 5: ADR 0001 Completion — dvdread1-* Promotion** - Complete alias submission and promote `dvdread1-*` to the primary DVD fingerprint, keeping `dvd1-*` a permanent alias
 - [ ] **Phase 6: OAuth & Account Linking** - All four OAuth providers working end-to-end with secure, confirm-gated account linking
@@ -93,7 +93,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A load test run against the actual Redis-backed, multi-worker gunicorn configuration shows API p95 latency ≤500ms (INFRA-03).
   4. Submission and confirmation actions are throttled per account as basic abuse prevention, live in production (INFRA-04).
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans complete
 
 **Wave 1**
 
@@ -106,7 +106,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 3** *(blocked on Wave 2 — validates the complete backbone)*
 
-- [ ] 03-04-PLAN.md — Locust p95 ≤ 500ms harness + bulk `seed.py` + non-blocking scheduled CI job (INFRA-03) [Wave 3, depends 03-01/03-02/03-03]
+- [x] 03-04-PLAN.md — Locust p95 ≤ 500ms harness + bulk `seed.py` + non-blocking scheduled CI job (INFRA-03) [Wave 3, depends 03-01/03-02/03-03]
 
 ### Phase 4: Blu-ray/UHD Fingerprinting
 
@@ -198,7 +198,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 |-------|----------------|--------|-----------|
 | 1. Alias-Layer Hardening & Repo Hygiene | 6/6 | Complete    | 2026-07-05 |
 | 2. Two-Contributor Verification Workflow | 5/5 | Complete    | 2026-07-05 |
-| 3. Redis-Backed Rate Limiting & Performance | 3/4 | In Progress|  |
+| 3. Redis-Backed Rate Limiting & Performance | 4/4 | Complete   | 2026-07-06 |
 | 4. Blu-ray/UHD Fingerprinting | 0/TBD | Not started | - |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 0/TBD | Not started | - |
 | 6. OAuth & Account Linking | 0/TBD | Not started | - |

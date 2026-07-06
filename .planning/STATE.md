@@ -2,19 +2,18 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-current_phase: 03
 current_phase_name: redis-backed-rate-limiting-performance
-status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-07-06T12:57:09.964Z"
-last_activity: 2026-07-06
-last_activity_desc: Phase 03 execution started
+status: verifying
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-07-06T13:15:12.639Z"
+last_activity: 2026-07-06 -- Phase 03 execution started
 progress:
   total_phases: 8
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 15
-  completed_plans: 14
-  percent: 25
+  completed_plans: 15
+  percent: 38
+current_phase: 03
 ---
 
 # Project State
@@ -31,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 Phase: 03 (redis-backed-rate-limiting-performance) — EXECUTING
 Current Phase Name: redis-backed-rate-limiting-performance
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-06 -- Phase 03 execution started
 Last Activity Description: Phase 03 execution started
 
@@ -66,6 +65,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 03 P01 | 9min | 3 tasks | 5 files |
 | Phase 03 P02 | 10min | 2 tasks | 2 files |
 | Phase 03 P03 | 35m | 2 tasks | 6 files |
+| Phase 03 P04 | 22min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -100,6 +100,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 03-02: anti_sybil left Postgres-backed and untouched (D-10); coarse write ceiling and narrow confirmation cooldown proven independent, layered not double-counted
 - [Phase 03]: 03-03: Redis wired into prod+test compose only (redis:7-alpine, internal-only, ephemeral); base compose unchanged so single-worker self-host stays on memory:// (D-05a)
 - [Phase 03]: 03-03: Redis-outage behavior documented as fail-open self-healing (D-01/D-02) with a fail-fast multi-worker boot guard (D-06) across self-hosting/deployment/technical-spec docs
+- [Phase 03]: 03-04: INFRA-03 p95 proof validates the honest Redis-backed gunicorn -w 4 + Postgres stack via a non-blocking scheduled Locust job (D-12/D-14), never memory://; Plan-02 write-cap 429s marked non-failure (T-03-10)
 
 ### Pending Todos
 
@@ -121,6 +122,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T12:57:09.958Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-07-06T13:15:12.634Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: .planning/phases/03-redis-backed-rate-limiting-performance/03-CONTEXT.md
