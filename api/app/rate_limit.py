@@ -3,9 +3,11 @@
 Backend selection is env-driven (INFRA-01). When ``REDIS_URL`` is set the
 limiter uses a shared ``RedisStorage`` so counters are correct across gunicorn
 workers; when it is unset the limiter keeps the historical single-worker
-``memory://`` default. During a Redis outage the limiter degrades to a bounded,
-self-healing in-memory fallback (``FALLBACK_LIMIT`` per worker) instead of
-failing closed on the read-heavy ARM lookup path (INFRA-02, D-01/D-02/D-03).
+``memory://`` default. During a Redis outage the limiter degrades to a
+self-healing in-memory fallback with a bounded per-key rate (``FALLBACK_LIMIT``
+per worker — the bound is on the allowed rate per key, not on how many keys
+are tracked) instead of failing closed on the read-heavy ARM lookup path
+(INFRA-02, D-01/D-02/D-03).
 """
 
 import logging
@@ -32,6 +34,14 @@ AUTH_LIMIT = os.environ.get("OVID_AUTH_LIMIT", "500/minute")
 # Tunable launch-safe defaults (never magic numbers) --------------------------
 # Auth write-path throttle consumed by Plan 02 (D-08). Kept here so the write
 # limit lives beside the read tiers and shares the same env-driven backend.
+# Outage note (WR-01, D-04): during a Redis outage slowapi's in-memory
+# fallback replaces ALL per-route limits — including this one — with
+# FALLBACK_LIMIT below, so the effective write ceiling relaxes from
+# 20/minute per account to FALLBACK_LIMIT (60/minute) PER WORKER for the
+# outage's duration. This is a deliberate fail-open-on-writes choice,
+# consistent with the read-path outage behavior; a fail-closed, per-route-
+# type split that keeps writes tighter even during an outage is deferred
+# (D-04).
 AUTH_WRITE_LIMIT = "20/minute;300/hour"
 # Single GLOBAL per-worker cap applied to EVERY route while Redis is unreachable
 # (slowapi replaces all per-route limits with the fallback during an outage), so

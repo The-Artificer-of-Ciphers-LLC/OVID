@@ -163,6 +163,20 @@ API rate limiter (`slowapi`) needs a **shared** counter store so a limit like
   protection) was rejected because the library ships this self-healing middle
   path for free. A per-route-type fail-open/fail-closed split is deferred
   (D-04) — revisit only if write-path abuse becomes a materially distinct threat.
+- **Write-ceiling outage loosening.** The write ceiling (`AUTH_WRITE_LIMIT`,
+  20/minute per account) is not exempt from the fallback above — during a
+  Redis outage it also collapses to the shared `FALLBACK_LIMIT` (60/minute)
+  **per worker**, so across the 4-worker prod/test stacks the effective write
+  ceiling loosens to roughly 60/minute × running workers (≈240/minute) for the
+  outage's duration. This is the same intentional fail-open-on-writes choice
+  described above (per-route-type split deferred, D-04) — called out
+  separately here because it's easy to miss that the write path is affected too.
+- **Reverse-proxy IP requirement.** Per-IP unauthenticated rate limiting is
+  only correct if `OVID_FORWARDED_ALLOW_IPS` is set to the actual proxy/
+  Docker-gateway source the `api` container observes — see **Trusted proxy
+  IP** under "Configure Reverse Proxy" below. Left at its default, every
+  external visitor collapses into a single "client IP" bucket for both rate
+  limiting and anti-Sybil IP-diversity checks.
 
 If you ever expose Redis beyond the compose network, switch to `rediss://` with
 AUTH; the current internal-only, no-published-port setup needs neither. A p95
