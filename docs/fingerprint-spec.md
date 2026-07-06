@@ -213,15 +213,19 @@ OVID-BD-2|{playlist_count}|{pl1_block}|{pl2_block}|...
 Each playlist block:
 
 ```
-{play_item_count}:{total_duration}:{chapter_count}:{audio_info}:{subtitle_info}
+{play_item_count}:{total_duration}:{chapter_count}:{audio_count}:{audio_info}:{subtitle_count}:{subtitle_info}
 ```
 
 Where:
 - `play_item_count` — number of PlayItems in the playlist
 - `total_duration` — total seconds as an integer
 - `chapter_count` — number of chapter marks
+- `audio_count` — number of audio streams (`len(audio_streams)`)
 - `audio_info` — comma-joined `codec+language+channels` per audio stream, empty string if none
+- `subtitle_count` — number of subtitle streams (`len(subtitle_streams)`)
 - `subtitle_info` — comma-joined language codes per subtitle stream, empty string if none
+
+The explicit `audio_count`/`subtitle_count` fields exist so that "zero streams" can never be confused with "one stream whose joined value happens to be empty" (e.g. an unparsed/null-language subtitle track) — both previously collapsed to the same empty `subtitle_info` field, a real fingerprint collision between structurally different discs. Because `OVID-BD-2` is pre-release/unreleased, this encoding was corrected in place rather than via a version bump.
 
 The canonical string is SHA-256 hashed (UTF-8 encoded bytes), and the first 40 hex characters of the digest are taken, matching OVID-DVD-1's own hashing step. The result is prefixed with `bd2-` (standard Blu-ray) or `uhd2-` (4K UHD):
 

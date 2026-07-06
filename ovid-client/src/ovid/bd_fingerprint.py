@@ -146,20 +146,37 @@ def build_bd_canonical_string(
     then by clip-sequence ascending (never filename) for deterministic
     ordering.
 
+    ``is_uhd`` is intentionally unused in the body below: the canonical
+    structure is format-agnostic (Tier 1 and Tier 2 are computed identically
+    regardless of BD vs UHD — see "Format Detection (UHD)" in
+    ``docs/fingerprint-spec.md``). Only the ``uhd2-``/``bd2-`` prefix, applied
+    downstream in ``compute_bd_structure_fingerprint()``, differs. Do not
+    "clean up" this parameter by mixing it into the canonical string — that
+    would silently mint a new fingerprint space without an ``OVID_BD2_VERSION``
+    bump.
+
     Format (pipe-delimited)::
 
         OVID-BD-2|{playlist_count}|{pl1_block}|{pl2_block}|...
 
     Each playlist block::
 
-        {play_item_count}:{total_duration}:{chapter_count}:{audio_info}:{subtitle_info}
+        {play_item_count}:{total_duration}:{chapter_count}:{audio_count}:{audio_info}:{subtitle_count}:{subtitle_info}
 
     Where:
       - ``play_item_count`` is the number of PlayItems
       - ``total_duration`` is total seconds as int
       - ``chapter_count`` is the number of chapter marks (mark_type == 1)
+      - ``audio_count`` is the number of audio streams (``len(pl.audio_streams)``)
       - ``audio_info`` is comma-joined ``codec+lang+channels`` for each audio stream
+      - ``subtitle_count`` is the number of subtitle streams (``len(pl.subtitle_streams)``)
       - ``subtitle_info`` is comma-joined language codes for each subtitle stream
+
+    The explicit ``audio_count``/``subtitle_count`` fields (CR-01) disambiguate
+    "zero streams" from "one stream whose joined value happens to be empty"
+    (e.g. an unparsed/null-language subtitle track) — both previously
+    collapsed to the same empty ``subtitle_info`` field, causing a real
+    fingerprint collision between structurally different discs.
 
     Args:
         playlists: List of (filename, MplsPlaylist) tuples.
@@ -173,10 +190,40 @@ def build_bd_canonical_string(
             ``select_canonical_playlists``).
     """
     filtered = select_canonical_playlists(playlists)
+    return build_bd_canonical_string_from_survivors(filtered, is_uhd)
 
-    parts: list[str] = [OVID_BD2_VERSION, str(len(filtered))]
 
-    for fname, pl, dur in filtered:
+def build_bd_canonical_string_from_survivors(
+    survivors: list[tuple[str, MplsPlaylist, float]],
+    is_uhd: bool,
+) -> str:
+    """Build the OVID-BD-2 canonical string from an already-selected survivor list.
+
+    This is the shared implementation behind :func:`build_bd_canonical_string`,
+    split out so callers that have already run ``select_canonical_playlists()``
+    (e.g. to populate ``BDDisc.playlists``) can reuse that single result
+    instead of re-running the filter/dedup/sort pipeline a second time.
+
+    ``survivors`` must already be filtered, deduped, and sorted — this
+    function does not run ``select_canonical_playlists()`` itself and does
+    not raise ``ValueError`` for an empty input (an empty ``survivors`` list
+    simply yields ``playlist_count == 0``). See :func:`build_bd_canonical_string`
+    for the full field format.
+
+    ``is_uhd`` is intentionally unused here — see the note on
+    :func:`build_bd_canonical_string`.
+
+    Args:
+        survivors: The output of ``select_canonical_playlists()`` — a list of
+            (filename, MplsPlaylist, duration) tuples.
+        is_uhd: True if disc is UHD (4K), False for standard Blu-ray.
+
+    Returns:
+        The canonical string.
+    """
+    parts: list[str] = [OVID_BD2_VERSION, str(len(survivors))]
+
+    for fname, pl, dur in survivors:
         play_item_count = len(pl.play_items)
         total_duration = int(dur)
         chapter_count = sum(1 for m in pl.chapter_marks if m.mark_type == 1)
@@ -185,13 +232,18 @@ def build_bd_canonical_string(
         audio_parts: list[str] = []
         for s in pl.audio_streams:
             audio_parts.append(f"{s.codec}+{s.language}+{s.channels}")
-        audio_info = ",".join(audio_parts) if audio_parts else ""
+        audio_count = len(pl.audio_streams)
+        audio_info = ",".join(audio_parts)
 
         # Subtitle info: language codes
         sub_parts: list[str] = [s.language for s in pl.subtitle_streams]
-        subtitle_info = ",".join(sub_parts) if sub_parts else ""
+        subtitle_count = len(pl.subtitle_streams)
+        subtitle_info = ",".join(sub_parts)
 
-        block = f"{play_item_count}:{total_duration}:{chapter_count}:{audio_info}:{subtitle_info}"
+        block = (
+            f"{play_item_count}:{total_duration}:{chapter_count}:"
+            f"{audio_count}:{audio_info}:{subtitle_count}:{subtitle_info}"
+        )
         parts.append(block)
 
     return "|".join(parts)

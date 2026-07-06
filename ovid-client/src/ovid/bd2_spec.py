@@ -14,7 +14,14 @@ version migration, not a bug fix.
 from __future__ import annotations
 
 # OVID-BD-2 canonical-string version prefix. D-08: this freezes the v1
-# pre-release ruleset as-is — no version bump this phase.
+# pre-release ruleset as-is — no version bump this phase. CR-01 correction
+# (still pre-release/unreleased as `bd2-`/`uhd2-` have not shipped): the
+# per-playlist block's audio/subtitle fields were corrected to include
+# explicit stream-count fields (see `build_bd_canonical_string()`'s "Format"
+# docstring) so that "0 streams" can never collide with "1 stream whose
+# joined value happens to be empty". Because this ruleset has not been
+# released, the encoding fix is applied in place without a version bump —
+# any *future* change to a released `OVID_BD2_VERSION` would require one.
 OVID_BD2_VERSION = "OVID-BD-2"
 
 # Minimum total playlist duration (seconds) to include in the structure

@@ -22,8 +22,14 @@ from ovid.bd_fingerprint import build_bd_canonical_string, compute_bd_structure_
 
 # Hardcoded, independently-computed literals — do NOT derive these by calling
 # compute_bd_structure_fingerprint() inside a test (anti-tautology, D-14).
-PINNED_BD2_HASH = "bd2-32128d27bbf90490a8d8ffa5a21bb89fa379ed5c"
-PINNED_UHD2_HASH = "uhd2-32128d27bbf90490a8d8ffa5a21bb89fa379ed5c"
+#
+# Recomputed for CR-01 (subtitle/audio stream-count fields added to the
+# per-playlist block encoding — see build_bd_canonical_string()'s "Format"
+# docstring and bd2_spec.py's module docstring). No OVID_BD2_VERSION bump:
+# bd2-/uhd2- are pre-release/unreleased, so this corrects the v1 ruleset
+# before it ships.
+PINNED_BD2_HASH = "bd2-a9b2941ab6cd447c0c3ece709a348ff6c6c26ae3"
+PINNED_UHD2_HASH = "uhd2-a9b2941ab6cd447c0c3ece709a348ff6c6c26ae3"
 
 
 def test_ovid_bd2_v1_pinned_hash_for_obfuscated_fixture_bd():

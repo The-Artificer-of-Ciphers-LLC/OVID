@@ -301,6 +301,10 @@ class TestBDCanonicalString:
         assert block_parts[0] == "1"    # 1 play item
         assert block_parts[1] == "120"  # 120 seconds
         assert block_parts[2] == "10"   # 10 chapters
+        assert block_parts[3] == "2"    # 2 audio streams (CR-01 count field)
+        assert block_parts[4] == "AC3+eng+6,TrueHD+fre+8"
+        assert block_parts[5] == "2"    # 2 subtitle streams (CR-01 count field)
+        assert block_parts[6] == "eng,spa"
 
     def test_determinism_across_calls(self):
         """Same input → same canonical string."""
