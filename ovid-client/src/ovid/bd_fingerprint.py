@@ -3,28 +3,33 @@
 Tier 1 (AACS):
   SHA-1 of the raw Unit_Key_RO.inf bytes → prefix ``bd1-aacs-`` or ``uhd1-aacs-``.
   This is the most stable identifier since AACS keys are per-disc-pressing.
+  This value is what the FOSS Blu-ray tooling ecosystem (libaacs, MakeMKV
+  keydb.cfg) calls the "AACS Disc ID": a one-way SHA-1 digest of a plaintext
+  UDF file, not a decryption key. Computing it involves no descrambling and
+  no AACS device keys.
 
 Tier 2 (BDMV structure):
-  Canonical string encoding playlist structure (filtered by 60-second minimum
-  duration to exclude menu/preview playlists) → SHA-256 first 40 hex chars →
-  prefix ``bd2-`` or ``uhd2-``.
+  Canonical string encoding playlist structure, selected via the frozen
+  OVID-BD-2 ruleset in ``bd2_spec.py`` (minimum-duration filter, max-clip-repeat
+  decoy filter, clip-sequence dedup, clip-sequence tie-break) → SHA-256 first
+  40 hex chars → prefix ``bd2-`` or ``uhd2-``.
 
-The 60-second obfuscation filter removes short playlists that often differ
-between disc pressings without being part of the main content.
+The frozen ``bd2_spec`` filter/dedup/tie-break pipeline removes short
+menu/preview playlists and studio anti-rip obfuscation (loop-padded or
+renumbered/duplicated decoy playlists) that would otherwise fragment the
+fingerprint space between identical disc pressings (FPRINT-06).
 """
 
 from __future__ import annotations
 
+import collections
 import hashlib
 import logging
 
+from ovid.bd2_spec import MAX_CLIP_REPEATS, MIN_DURATION_SECONDS, OVID_BD2_VERSION
 from ovid.mpls_parser import MplsPlaylist
 
 logger = logging.getLogger(__name__)
-
-# Minimum playlist duration in seconds to include in the structure hash.
-# Playlists shorter than this are typically menus or anti-rip obfuscation.
-_MIN_DURATION_SECONDS = 60.0
 
 
 def _total_duration(playlist: MplsPlaylist) -> float:
@@ -32,8 +37,93 @@ def _total_duration(playlist: MplsPlaylist) -> float:
     return sum(pi.duration_seconds for pi in playlist.play_items)
 
 
+def _clip_sequence(playlist: MplsPlaylist) -> tuple:
+    """Return the content-based clip sequence for a playlist.
+
+    A tuple of ``(clip_id, in_time, out_time)`` per play item, used for
+    dedup and tie-break decisions instead of the (studio-controlled,
+    renumberable) `.mpls` filename.
+    """
+    return tuple((pi.clip_id, pi.in_time, pi.out_time) for pi in playlist.play_items)
+
+
+def _clip_repeat_count(playlist: MplsPlaylist) -> int:
+    """Return the max number of times any single clip_id repeats in a playlist.
+
+    A high repeat count indicates a loop-padded decoy playlist (the same
+    clip referenced many times to inflate apparent duration).
+    """
+    if not playlist.play_items:
+        return 0
+    counts = collections.Counter(pi.clip_id for pi in playlist.play_items)
+    return max(counts.values())
+
+
+def select_canonical_playlists(
+    playlists: list[tuple[str, MplsPlaylist]],
+) -> list[tuple[str, MplsPlaylist, float]]:
+    """Filter, dedup, and sort playlists per the frozen OVID-BD-2 ruleset.
+
+    Pipeline (FPRINT-06, D-06/D-07/D-08 — see ``bd2_spec.py``):
+      1. Filter to playlists with total duration >= ``MIN_DURATION_SECONDS``
+         AND clip-repeat count <= ``MAX_CLIP_REPEATS`` (excludes menus and
+         loop-padded decoy playlists).
+      2. Dedup survivors by content-based clip sequence (first occurrence
+         wins) — collapses byte-identical duplicate/renumbered decoys.
+      3. Sort by ``(-duration, clip_sequence)`` — never by filename.
+
+    Args:
+        playlists: List of (filename, MplsPlaylist) tuples.
+
+    Returns:
+        List of (filename, MplsPlaylist, duration) tuples, filtered,
+        deduped, and sorted.
+
+    Raises:
+        ValueError: If no playlists survive the filter step.
+    """
+    filtered: list[tuple[str, MplsPlaylist, float]] = []
+    for fname, pl in playlists:
+        dur = _total_duration(pl)
+        if dur >= MIN_DURATION_SECONDS and _clip_repeat_count(pl) <= MAX_CLIP_REPEATS:
+            filtered.append((fname, pl, dur))
+
+    if not filtered:
+        raise ValueError(
+            f"No valid playlists after 60-second filter "
+            f"(had {len(playlists)} playlist(s), all under {MIN_DURATION_SECONDS}s)"
+        )
+
+    # Dedup by content-based clip sequence — first occurrence wins.
+    deduped: dict[tuple, tuple[str, MplsPlaylist, float]] = {}
+    for fname, pl, dur in filtered:
+        key = _clip_sequence(pl)
+        if key not in deduped:
+            deduped[key] = (fname, pl, dur)
+
+    survivors = list(deduped.values())
+
+    logger.info(
+        "BD structure hash: %d/%d playlists survive filter+dedup",
+        len(survivors),
+        len(playlists),
+    )
+
+    # Deterministic sort: by total duration descending, then clip sequence
+    # ascending (content-based tie-break — never filename).
+    survivors.sort(key=lambda x: (-x[2], _clip_sequence(x[1])))
+
+    return survivors
+
+
 def compute_aacs_fingerprint(unit_key_data: bytes, is_uhd: bool) -> str:
     """Compute AACS Tier 1 fingerprint from Unit_Key_RO.inf bytes.
+
+    This is the AACS Disc ID as used by the FOSS Blu-ray tooling ecosystem
+    (libaacs, MakeMKV keydb.cfg): a one-way SHA-1 digest of the plaintext
+    Unit_Key_RO.inf bytes. It is a stable identifier only — never a
+    decryption key, and computing it involves no descrambling or AACS
+    device keys.
 
     Returns:
         ``bd1-aacs-{sha1_hex}`` or ``uhd1-aacs-{sha1_hex}`` (40 hex chars after prefix).
@@ -49,9 +139,12 @@ def build_bd_canonical_string(
 ) -> str:
     """Build the OVID-BD-2 canonical string from parsed MPLS playlists.
 
-    Playlists with total duration < 60 seconds are filtered out.
-    Remaining playlists are sorted by total duration descending, then by
-    filename ascending for deterministic ordering.
+    Playlists are selected via the frozen OVID-BD-2 ruleset
+    (``select_canonical_playlists()``, see ``bd2_spec.py``): filtered by
+    minimum duration and max-clip-repeat decoy exclusion, deduped by
+    content-based clip sequence, then sorted by total duration descending,
+    then by clip-sequence ascending (never filename) for deterministic
+    ordering.
 
     Format (pipe-delimited)::
 
@@ -76,31 +169,12 @@ def build_bd_canonical_string(
         The canonical string.
 
     Raises:
-        ValueError: If no playlists survive the 60-second filter.
+        ValueError: If no playlists survive the filter (see
+            ``select_canonical_playlists``).
     """
-    # Filter by minimum duration
-    filtered: list[tuple[str, MplsPlaylist, float]] = []
-    for fname, pl in playlists:
-        dur = _total_duration(pl)
-        if dur >= _MIN_DURATION_SECONDS:
-            filtered.append((fname, pl, dur))
+    filtered = select_canonical_playlists(playlists)
 
-    if not filtered:
-        raise ValueError(
-            f"No valid playlists after 60-second filter "
-            f"(had {len(playlists)} playlist(s), all under {_MIN_DURATION_SECONDS}s)"
-        )
-
-    logger.info(
-        "BD structure hash: %d/%d playlists survive 60s filter",
-        len(filtered),
-        len(playlists),
-    )
-
-    # Deterministic sort: by total duration descending, then filename ascending
-    filtered.sort(key=lambda x: (-x[2], x[0]))
-
-    parts: list[str] = ["OVID-BD-2", str(len(filtered))]
+    parts: list[str] = [OVID_BD2_VERSION, str(len(filtered))]
 
     for fname, pl, dur in filtered:
         play_item_count = len(pl.play_items)
