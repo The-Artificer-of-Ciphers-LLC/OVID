@@ -144,6 +144,7 @@ def attach_lookup_aliases(
         try:
             with db.begin_nested():
                 db.add(DiscIdentityAlias(disc_id=disc.id, fingerprint=alias))
+                register_fingerprint(db, alias, disc.id)
                 db.flush()
         except IntegrityError:
             # Another worker won the race. Discard the stale identity map
