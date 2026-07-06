@@ -2,19 +2,18 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-current_phase: 04
 current_phase_name: Blu-ray/UHD Fingerprinting
-status: executing
+status: verifying
 stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-07-06T18:18:48.313Z"
-last_activity: 2026-07-06
-last_activity_desc: Phase 04 execution started
+last_updated: "2026-07-06T18:28:11.623Z"
+last_activity: 2026-07-06 -- Phase 04 execution started
 progress:
   total_phases: 8
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 21
-  completed_plans: 20
-  percent: 38
+  completed_plans: 21
+  percent: 50
+current_phase: 04
 ---
 
 # Project State
@@ -31,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 Phase: 04 (Blu-ray/UHD Fingerprinting) — EXECUTING
 Current Phase Name: Blu-ray/UHD Fingerprinting
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-06 -- Phase 04 execution started
 Last Activity Description: Phase 04 execution started
 
@@ -73,6 +72,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 04 P04 | 10m | 1 tasks | 1 files |
 | Phase 04 P03 | 25min | 2 tasks | 2 files |
 | Phase 04 P05 | 20min | 2 tasks | 3 files |
+| Phase 04 P06 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -116,6 +116,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 04-03]: BDDisc.playlists is empty in the degenerate Tier-1-primary case (mirrors pre-existing test_all_playlists_under_60s_with_aacs_uses_tier1 regression guarantee)
 - [Phase 04]: Pinned BD/UHD hash literals computed once via throwaway script, hardcoded as anti-tautology-compliant literals in test_bd_fingerprint_pinned.py
 - [Phase 04]: Filler playlist durations in build_heavily_obfuscated_fixture cycle through 5-55s in 5s increments across 20 files (11 distinct steps, cycled) — all remain under MIN_DURATION_SECONDS
+- [Phase 04-06]: Documented identify_bd() as-shipped, including the degenerate Tier-1-primary fallback and its diagnostic, rather than a simplified always-Tier-2 framing
+- [Phase 04-06]: Placed the manual pre-release cross-drive verification step in docs/contributing.md (no existing release-checklist doc) next to automated test-running instructions
 
 ### Pending Todos
 
@@ -137,6 +139,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-06T18:18:00.852Z
+Last session: 2026-07-06T18:24:39.038Z
 Stopped at: Completed 04-03-PLAN.md
 Resume file: None
