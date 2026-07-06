@@ -128,3 +128,79 @@ def test_resolve_route_enforces_write_cap(client, auth_header) -> None:
     assert resp.status_code == 429, (
         f"Expected 429 on resolve #{WRITE_CAP + 1}, got {resp.status_code}: {resp.text}"
     )
+
+
+# ---------------------------------------------------------------------------
+# D-10 seam: the coarse slowapi write ceiling and the narrow Postgres
+# anti_sybil.evaluate_confirmation cooldown are independent — layered, never
+# double-counted. Proven from both sides.
+# ---------------------------------------------------------------------------
+def test_novel_flood_caps_with_zero_verify_edits(client, db_session, auth_header) -> None:
+    """A novel-fingerprint flood trips the write ceiling with anti_sybil uninvolved.
+
+    Every POST is a brand-new create (no existing disc → ``_handle_existing_disc``
+    never runs → ``evaluate_confirmation`` never fires), so the volumetric ceiling
+    is doing the work ALONE: zero ``verify`` edits exist even though the 21st POST
+    is rejected. This is the D-09 gap the Phase-2 confirmation cooldown never
+    covered — the write limit closes it independently (D-10).
+    """
+    for i in range(WRITE_CAP):
+        resp = client.post("/v1/disc", json=_novel_submit_payload(i), headers=auth_header)
+        assert resp.status_code in (200, 201), f"write #{i + 1}: {resp.status_code} {resp.text}"
+
+    blocked = client.post("/v1/disc", json=_novel_submit_payload(WRITE_CAP), headers=auth_header)
+    assert blocked.status_code == 429
+
+    db_session.expire_all()
+    verify_edits = (
+        db_session.query(DiscEdit).filter(DiscEdit.edit_type == "verify").count()
+    )
+    assert verify_edits == 0, (
+        f"anti_sybil should NOT have fired on a novel flood, but {verify_edits} "
+        "verify edit(s) were recorded — the write ceiling must cap novel creates alone"
+    )
+
+
+def test_confirmation_records_verify_edit_and_consumes_write_slot(
+    client, db_session, test_user, second_user, second_auth_header
+) -> None:
+    """A true confirmation fires anti_sybil AND is counted by the write limit.
+
+    User A owns an unverified disc; a DISTINCT user B resubmits a structure that
+    matches it. The two-contributor gate (``evaluate_confirmation``) fires and the
+    disc auto-verifies, recording a Postgres ``verify`` edit (the semantic gate) —
+    AND the very same POST consumes a slot in the coarse slowapi write bucket. The
+    two mechanisms measure different things (raw request rate vs. count of
+    verify-edits) and never decrement each other (D-10): because the confirmation
+    was write #1, only 19 further novel writes fit before the 20/min ceiling trips.
+    """
+    seed_test_disc(db_session, submitted_by_id=test_user.id, status="unverified")
+
+    # Confirmation POST (write #1) → auto-verify + a Postgres verify edit.
+    resp = client.post(
+        "/v1/disc", json=matrix_matching_submit_payload(), headers=second_auth_header
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "verified"
+
+    db_session.expire_all()
+    verify_edits = (
+        db_session.query(DiscEdit).filter(DiscEdit.edit_type == "verify").count()
+    )
+    assert verify_edits == 1, (
+        f"anti_sybil semantic gate should have recorded exactly 1 verify edit, got {verify_edits}"
+    )
+
+    # The confirmation consumed write-slot #1: only 19 more novel writes fit.
+    for i in range(WRITE_CAP - 1):
+        r = client.post("/v1/disc", json=_novel_submit_payload(i), headers=second_auth_header)
+        assert r.status_code in (200, 201), f"novel write #{i + 1}: {r.status_code} {r.text}"
+
+    blocked = client.post(
+        "/v1/disc", json=_novel_submit_payload(WRITE_CAP), headers=second_auth_header
+    )
+    assert blocked.status_code == 429, (
+        f"Expected 429 after confirmation (#1) + {WRITE_CAP - 1} novel writes, "
+        f"got {blocked.status_code}: {blocked.text} — the confirmation must have "
+        "consumed a write-limit slot"
+    )
