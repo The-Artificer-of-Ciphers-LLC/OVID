@@ -234,6 +234,33 @@ class TestResolveDispute:
         body = resp.json()
         assert body["error"] == "not_found"
 
+    def test_resolve_own_unverified_disc_rejected(
+        self, client, db_session: Session, trusted_user, trusted_auth_header
+    ) -> None:
+        """W6: an elevated-role user must not be able to /resolve their OWN
+        merely-UNVERIFIED disc straight to verified. (unverified, verified)
+        is a LEGAL transition in general (the normal two-contributor
+        auto-verify path uses it), so resolve_dispute must require the disc
+        to actually be disputed first — otherwise /resolve bypasses
+        structural_match, the anti-Sybil gate, and the self-confirm check
+        entirely, for the resolver's own submission.
+        """
+        seeded = seed_test_disc(
+            db_session, submitted_by_id=trusted_user.id, status="unverified"
+        )
+        resp = client.post(
+            "/v1/disc/dvd-ABC123-main/resolve",
+            json={"action": "verify"},
+            headers=trusted_auth_header,
+        )
+        assert resp.status_code == 409
+        body = resp.json()
+        assert body["error"] == "invalid_state"
+
+        db_session.expire_all()
+        disc = db_session.query(Disc).filter(Disc.id == seeded["disc_id"]).first()
+        assert disc.status == "unverified"
+
     def test_resolve_non_disputed_disc(
         self, client, db_session: Session, seeded_disc, trusted_auth_header
     ) -> None:
