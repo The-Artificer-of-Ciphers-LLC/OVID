@@ -107,7 +107,16 @@ class BDFolderReader(DiscReader):
     def read_aacs_file(self, name: str) -> bytes | None:
         """Read a file from the AACS directory.
 
-        Returns None if the AACS directory does not exist or the file is missing.
+        Returns None if the AACS directory does not exist or the file is
+        missing (not present, per ``os.listdir`` at lookup time, or removed
+        in a race between the listing and the read).
+
+        Raises:
+            OSError: if the file is present but cannot be read (e.g.
+                ``PermissionError`` for a permissions problem, or another
+                ``OSError`` subclass for an I/O error). This is distinct from
+                "missing" so callers can diagnose the actual cause rather
+                than assuming the key file doesn't exist.
         """
         if self._aacs_dir is None:
             return None
@@ -119,9 +128,17 @@ class BDFolderReader(DiscReader):
                 try:
                     with open(full, "rb") as fh:
                         return fh.read()
-                except OSError:
-                    logger.warning("Failed to read AACS file: %s", full)
+                except FileNotFoundError:
+                    # Race: file existed at listdir() time but is gone now —
+                    # treat identically to "not present".
+                    logger.warning("AACS file vanished before read: %s", full)
                     return None
+                except OSError:
+                    # Present but unreadable (permission denied, I/O error,
+                    # etc.) — do not mask this as "missing"; let it propagate
+                    # so the caller can record an accurate diagnostic.
+                    logger.warning("AACS file present but unreadable: %s", full)
+                    raise
 
         return None
 

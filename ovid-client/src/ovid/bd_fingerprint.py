@@ -189,6 +189,7 @@ def build_bd_canonical_string(
         ValueError: If no playlists survive the filter (see
             ``select_canonical_playlists``).
     """
+    # is_uhd is intentionally unused here — see the docstring note above.
     filtered = select_canonical_playlists(playlists)
     return build_bd_canonical_string_from_survivors(filtered, is_uhd)
 
@@ -221,6 +222,7 @@ def build_bd_canonical_string_from_survivors(
     Returns:
         The canonical string.
     """
+    # is_uhd is intentionally unused here — see the docstring note above.
     parts: list[str] = [OVID_BD2_VERSION, str(len(survivors))]
 
     for fname, pl, dur in survivors:

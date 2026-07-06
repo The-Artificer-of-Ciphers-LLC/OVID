@@ -11,7 +11,6 @@ Covers:
 from __future__ import annotations
 
 import hashlib
-import os
 from pathlib import Path
 
 import pytest
@@ -22,7 +21,7 @@ from ovid.bd_fingerprint import (
     compute_aacs_fingerprint,
     compute_bd_structure_fingerprint,
 )
-from ovid.mpls_parser import MplsPlaylist, parse_mpls
+from ovid.mpls_parser import parse_mpls
 from ovid.readers.bd_folder import BDFolderReader
 
 
@@ -473,6 +472,42 @@ class TestBDFolderReader:
         with BDFolderReader(str(root)) as reader:
             assert reader.has_aacs() is True
             assert reader.read_aacs_file("Unit_Key_RO.inf") is None
+
+    def test_read_aacs_file_permission_error_is_distinct_from_missing(self, tmp_path):
+        """WR-02 regression: a present-but-unreadable AACS file raises OSError
+        instead of silently returning None like a genuinely missing file.
+
+        The IO failure is injected deterministically by monkeypatching the
+        ``open`` builtin (not via ``chmod``, which is a no-op under root and
+        is platform-dependent) so this test is reproducible cross-platform
+        and in root-run CI/Docker.
+        """
+        aacs_data = b"fake_unit_key_data"
+        root = _make_bd_dir(
+            tmp_path,
+            mpls_files={"00001.mpls": _make_long_playlist()},
+            aacs_files={"Unit_Key_RO.inf": aacs_data},
+        )
+        with BDFolderReader(str(root)) as reader:
+            real_open = open
+
+            def _raise_permission_error(file, *args, **kwargs):
+                if str(file).endswith("Unit_Key_RO.inf"):
+                    raise PermissionError("injected: permission denied")
+                return real_open(file, *args, **kwargs)
+
+            import builtins
+
+            original_open = builtins.open
+            builtins.open = _raise_permission_error
+            try:
+                with pytest.raises(PermissionError):
+                    reader.read_aacs_file("Unit_Key_RO.inf")
+            finally:
+                builtins.open = original_open
+
+            # Sanity: a genuinely missing file still returns None, not raise.
+            assert reader.read_aacs_file("does_not_exist.inf") is None
 
     def test_ifo_methods_raise(self, tmp_path):
         root = _make_bd_dir(tmp_path, mpls_files={"00001.mpls": _make_long_playlist()})

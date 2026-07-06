@@ -50,7 +50,7 @@ ovid = "ovid.cli:main"
 
 [tool.pytest.ini_options]
 markers = [
-    "real_disc: tests that require a real DVD disc path via OVID_TEST_DISC_PATH env var",
+    "real_disc: tests that require a real disc path (DVD/BD/UHD) via OVID_TEST_DISC_PATH env var",
 ]
 
 [tool.setuptools.packages.find]

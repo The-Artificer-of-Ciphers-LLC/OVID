@@ -14,7 +14,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from ovid.bd_fingerprint import build_bd_canonical_string, select_canonical_playlists
+from ovid.bd_fingerprint import (
+    build_bd_canonical_string_from_survivors,
+    select_canonical_playlists,
+)
 from ovid.disc_identity import DiscIdentitySet, identify_bd
 from ovid.mpls_parser import MplsPlaylist, parse_mpls
 from ovid.readers.bd_folder import BDFolderReader
@@ -130,23 +133,32 @@ class BDDisc:
         format_type = "uhd" if is_uhd else "bluray"
         logger.info("Detected format: %s", format_type)
 
-        # Independently derive the canonical string (used to populate
-        # canonical_string on the returned BDDisc). This deterministically
-        # re-derives the same success/failure outcome identify_bd() computes
-        # internally for Tier 2 — a ValueError here means identify_bd() will
-        # also find Tier 2 unavailable and, if AACS was readable, fall back
-        # to a degenerate Tier-1-primary result.
+        # Run the filter/dedup/sort pipeline exactly once (WR-03) and reuse
+        # the result for the canonical string, the identity resolution, and
+        # BDDisc.playlists — instead of three independent re-derivations of
+        # the same pure function over the same input.
         try:
-            canonical = build_bd_canonical_string(parsed_playlists, is_uhd)
+            survivors = select_canonical_playlists(parsed_playlists)
         except ValueError:
-            canonical = ""
+            # Tier 2 unavailable (zero playlists survive the anti-obfuscation
+            # filter). identify_bd() will independently re-run the pipeline
+            # (only in this rare failure path) and, if AACS was readable,
+            # fall back to a degenerate Tier-1-primary result.
+            survivors = None
 
-        identity_set = identify_bd(parsed_playlists, is_uhd, reader=reader)
+        canonical = (
+            build_bd_canonical_string_from_survivors(survivors, is_uhd)
+            if survivors is not None
+            else ""
+        )
+
+        identity_set = identify_bd(
+            parsed_playlists, is_uhd, reader=reader, survivors=survivors
+        )
         fp = identity_set.primary.fingerprint
         tier_num = 2 if identity_set.primary.fingerprint_version in ("bd2", "uhd2") else 1
 
-        if tier_num == 2:
-            survivors = select_canonical_playlists(parsed_playlists)
+        if tier_num == 2 and survivors is not None:
             playlists_field = [pl for _, pl, _ in survivors]
         else:
             # Degenerate Tier-1-primary case: Tier 2 was not computable, so

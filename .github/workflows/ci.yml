@@ -13,6 +13,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Windows is intentionally out of scope here per FPRINT-05 (which
+        # requires byte-identical determinism across Linux/macOS drives and
+        # OSes only) — not a coverage gap to be closed by adding
+        # windows-latest, but a deliberate boundary of the fingerprinting
+        # spec's cross-OS guarantee.
         os: [ubuntu-latest, macos-latest]
     defaults:
       run:

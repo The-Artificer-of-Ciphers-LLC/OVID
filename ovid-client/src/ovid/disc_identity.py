@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Callable
 
 from ovid.bd_fingerprint import (
     build_bd_canonical_string,
+    build_bd_canonical_string_from_survivors,
     compute_aacs_fingerprint,
     compute_bd_structure_fingerprint,
 )
@@ -139,24 +140,38 @@ def identify_bd(
     is_uhd: bool,
     *,
     reader: "BDFolderReader",
+    survivors: list[tuple[str, MplsPlaylist, float]] | None = None,
 ) -> DiscIdentitySet:
     """Identify a Blu-ray/UHD disc, keeping Tier-2 (BDMV structure) primary.
 
     Mirrors ``identify_dvd()``'s always-primary/opportunistic-alias/
     one-diagnostic-per-branch discipline (FPRINT-03): Tier 1 (AACS) is
     attempted first and independently, recording exactly one diagnostic per
-    branch (no AACS directory, missing/empty key file, hash failure, or
-    success). Tier 2 (BDMV structure) is then attempted; whenever it is
-    computable it becomes primary with any Tier-1 identity attached as an
-    alias — `identify_bd()` never short-circuits to a Tier-1-only result
-    just because Tier 1 succeeded.
+    branch (no AACS directory, missing/empty key file, read error, hash
+    failure, or success). Tier 2 (BDMV structure) is then attempted;
+    whenever it is computable it becomes primary with any Tier-1 identity
+    attached as an alias — `identify_bd()` never short-circuits to a
+    Tier-1-only result just because Tier 1 succeeded.
 
     The one exception is the fully-degenerate case where Tier 2 itself
     cannot be computed (zero playlists survive the anti-obfuscation
     filter): if Tier 1 is available it becomes primary as a documented,
     diagnosed fallback (preserving the disc's only computable identity);
     if neither tier is available, the underlying ``ValueError`` from Tier 2
-    propagates rather than returning a hollow identity.
+    propagates (with the diagnostics collected so far appended) rather than
+    returning a hollow identity.
+
+    Args:
+        playlists: List of (filename, MplsPlaylist) tuples.
+        is_uhd: True if disc is UHD (4K), False for standard Blu-ray.
+        reader: The BD folder reader, used for AACS access.
+        survivors: Optional pre-computed output of
+            ``select_canonical_playlists(playlists)``. Callers that have
+            already run the filter/dedup/sort pipeline (e.g. ``BDDisc._build()``,
+            which also needs the survivor set for ``.playlists``) should pass
+            it here so the pipeline is not re-run a second time (WR-03). When
+            omitted, the canonical string is computed from ``playlists``
+            directly, exactly as before.
     """
     diagnostics: list[DiscIdentityDiagnostic] = []
     tier1_identity: DiscIdentity | None = None
@@ -164,27 +179,48 @@ def identify_bd(
     if not reader.has_aacs():
         diagnostics.append(DiscIdentityDiagnostic(code="no_aacs_directory"))
     else:
-        unit_key_data = reader.read_aacs_file("Unit_Key_RO.inf")
         try:
-            if unit_key_data is None or len(unit_key_data) == 0:
-                diagnostics.append(
-                    DiscIdentityDiagnostic(code="aacs_unit_key_missing")
-                )
-            else:
-                tier1_identity = aacs_identity(unit_key_data, is_uhd)
-                diagnostics.append(
-                    DiscIdentityDiagnostic(code="aacs_disc_id_available")
-                )
-        except Exception as exc:
+            unit_key_data = reader.read_aacs_file("Unit_Key_RO.inf")
+        except OSError as exc:
+            # Present but unreadable (permission denied, I/O error, etc.) —
+            # distinct from "missing" (WR-02) so operators can act on the
+            # actual cause instead of assuming the key file doesn't exist.
             diagnostics.append(
                 DiscIdentityDiagnostic(
-                    code="aacs_fingerprint_failed", message=str(exc)
+                    code="aacs_unit_key_read_error", message=str(exc)
                 )
             )
+        else:
+            try:
+                if unit_key_data is None or len(unit_key_data) == 0:
+                    diagnostics.append(
+                        DiscIdentityDiagnostic(code="aacs_unit_key_missing")
+                    )
+                else:
+                    tier1_identity = aacs_identity(unit_key_data, is_uhd)
+                    diagnostics.append(
+                        DiscIdentityDiagnostic(code="aacs_disc_id_available")
+                    )
+            except TypeError as exc:
+                # WR-01: narrowed from a bare `except Exception` — the only
+                # expected failure here is a non-bytes reader result (e.g. a
+                # test double or future reader bug returning something other
+                # than bytes/None), which makes `len()`/`hashlib.sha1()`
+                # raise TypeError. A broader catch would silently swallow
+                # genuine programming errors (AttributeError, MemoryError,
+                # etc.) as a benign diagnostic instead of surfacing them.
+                diagnostics.append(
+                    DiscIdentityDiagnostic(
+                        code="aacs_fingerprint_failed", message=str(exc)
+                    )
+                )
 
     try:
-        canonical = build_bd_canonical_string(playlists, is_uhd)
-    except ValueError:
+        if survivors is not None:
+            canonical = build_bd_canonical_string_from_survivors(survivors, is_uhd)
+        else:
+            canonical = build_bd_canonical_string(playlists, is_uhd)
+    except ValueError as exc:
         if tier1_identity is not None:
             diagnostics.append(
                 DiscIdentityDiagnostic(
@@ -196,7 +232,11 @@ def identify_bd(
                 aliases=[],
                 diagnostics=diagnostics,
             )
-        raise
+        # IN-03: preserve the diagnostics already collected (e.g.
+        # "no_aacs_directory") instead of discarding them on a bare re-raise
+        # — they explain *why* neither tier was available.
+        diag_codes = [d.code for d in diagnostics]
+        raise ValueError(f"{exc} (diagnostics: {diag_codes})") from exc
 
     primary = ovid_bd2_identity(canonical, is_uhd)
     aliases: list[DiscIdentity] = (

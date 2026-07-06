@@ -153,3 +153,55 @@ def test_identify_bd_raises_when_neither_tier_available() -> None:
 
     with pytest.raises(ValueError, match="No valid playlists"):
         identify_bd(playlists, False, reader=reader)
+
+
+def test_identify_bd_raises_preserving_diagnostics_in_message() -> None:
+    """IN-03: diagnostics collected before the re-raised ValueError are
+    appended to the message rather than silently discarded."""
+    playlists = _all_short_playlists()
+    reader = _FakeReader(False)
+
+    with pytest.raises(ValueError, match=r"diagnostics.*no_aacs_directory"):
+        identify_bd(playlists, False, reader=reader)
+
+
+class _ReadErrorReader:
+    """Duck-typed reader whose read_aacs_file() raises OSError (WR-02)."""
+
+    def has_aacs(self) -> bool:
+        return True
+
+    def read_aacs_file(self, name: str) -> bytes | None:
+        raise PermissionError("injected: permission denied")
+
+
+def test_identify_bd_records_distinct_diagnostic_for_unreadable_aacs_file() -> None:
+    """WR-02: a present-but-unreadable AACS file is diagnosed distinctly from
+    a missing one — bd2- remains primary, no aliases, and the diagnostic
+    code is 'aacs_unit_key_read_error' (not 'aacs_unit_key_missing')."""
+    playlists = _valid_playlists()
+
+    identity_set = identify_bd(playlists, False, reader=_ReadErrorReader())
+
+    assert identity_set.primary.fingerprint_version == "bd2"
+    assert identity_set.aliases == []
+    codes = [d.code for d in identity_set.diagnostics]
+    assert "aacs_unit_key_read_error" in codes
+    assert "aacs_unit_key_missing" not in codes
+
+
+def test_identify_bd_reuses_precomputed_survivors_without_recomputing() -> None:
+    """WR-03: when `survivors` is supplied, identify_bd() uses it directly
+    instead of re-running select_canonical_playlists()/build_bd_canonical_string()."""
+    from ovid.bd_fingerprint import select_canonical_playlists
+
+    playlists = _valid_playlists()
+    reader = _FakeReader(False)
+    survivors = select_canonical_playlists(playlists)
+
+    identity_set = identify_bd(playlists, False, reader=reader, survivors=survivors)
+
+    assert identity_set.primary.fingerprint_version == "bd2"
+    # Same result as computing without a precomputed survivor set.
+    identity_set_direct = identify_bd(playlists, False, reader=reader)
+    assert identity_set.primary.fingerprint == identity_set_direct.primary.fingerprint
