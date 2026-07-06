@@ -36,9 +36,13 @@ def _seed_disc_with_alias(
 
 
 def _fetch_disc_row(db: Session, disc_id: uuid.UUID):
+    # .hex: raw text() binds are untyped and bypass the ORM UUID type
+    # decorator's bind processor, so a bare uuid.UUID fails against sqlite3;
+    # the column is physically stored as hex-no-dash under SQLite, so a
+    # dashed str(disc_id) would silently match zero rows instead of erroring.
     return db.execute(
         text("SELECT id, fingerprint FROM discs WHERE id = :id"),
-        {"id": disc_id},
+        {"id": disc_id.hex},
     ).first()
 
 
@@ -47,7 +51,7 @@ def _fetch_alias_rows(db: Session, disc_id: uuid.UUID):
         text(
             "SELECT id, fingerprint FROM disc_identity_aliases WHERE disc_id = :id"
         ),
-        {"id": disc_id},
+        {"id": disc_id.hex},
     ).all()
 
 
