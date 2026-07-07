@@ -88,8 +88,11 @@ def promote_one_disc(connection: Connection, dvd1_fingerprint: str) -> bool:
 
     Idempotent: the WHERE clause guards on ``discs.fingerprint`` still
     equaling the OLD ``dvd1-*`` value, so an already-promoted disc (or a
-    disc with no ``dvdread1-*`` alias at all) is a safe no-op. Never
-    raises. Returns ``True`` if a promotion occurred, ``False`` otherwise.
+    disc with no ``dvdread1-*`` alias at all) is a safe no-op. May raise
+    on database errors (e.g. a constraint violation or connectivity
+    failure) — callers run inside the migration's own transaction and are
+    expected to let such errors propagate rather than swallow them.
+    Returns ``True`` if a promotion occurred, ``False`` otherwise.
     """
     row = connection.execute(
         text(
@@ -257,5 +260,3 @@ def backfill_fingerprint_registry(connection: Connection) -> tuple[int, int]:
         aliases_inserted += 1
 
     return discs_inserted, aliases_inserted
-
-    return len(disc_rows), len(alias_rows)
