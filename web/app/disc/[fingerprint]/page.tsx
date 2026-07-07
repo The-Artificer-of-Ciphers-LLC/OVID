@@ -78,6 +78,7 @@ export default async function DiscDetailPage({ params }: Props) {
 
   const release = disc.release;
   const edits = editsResult?.edits ?? [];
+  const aliases = disc.fingerprint_aliases ?? [];
 
   const statusStyle =
     STATUS_STYLES[disc.status.toLowerCase()] ?? STATUS_STYLES.unverified;
@@ -90,7 +91,7 @@ export default async function DiscDetailPage({ params }: Props) {
           <h1 className="text-2xl font-bold">
             {release?.title ?? `Disc ${fingerprint}`}
           </h1>
-          <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusStyle}`}>
+          <span className={`rounded px-2 py-0.5 text-sm font-medium ${statusStyle}`}>
             {disc.status}
           </span>
         </div>
@@ -131,9 +132,9 @@ export default async function DiscDetailPage({ params }: Props) {
       </div>
 
       {/* Fingerprint / metadata */}
-      <div className="mb-6 rounded border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="mb-6 rounded border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm dark:border-neutral-800 dark:bg-neutral-900">
         <span className="font-medium">Fingerprint:</span>{" "}
-        <code className="font-mono">{disc.fingerprint}</code>
+        <code className="font-mono break-all">{disc.fingerprint}</code>
         {disc.upc && (
           <>
             {" · "}
@@ -147,6 +148,34 @@ export default async function DiscDetailPage({ params }: Props) {
           </>
         )}
       </div>
+
+      {/* Fingerprint aliases (WEBUI-02) — every known identity string for this
+          pressing (dvd1-*, dvdread1-*, BD tiers). Never hide or renumber. */}
+      <section className="mb-6" data-testid="fingerprint-aliases">
+        <h2 className="text-lg font-semibold mb-3">Fingerprint aliases</h2>
+        {aliases.length > 1 ? (
+          <ul className="space-y-1">
+            {aliases.map((alias) => (
+              <li
+                key={alias.fingerprint}
+                className="flex flex-wrap items-center gap-2 text-sm"
+              >
+                <code className="font-mono break-all">{alias.fingerprint}</code>
+                <span className="text-neutral-500">{alias.method}</span>
+                {alias.is_primary && (
+                  <span className="rounded bg-blue-100 px-1.5 py-1 text-sm text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                    primary
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-neutral-500">
+            No additional fingerprint aliases recorded.
+          </p>
+        )}
+      </section>
 
       {/* Sibling discs (multi-disc set) */}
       {disc.disc_set && (
@@ -162,7 +191,13 @@ export default async function DiscDetailPage({ params }: Props) {
       {/* Disc structure (titles) */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold mb-3">Titles</h2>
-        <DiscStructure titles={disc.titles} />
+        {disc.status === "unverified" ? (
+          <p className="text-sm text-neutral-500">
+            Structure withheld until a second contributor verifies this disc.
+          </p>
+        ) : (
+          <DiscStructure titles={disc.titles} />
+        )}
       </section>
 
       {/* Edit history */}
