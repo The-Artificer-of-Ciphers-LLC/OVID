@@ -121,6 +121,58 @@ def _apple_patches(token_response=None, token_status=200, token_error=None, jwks
 
 
 # ---------------------------------------------------------------------------
+# Apple client-secret generation (AUTH-03 — short-lived, per-exchange rotation)
+# ---------------------------------------------------------------------------
+
+def _patch_apple_env_for_secret():
+    """ExitStack patching the module-level Apple env used by generate_apple_client_secret."""
+    stack = ExitStack()
+    patches = {
+        "app.auth.routes._APPLE_CLIENT_ID": "com.ovid.test",
+        "app.auth.routes._APPLE_TEAM_ID": "TEAM123",
+        "app.auth.routes._APPLE_KEY_ID": "KEY123",
+        "app.auth.routes._APPLE_PRIVATE_KEY": _generate_test_ec_key(),
+    }
+    for target, value in patches.items():
+        stack.enter_context(patch(target, value))
+    return stack
+
+
+class TestAppleClientSecret:
+    def test_client_secret_exp_is_short_lived(self):
+        """The ES256 client_secret is short-lived (exp - iat ~300s), NOT months (AUTH-03)."""
+        from app.auth import routes as auth_routes
+
+        with _patch_apple_env_for_secret():
+            secret = auth_routes.generate_apple_client_secret()
+
+        claims = pyjwt.decode(secret, options={"verify_signature": False})
+        # exp - iat must be a few-minutes lifetime, never a multi-month value.
+        assert 250 <= claims["exp"] - claims["iat"] <= 350
+        # Deterministic, non-tautological claim assertions on the exact env we patched.
+        assert claims["iss"] == "TEAM123"
+        assert claims["sub"] == "com.ovid.test"
+        assert claims["aud"] == "https://appleid.apple.com"
+
+    def test_client_secret_regenerated_per_exchange(self):
+        """Each call produces an independently-generated secret (per-exchange rotation)."""
+        from app.auth import routes as auth_routes
+
+        with _patch_apple_env_for_secret():
+            secret1 = auth_routes.generate_apple_client_secret()
+            secret2 = auth_routes.generate_apple_client_secret()
+
+        # Independently generated: ES256 signs with a fresh random nonce per call,
+        # so two secrets over the same claims never share signature bytes.
+        assert secret1 != secret2
+        claims1 = pyjwt.decode(secret1, options={"verify_signature": False})
+        claims2 = pyjwt.decode(secret2, options={"verify_signature": False})
+        # Both carry the short lifetime — rotation preserves the short exp window.
+        assert 250 <= claims1["exp"] - claims1["iat"] <= 350
+        assert 250 <= claims2["exp"] - claims2["iat"] <= 350
+
+
+# ---------------------------------------------------------------------------
 # Apple callback — happy path
 # ---------------------------------------------------------------------------
 
