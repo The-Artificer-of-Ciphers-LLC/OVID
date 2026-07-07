@@ -1,8 +1,10 @@
-"""Tests for account linking & email conflict resolution.
+"""Tests for account linking & confirm-gated email-merge resolution.
 
 Covers:
-- 409 Conflict on email match (implicit linking initiation)
-- pending_link session state drives implicit merge
+- 409 Conflict carrying pending_link_id on a PROVIDER-VERIFIED email match (merge OFFER)
+- a merge completes ONLY via re-auth through an already-linked provider (nOAuth defense)
+- a plain login (no pending_link_id) never merges — the removed session-implicit-merge flaw
+- an unverified provider profile email (e.g. GitHub GET /user) never triggers a merge
 - Explicit /link and /unlink endpoints
 - Cannot unlink the last provider
 - Negative tests: invalid provider, already-linked provider, non-linked provider
@@ -61,7 +63,13 @@ def _auth_header(user: User) -> dict[str, str]:
 
 
 def _github_oauth_mocks(github_id=99999, email="shared@example.com", name="GH User", login="ghuser"):
-    """Prepare mocked authlib OAuth client for GitHub callback."""
+    """Prepare mocked authlib OAuth client for GitHub login + callback.
+
+    GitHub's GET /user profile email is intentionally NOT a verified signal; the
+    mocked `get` returns the same profile dict for the (post-Task-2) GET /user/emails
+    call too — which the callback treats as "no primary+verified entry" (a dict is not
+    the expected list), so GitHub logins through this mock are always email_verified=False.
+    """
     gh_user = {"id": github_id, "email": email, "name": name, "login": login}
     mock_oauth = MagicMock()
     mock_oauth.github.authorize_access_token = AsyncMock(return_value={"access_token": "gho_fake"})
@@ -69,16 +77,25 @@ def _github_oauth_mocks(github_id=99999, email="shared@example.com", name="GH Us
     resp_mock.status_code = 200
     resp_mock.json.return_value = gh_user
     mock_oauth.github.get = AsyncMock(return_value=resp_mock)
+    from starlette.responses import JSONResponse
+    mock_oauth.github.authorize_redirect = AsyncMock(return_value=JSONResponse(content={"ok": True}))
     return mock_oauth
 
 
-def _google_oauth_mocks(sub="google_123", email="shared@example.com", name="Google User"):
-    """Prepare mocked authlib OAuth client for Google callback."""
-    userinfo = {"sub": sub, "email": email, "name": name}
+def _google_oauth_mocks(sub="google_123", email="shared@example.com", name="Google User", email_verified=True):
+    """Prepare mocked authlib OAuth client for Google login + callback.
+
+    Google is an OIDC provider whose id_token authlib has already verified, so its
+    userinfo carries a trustworthy email_verified claim — defaulted True here to drive
+    the verified-email merge-offer path.
+    """
+    userinfo = {"sub": sub, "email": email, "name": name, "email_verified": email_verified}
     mock_oauth = MagicMock()
     mock_oauth.google.authorize_access_token = AsyncMock(
         return_value={"access_token": "ya29_fake", "userinfo": userinfo}
     )
+    from starlette.responses import JSONResponse
+    mock_oauth.google.authorize_redirect = AsyncMock(return_value=JSONResponse(content={"ok": True}))
     return mock_oauth
 
 
@@ -87,29 +104,12 @@ def _google_oauth_mocks(sub="google_123", email="shared@example.com", name="Goog
 # ---------------------------------------------------------------------------
 
 class TestEmailConflict:
-    """When a new OAuth login has an email already in use, return 409."""
+    """A PROVIDER-VERIFIED email already in use yields a 409 merge OFFER carrying a
+    pending_link_id; an UNVERIFIED colliding email forks a separate identity instead."""
 
-    def test_github_login_email_conflict_returns_409(self, client: TestClient, db_session: Session):
-        """A user logs in with GitHub where the email is already used by another user."""
-        existing_user, _ = _create_user_with_link(
-            db_session, username="existing", email="shared@example.com",
-            provider="google", provider_id="goog_existing",
-        )
-
-        mock_oauth = _github_oauth_mocks(github_id=55555, email="shared@example.com")
-
-        with ExitStack() as stack:
-            stack.enter_context(patch("app.auth.routes.oauth", mock_oauth))
-            stack.enter_context(patch("app.auth.routes._GITHUB_CLIENT_ID", "fake_id"))
-            resp = client.get("/v1/auth/github/callback", params={"code": "test_code", "state": "s"})
-
-        assert resp.status_code == 409
-        body = resp.json()
-        assert body["error"] == "email_conflict"
-        assert body["existing_user_id"] == str(existing_user.id)
-
-    def test_google_login_email_conflict_returns_409(self, client: TestClient, db_session: Session):
-        """A Google login with a pre-existing email should get 409."""
+    def test_google_verified_email_conflict_returns_409_with_pending_link(self, client: TestClient, db_session: Session):
+        """A Google login (verified email) matching an existing account returns 409 with
+        existing_user_id AND a pending_link_id backed by a real PendingAccountLink row."""
         existing_user, _ = _create_user_with_link(
             db_session, username="existing", email="shared@example.com",
             provider="github", provider_id="gh_existing",
@@ -126,6 +126,44 @@ class TestEmailConflict:
         body = resp.json()
         assert body["error"] == "email_conflict"
         assert body["existing_user_id"] == str(existing_user.id)
+
+        # pending_link_id must reference a real, unconsumed offer for the existing user.
+        from app.models import PendingAccountLink
+        pending = db_session.query(PendingAccountLink).filter(
+            PendingAccountLink.id == uuid.UUID(body["pending_link_id"])
+        ).first()
+        assert pending is not None
+        assert str(pending.existing_user_id) == str(existing_user.id)
+        assert pending.new_provider == "google"
+        assert pending.consumed_at is None
+
+    def test_github_unverified_profile_email_does_not_merge(self, client: TestClient, db_session: Session):
+        """GitHub's GET /user profile email is not a verified signal (Pitfall 2): a
+        colliding-but-unverified GitHub login forks a SEPARATE identity, never a merge."""
+        existing_user, _ = _create_user_with_link(
+            db_session, username="existing", email="shared@example.com",
+            provider="google", provider_id="goog_existing",
+        )
+
+        mock_oauth = _github_oauth_mocks(github_id=55555, email="shared@example.com")
+
+        with ExitStack() as stack:
+            stack.enter_context(patch("app.auth.routes.oauth", mock_oauth))
+            stack.enter_context(patch("app.auth.routes._GITHUB_CLIENT_ID", "fake_id"))
+            resp = client.get("/v1/auth/github/callback", params={"code": "test_code", "state": "s"})
+
+        # No merge, no offer: a separate identity is created (unverified email dropped).
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["user"]["id"] != str(existing_user.id)
+
+        from app.models import PendingAccountLink
+        assert db_session.query(PendingAccountLink).count() == 0
+        # Existing account untouched — still owns the address, still one link.
+        db_session.expire_all()
+        db_session.refresh(existing_user)
+        assert existing_user.email == "shared@example.com"
+        assert len(existing_user.oauth_links) == 1
 
     def test_placeholder_email_does_not_trigger_conflict(self, client: TestClient, db_session: Session):
         """Placeholder emails (@noemail.placeholder) should never trigger a 409."""
@@ -166,85 +204,93 @@ class TestEmailConflict:
 
 
 # ---------------------------------------------------------------------------
-# Tests: Implicit Merge via pending_link
+# Tests: Confirm-gated merge via re-auth (nOAuth defense)
 # ---------------------------------------------------------------------------
 
-class TestImplicitMerge:
-    """After 409, re-authenticating with the existing account merges the pending link."""
+class TestReauthMerge:
+    """A verified-email merge OFFER completes ONLY when the existing account re-auths
+    through an already-linked provider carrying pending_link_id. A plain login never
+    merges (the removed session-implicit-merge flaw)."""
 
-    def test_pending_link_merges_on_next_login(self, client: TestClient, db_session: Session):
+    def test_verified_merge_completes_only_via_reauth(self, client: TestClient, db_session: Session):
         """
-        Flow:
-        1. User A exists (google, shared@example.com).
-        2. New GitHub login with shared@example.com → 409, pending_link stored in session.
-        3. User A re-authenticates via their Google login → pending GitHub link merged into A.
+        Flow (nOAuth-safe):
+        1. User A exists, linked via GitHub, email shared@example.com.
+        2. A new Google login (verified, shared@example.com) → 409 + pending_link_id.
+        3. User A re-authenticates via GitHub (already-linked) carrying pending_link_id
+           → the Google provider is attached to User A and a JWT for A is issued.
         """
         user_a, _ = _create_user_with_link(
             db_session, username="user_a", email="shared@example.com",
-            provider="google", provider_id="goog_a",
+            provider="github", provider_id="gh_a",
         )
 
-        # Step 2: GitHub login triggers 409
-        mock_gh = _github_oauth_mocks(github_id=77777, email="shared@example.com")
-
-        with ExitStack() as stack:
-            stack.enter_context(patch("app.auth.routes.oauth", mock_gh))
-            stack.enter_context(patch("app.auth.routes._GITHUB_CLIENT_ID", "fake_id"))
-            resp = client.get("/v1/auth/github/callback", params={"code": "c1", "state": "s1"})
-
-        assert resp.status_code == 409
-
-        # Step 3: Re-authenticate as user A via Google (existing link resolves)
-        mock_google = _google_oauth_mocks(sub="goog_a", email="shared@example.com", name="User A")
-
+        # Step 2: verified Google login for the NEW provider → 409 offer.
+        mock_google = _google_oauth_mocks(sub="goog_new", email="shared@example.com")
         with ExitStack() as stack:
             stack.enter_context(patch("app.auth.routes.oauth", mock_google))
             stack.enter_context(patch("app.auth.routes._GOOGLE_CLIENT_ID", "fake_id"))
-            resp2 = client.get("/v1/auth/google/callback", params={"code": "c2", "state": "s2"})
+            offer = client.get("/v1/auth/google/callback", params={"code": "c1", "state": "s1"})
 
-        assert resp2.status_code == 200
-        body = resp2.json()
+        assert offer.status_code == 409
+        pending_link_id = offer.json()["pending_link_id"]
+
+        # Step 3: re-auth via GitHub (already-linked) carrying pending_link_id in session.
+        mock_gh = _github_oauth_mocks(github_id="gh_a", email="shared@example.com")
+        with ExitStack() as stack:
+            stack.enter_context(patch("app.auth.routes.oauth", mock_gh))
+            stack.enter_context(patch("app.auth.routes._GITHUB_CLIENT_ID", "fake_id"))
+            # /login stashes pending_link_id into the session; the callback consumes it.
+            client.get("/v1/auth/github/login", params={"pending_link_id": pending_link_id})
+            resp = client.get("/v1/auth/github/callback", params={"code": "c2", "state": "s2"})
+
+        assert resp.status_code == 200
+        body = resp.json()
         assert body["user"]["id"] == str(user_a.id)
 
-        # Verify the GitHub link was merged into user A
+        # The Google provider is now attached to User A.
         db_session.expire_all()
         links = db_session.query(UserOAuthLink).filter_by(user_id=user_a.id).all()
         providers = {l.provider for l in links}
         assert providers == {"github", "google"}
 
-    def test_pending_link_cleared_after_merge(self, client: TestClient, db_session: Session):
-        """After merge, the pending_link should be consumed — a subsequent login should not re-merge."""
+        # The offer is single-use consumed.
+        from app.models import PendingAccountLink
+        pending = db_session.query(PendingAccountLink).filter(
+            PendingAccountLink.id == uuid.UUID(pending_link_id)
+        ).first()
+        assert pending.consumed_at is not None
+
+    def test_plain_login_without_pending_link_does_not_merge(self, client: TestClient, db_session: Session):
+        """A plain login (no pending_link_id) never merges into the existing account —
+        the removed session-carried implicit-merge flaw. Repeating the verified login
+        just re-offers; the existing account is never silently linked."""
         user_a, _ = _create_user_with_link(
             db_session, username="user_a", email="shared@example.com",
-            provider="google", provider_id="goog_a",
+            provider="github", provider_id="gh_a",
         )
 
-        # Trigger 409
-        mock_gh = _github_oauth_mocks(github_id=77777, email="shared@example.com")
-        with ExitStack() as stack:
-            stack.enter_context(patch("app.auth.routes.oauth", mock_gh))
-            stack.enter_context(patch("app.auth.routes._GITHUB_CLIENT_ID", "fake_id"))
-            client.get("/v1/auth/github/callback", params={"code": "c1", "state": "s1"})
-
-        # Merge
-        mock_google = _google_oauth_mocks(sub="goog_a", email="shared@example.com")
+        # Verified Google login → 409 offer (creates a pending row).
+        mock_google = _google_oauth_mocks(sub="goog_new", email="shared@example.com")
         with ExitStack() as stack:
             stack.enter_context(patch("app.auth.routes.oauth", mock_google))
             stack.enter_context(patch("app.auth.routes._GOOGLE_CLIENT_ID", "fake_id"))
-            client.get("/v1/auth/google/callback", params={"code": "c2", "state": "s2"})
+            first = client.get("/v1/auth/google/callback", params={"code": "c1", "state": "s1"})
+        assert first.status_code == 409
 
-        # Re-authenticate again — no pending_link should remain
-        mock_google2 = _google_oauth_mocks(sub="goog_a", email="shared@example.com")
+        # A SECOND verified Google login WITHOUT pending_link_id must NOT merge — it just
+        # re-offers (409), never attaches Google to User A.
+        mock_google2 = _google_oauth_mocks(sub="goog_new", email="shared@example.com")
         with ExitStack() as stack:
             stack.enter_context(patch("app.auth.routes.oauth", mock_google2))
             stack.enter_context(patch("app.auth.routes._GOOGLE_CLIENT_ID", "fake_id"))
-            resp = client.get("/v1/auth/google/callback", params={"code": "c3", "state": "s3"})
+            second = client.get("/v1/auth/google/callback", params={"code": "c2", "state": "s2"})
+        assert second.status_code == 409
 
-        assert resp.status_code == 200
-        # Should still be only 2 links (google + github), not a duplicate
+        # User A was never linked to Google by a plain login.
         db_session.expire_all()
         links = db_session.query(UserOAuthLink).filter_by(user_id=user_a.id).all()
-        assert len(links) == 2
+        assert {l.provider for l in links} == {"github"}
 
 
 # ---------------------------------------------------------------------------

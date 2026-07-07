@@ -16,7 +16,12 @@ from sqlalchemy.orm import Session
 from app.auth.deps import get_current_user
 from app.auth.indieauth import DiscoveryError, discover_endpoints, generate_pkce_pair, validate_url
 from app.auth.jwt import create_access_token
-from app.auth.users import user_upsert, EmailConflictError, ProviderAlreadyLinkedError
+from app.auth.merge import (
+    MergeReauthMismatchError,
+    PendingLinkInvalidError,
+    resolve_auth,
+)
+from app.auth.users import ProviderAlreadyLinkedError
 from app.deps import get_db
 from app.models import User
 
@@ -68,42 +73,77 @@ if _GOOGLE_CLIENT_ID:
 # ---------------------------------------------------------------------------
 # Shared auth callback helper
 # ---------------------------------------------------------------------------
-def finalize_auth(request: Request, db: Session, provider: str, provider_id: str, email: str | None, display_name: str | None):
-    """Handle user upsert, explicit linking, implicit linking, and JWT creation."""
+def finalize_auth(
+    request: Request,
+    db: Session,
+    provider: str,
+    provider_id: str,
+    email: str | None,
+    display_name: str | None,
+    email_verified: bool = False,
+):
+    """Thin route wrapper around the pure ``resolve_auth`` choke point.
+
+    Reads the session-carried ROUTING state (``link_to_user_id``,
+    ``web_redirect_uri``, ``pending_link_id``), delegates all identity resolution
+    to ``resolve_auth`` (which decides login vs. verified-email merge OFFER vs.
+    separate identity vs. re-auth consume), then maps the ``AuthResult`` onto the
+    existing HTTP shapes.
+
+    The old session-carried ``pending_link`` implicit-merge mechanism is gone: it
+    merged the next login in the same browser session regardless of identity (the
+    nOAuth flaw, D-04). The ONLY merge path now is ``resolve_auth``'s DB
+    ``PendingAccountLink`` consumed by a matching re-auth. ``pending_link_id`` only
+    ROUTES the callback; ownership is proven by the fresh OAuth round-trip.
+    """
     link_to_user_id = request.session.pop("link_to_user_id", None)
+    pending_link_id = request.session.pop("pending_link_id", None)
+
     try:
-        user = user_upsert(
+        result = resolve_auth(
             db,
             provider=provider,
             provider_id=provider_id,
             email=email,
+            email_verified=email_verified,
             display_name=display_name,
             link_to_user_id=link_to_user_id,
+            pending_link_id=pending_link_id,
         )
-    except EmailConflictError as e:
-        request.session["pending_link"] = {
-            "provider": provider,
-            "provider_id": provider_id,
-        }
-        from fastapi.responses import JSONResponse
-        return JSONResponse(status_code=409, content={"error": "email_conflict", "existing_user_id": e.existing_user_id})
     except ProviderAlreadyLinkedError:
         raise HTTPException(status_code=400, detail={"error": "already_linked", "reason": "Provider is linked to another account"})
+    except MergeReauthMismatchError:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "merge_reauth_required",
+                "reason": "Re-authenticate through an already-linked provider to complete the merge",
+            },
+        )
+    except PendingLinkInvalidError:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "pending_link_invalid",
+                "reason": "The merge request is invalid, expired, or already used",
+            },
+        )
 
-    pending_link = request.session.pop("pending_link", None)
-    if pending_link:
-        try:
-            user_upsert(
-                db,
-                provider=pending_link["provider"],
-                provider_id=pending_link["provider_id"],
-                email=None,
-                display_name=None,
-                link_to_user_id=str(user.id),
-            )
-        except ProviderAlreadyLinkedError:
-            pass
+    # Verified-email match → a merge OFFER (never an attach). Return 409 carrying the
+    # DB pending-link id; the merge only completes when the existing account re-auths
+    # through an already-linked provider (see resolve_auth's consume path).
+    if result.merge_offer is not None:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": "email_conflict",
+                "existing_user_id": str(result.merge_offer.existing_user_id),
+                "pending_link_id": str(result.merge_offer.id),
+            },
+        )
 
+    user = result.user
     jwt_token = create_access_token(user.id)
 
     web_redirect_uri = request.session.pop("web_redirect_uri", "")
@@ -128,7 +168,7 @@ def finalize_auth(request: Request, db: Session, provider: str, provider_id: str
 # GitHub OAuth
 # ---------------------------------------------------------------------------
 @auth_router.get("/github/login")
-async def github_login(request: Request, web_redirect_uri: str = ""):
+async def github_login(request: Request, web_redirect_uri: str = "", pending_link_id: str = ""):
     """Redirect to GitHub authorization page."""
     if not _GITHUB_CLIENT_ID:
         raise HTTPException(status_code=501, detail="GitHub OAuth not configured")
@@ -137,6 +177,9 @@ async def github_login(request: Request, web_redirect_uri: str = ""):
         if not web_redirect_uri.startswith(("http://", "https://")):
             raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
         request.session["web_redirect_uri"] = web_redirect_uri
+
+    if pending_link_id:
+        request.session["pending_link_id"] = pending_link_id
 
     redirect_uri = f"{_OVID_API_URL}/v1/auth/github/callback"
     return await oauth.github.authorize_redirect(request, redirect_uri)
@@ -268,7 +311,7 @@ _APPLE_TOKEN_URL = "https://appleid.apple.com/auth/token"
 
 
 @auth_router.get("/apple/login")
-async def apple_login(request: Request, web_redirect_uri: str = ""):
+async def apple_login(request: Request, web_redirect_uri: str = "", pending_link_id: str = ""):
     """Redirect to Apple's OIDC authorization endpoint."""
     if not _APPLE_CONFIGURED:
         raise HTTPException(status_code=501, detail="Apple Sign-In not configured")
@@ -277,6 +320,9 @@ async def apple_login(request: Request, web_redirect_uri: str = ""):
         if not web_redirect_uri.startswith(("http://", "https://")):
             raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
         request.session["web_redirect_uri"] = web_redirect_uri
+
+    if pending_link_id:
+        request.session["pending_link_id"] = pending_link_id
 
     redirect_uri = f"{_OVID_API_URL}/v1/auth/apple/callback"
     state = secrets.token_urlsafe(32)
@@ -386,7 +432,7 @@ async def apple_callback(request: Request, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @auth_router.get("/indieauth/login")
-async def indieauth_login(request: Request, url: str = "", web_redirect_uri: str = ""):
+async def indieauth_login(request: Request, url: str = "", web_redirect_uri: str = "", pending_link_id: str = ""):
     """Begin IndieAuth flow: discover endpoints, redirect to authorization_endpoint."""
     if not url:
         raise HTTPException(status_code=400, detail={"error": "missing_url", "reason": "url query param required"})
@@ -395,6 +441,9 @@ async def indieauth_login(request: Request, url: str = "", web_redirect_uri: str
         if not web_redirect_uri.startswith(("http://", "https://")):
             raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
         request.session["web_redirect_uri"] = web_redirect_uri
+
+    if pending_link_id:
+        request.session["pending_link_id"] = pending_link_id
 
     try:
         validated_url = validate_url(url, allow_localhost=True)
@@ -507,7 +556,7 @@ async def indieauth_callback(request: Request, db: Session = Depends(get_db)):
 # Google OAuth
 # ---------------------------------------------------------------------------
 @auth_router.get("/google/login")
-async def google_login(request: Request, web_redirect_uri: str = ""):
+async def google_login(request: Request, web_redirect_uri: str = "", pending_link_id: str = ""):
     """Redirect to Google authorization page."""
     if not _GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=501, detail="Google OAuth not configured")
@@ -516,6 +565,9 @@ async def google_login(request: Request, web_redirect_uri: str = ""):
         if not web_redirect_uri.startswith(("http://", "https://")):
             raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
         request.session["web_redirect_uri"] = web_redirect_uri
+
+    if pending_link_id:
+        request.session["pending_link_id"] = pending_link_id
 
     redirect_uri = f"{_OVID_API_URL}/v1/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
@@ -553,6 +605,11 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         logger.warning("auth_failed provider=google reason=malformed_response")
         raise HTTPException(status_code=401, detail={"error": "provider_error", "reason": "Malformed Google response"})
 
+    # authlib's OIDC client already verified the id_token signature/iss/aud/nonce and
+    # populated token["userinfo"] from those verified claims — read email_verified
+    # directly (no extra HTTP call needed).
+    email_verified = bool(userinfo.get("email_verified"))
+
     return finalize_auth(
         request,
         db,
@@ -560,6 +617,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         provider_id=google_sub,
         email=userinfo.get("email"),
         display_name=userinfo.get("name"),
+        email_verified=email_verified,
     )
 
 # ---------------------------------------------------------------------------
@@ -570,7 +628,7 @@ from app.auth.mastodon import validate_mastodon_domain, get_or_register_client
 from app.models import MastodonOAuthClient
 
 @auth_router.get("/mastodon/login")
-async def mastodon_login(request: Request, domain: str = "", web_redirect_uri: str = "", db: Session = Depends(get_db)):
+async def mastodon_login(request: Request, domain: str = "", web_redirect_uri: str = "", pending_link_id: str = "", db: Session = Depends(get_db)):
     """Begin Mastodon OAuth flow."""
     if not domain:
         raise HTTPException(status_code=400, detail={"error": "missing_domain", "reason": "domain query param required"})
@@ -579,6 +637,9 @@ async def mastodon_login(request: Request, domain: str = "", web_redirect_uri: s
         if not web_redirect_uri.startswith(("http://", "https://")):
             raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
         request.session["web_redirect_uri"] = web_redirect_uri
+
+    if pending_link_id:
+        request.session["pending_link_id"] = pending_link_id
 
     try:
         domain = validate_mastodon_domain(domain)

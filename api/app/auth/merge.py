@@ -26,6 +26,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.auth.users import ProviderAlreadyLinkedError
 from app.models import PendingAccountLink, User, UserOAuthLink
 
 logger = logging.getLogger(__name__)
@@ -225,6 +226,15 @@ def resolve_auth(
     # 1. Existing-link login (AUTH-06).
     existing = _resolve_existing_link(db, provider, provider_id)
     if existing is not None:
+        # Explicit-link collision guard (faithful port of user_upsert's check): if the
+        # caller is explicitly linking (link_to_user_id set) but this provider identity
+        # is already owned by a DIFFERENT account, refuse. Without this guard an
+        # explicit link of an already-owned provider would silently log the requester
+        # into the OTHER account (minting that account's JWT) instead of erroring.
+        if link_to_user_id is not None and str(existing.id) != str(link_to_user_id):
+            raise ProviderAlreadyLinkedError(
+                "Provider account is already linked to another user"
+            )
         logger.info("auth_resolve provider=%s user_id=%s (existing)", provider, existing.id)
         return AuthResult(user=existing, merge_offer=None)
 
