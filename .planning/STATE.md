@@ -4,14 +4,14 @@ milestone: v0.2.0
 milestone_name: milestone
 current_phase_name: web-ui-production-readiness
 status: executing
-stopped_at: Completed 07-02-PLAN.md
-last_updated: "2026-07-07T17:50:17.117Z"
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-07-07T17:58:35.909Z"
 last_activity: 2026-07-07 -- Phase 07 execution started
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 43
-  completed_plans: 37
+  completed_plans: 38
   percent: 75
 current_phase: 06
 ---
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 07 (web-ui-production-readiness) — EXECUTING
 Current Phase Name: web-ui-production-readiness
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-07-07 -- Phase 07 execution started
 Last Activity Description: Phase 07 execution started
@@ -91,6 +91,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 06 P07 | 165s | 2 tasks | 2 files |
 | Phase 07 P01 | 7min | 3 tasks | 5 files |
 | Phase 07 P02 | 10min | 2 tasks | 3 files |
+| Phase 07 P03 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -164,6 +165,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 07-02]: web_redirect_uri popped inside finalize_auth's merge-offer branch (not only at the pre-existing success-path pop) so it's consumed exactly once regardless of which branch runs; merge-offer payload (error+pending_link_id) built once and reused for both the 302 query string and 409 JSON body
 - [Phase ?]: [Phase 07-02]: Fixed a latent function-scope urlencode import shadowing bug in finalize_auth surfaced by the new merge-offer redirect branch (removed redundant local import, module-level import already covers both branches)
 - [Phase ?]: [Phase 07-02]: Did NOT mark WEBUI-04 complete in REQUIREMENTS.md despite it being in 07-02's frontmatter requirements field -- this plan only ships the backend merge-offer redirect prerequisite, not the settings-page add/remove providers surface (that's 07-07, D-05); mirrors 07-01's same precedent for WEBUI-01..04
+- [Phase ?]: 07-03: Redacted fields set to None (not omitted) for main_title/duration_secs/track_count — SiblingDiscSummary already Optional, no schema change needed
+- [Phase ?]: 07-03: Fixed pre-existing test_disc_lookup.py::test_lookup_disc_in_set which encoded the R-1 leak as expected behavior; switched sibling fixture to verified status
 
 ### Pending Todos
 
@@ -188,6 +191,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-07T17:48:34.444Z
-Stopped at: Completed 07-02-PLAN.md
+Last session: 2026-07-07T17:58:35.903Z
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None
