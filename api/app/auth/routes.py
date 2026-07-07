@@ -304,7 +304,11 @@ def generate_apple_client_secret() -> str:
     """Generate the JWT client_secret Apple requires for token exchange.
 
     Apple's client_secret is itself a JWT signed with ES256 using the team's
-    private key, with specific claims.  Valid for up to 6 months.
+    private key. Apple permits up to 6 months, but we deliberately mint a
+    short-lived (~300s) secret regenerated on every token exchange (AUTH-03,
+    D-10): per-exchange regeneration IS the automated rotation, and the short
+    exp collapses the credential-theft/replay window from months to minutes.
+    The ~5-minute lifetime tolerates clock skew and retries (D-11).
     """
     private_key = _load_apple_private_key()
     if not private_key:
@@ -314,7 +318,7 @@ def generate_apple_client_secret() -> str:
     payload = {
         "iss": _APPLE_TEAM_ID,
         "iat": now,
-        "exp": now + (86400 * 180),  # 6 months
+        "exp": now + 300,  # ~5 minutes — regenerated per exchange (AUTH-03, D-10/D-11)
         "aud": "https://appleid.apple.com",
         "sub": _APPLE_CLIENT_ID,
     }
