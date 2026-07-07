@@ -292,6 +292,90 @@ class TestReauthMerge:
         links = db_session.query(UserOAuthLink).filter_by(user_id=user_a.id).all()
         assert {l.provider for l in links} == {"github"}
 
+    def test_cross_account_reauth_is_rejected(self, client: TestClient, db_session: Session):
+        """Pitfall 1 regression (nOAuth): presenting User A's pending_link_id while
+        re-authenticating as a DIFFERENT existing account (User B) is rejected — the
+        offer is never consumed and the new provider is never attached to anyone."""
+        user_a, _ = _create_user_with_link(
+            db_session, username="user_a", email="shared@example.com",
+            provider="github", provider_id="gh_a",
+        )
+        user_b, _ = _create_user_with_link(
+            db_session, username="user_b", email="b@example.com",
+            provider="google", provider_id="goog_b",
+        )
+
+        # A verified Google login (new provider goog_new) matching User A → 409 offer.
+        mock_google = _google_oauth_mocks(sub="goog_new", email="shared@example.com")
+        with ExitStack() as stack:
+            stack.enter_context(patch("app.auth.routes.oauth", mock_google))
+            stack.enter_context(patch("app.auth.routes._GOOGLE_CLIENT_ID", "fake_id"))
+            offer = client.get("/v1/auth/google/callback", params={"code": "c1", "state": "s1"})
+        assert offer.status_code == 409
+        pending_link_id = offer.json()["pending_link_id"]
+
+        # User B (unrelated) re-auths via their OWN google link carrying A's pending id.
+        mock_gb = _google_oauth_mocks(sub="goog_b", email="b@example.com")
+        with ExitStack() as stack:
+            stack.enter_context(patch("app.auth.routes.oauth", mock_gb))
+            stack.enter_context(patch("app.auth.routes._GOOGLE_CLIENT_ID", "fake_id"))
+            client.get("/v1/auth/google/login", params={"pending_link_id": pending_link_id})
+            resp = client.get("/v1/auth/google/callback", params={"code": "c2", "state": "s2"})
+
+        # Fail closed: mismatch → 400, offer NOT consumed, goog_new attached to no one.
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "merge_reauth_required"
+
+        db_session.expire_all()
+        from app.models import PendingAccountLink
+        pending = db_session.query(PendingAccountLink).filter(
+            PendingAccountLink.id == uuid.UUID(pending_link_id)
+        ).first()
+        assert pending.consumed_at is None
+        assert db_session.query(UserOAuthLink).filter_by(provider="google", provider_id="goog_new").first() is None
+        # Neither account gained the offered provider.
+        assert {l.provider for l in user_a.oauth_links} == {"github"}
+        assert {l.provider for l in db_session.query(UserOAuthLink).filter_by(user_id=user_b.id).all()} == {"google"}
+
+
+# ---------------------------------------------------------------------------
+# Tests: Multi-provider login (AUTH-06)
+# ---------------------------------------------------------------------------
+
+class TestMultiProviderLogin:
+    """A user with multiple linked providers can log in via ANY of them (AUTH-06)."""
+
+    def test_login_via_any_linked_provider_returns_same_user(self, client: TestClient, db_session: Session):
+        user, _ = _create_user_with_link(
+            db_session, username="multi", email="multi@example.com",
+            provider="github", provider_id="gh_multi",
+        )
+        db_session.add(UserOAuthLink(user_id=user.id, provider="google", provider_id="goog_multi"))
+        db_session.commit()
+
+        # Log in via GitHub (existing link resolves — no offer, no new user).
+        mock_gh = _github_oauth_mocks(github_id="gh_multi", email="multi@example.com")
+        with ExitStack() as stack:
+            stack.enter_context(patch("app.auth.routes.oauth", mock_gh))
+            stack.enter_context(patch("app.auth.routes._GITHUB_CLIENT_ID", "fake_id"))
+            gh_resp = client.get("/v1/auth/github/callback", params={"code": "c1", "state": "s1"})
+        assert gh_resp.status_code == 200
+        assert gh_resp.json()["user"]["id"] == str(user.id)
+
+        # Log in via Google (the other linked provider) → same account.
+        mock_google = _google_oauth_mocks(sub="goog_multi", email="multi@example.com")
+        with ExitStack() as stack:
+            stack.enter_context(patch("app.auth.routes.oauth", mock_google))
+            stack.enter_context(patch("app.auth.routes._GOOGLE_CLIENT_ID", "fake_id"))
+            g_resp = client.get("/v1/auth/google/callback", params={"code": "c2", "state": "s2"})
+        assert g_resp.status_code == 200
+        assert g_resp.json()["user"]["id"] == str(user.id)
+
+        # No accidental new users or links were created by either login.
+        db_session.expire_all()
+        assert db_session.query(User).count() == 1
+        assert db_session.query(UserOAuthLink).filter_by(user_id=user.id).count() == 2
+
 
 # ---------------------------------------------------------------------------
 # Tests: Explicit Linking via /link and /unlink
