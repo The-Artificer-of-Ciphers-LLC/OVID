@@ -344,16 +344,19 @@ Copy is fixed by UI-SPEC; MUST name only providers on the *current* account cont
 | A3 | Adding `AUTH_WRITE_LIMIT` to `POST /v1/set` (R-2) is desired parity, not intentional omission | Re-review R-2 | If set-creation was intentionally uncapped, the fix is unwanted. Low risk — inconsistency looks accidental. |
 | A4 | Staging deploy (D-06) reuses the `web` service build with a staging `NEXT_PUBLIC_API_URL` build arg + staging origin added to `CORS_ORIGINS` | D-06, Pitfall 2/3 | If staging infra differs (separate compose file), env wiring differs. Exact staging URL is Claude's discretion per CONTEXT. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **How does the browser "Link a provider" flow authenticate (WEBUI-04 add path)?**
    - What we know: `POST /v1/auth/link/{provider}` needs Bearer auth *and* a session cookie that survives the OAuth round-trip; the UI stores the JWT in `localStorage`, not a cookie.
    - What's unclear: a top-level navigation to start OAuth won't carry the Bearer header; a `fetch` won't carry the browser through the provider redirect. The per-provider `/login` endpoints accept `web_redirect_uri`+`pending_link_id` as query params but **not** `link_to_user_id`.
    - Recommendation: decide during planning — options: (a) add a `link_to_user_id`-via-signed-token query param to `/login` so a plain navigation can start an authenticated link; (b) have the client `fetch POST /link/{provider}` with `credentials:"include"` to set the session cookie, then top-level-navigate; (c) minimal MVP: expose provider **login** buttons in settings that, on an already-authenticated browser, link via the existing session. This is the main design decision for the add-provider deliverable. Escalate to discuss if ambiguous.
+   - **→ RESOLVED:** Deferred to the **blocking `checkpoint:decision` in 07-07 (Task 1)** — the developer selects the mechanism at plan-execution time (default option-b, frontend-only credentialed-fetch-then-navigate; option-a backend signed-token as the robust alternative). Option-c is documented as rejected (wrong "add provider" semantics). The choice is recorded in 07-07-SUMMARY and consumed by 07-07 Tasks 2-3. Not delegated to Claude's discretion; it is an explicit gated decision.
 
 2. **Staging subdomain + DNS/TLS (D-06):** exact host is Claude's discretion, but it must (a) be added to `CORS_ORIGINS`, (b) get its own `NEXT_PUBLIC_API_URL` build, (c) resolve behind redshirt. Confirm the staging API host (`api.staging.oviddb.org`?) during planning.
+   - **→ RESOLVED:** Handled in **07-08** (Claude's discretion per CONTEXT). 07-08 Task 1 documents/wires the staging web origin into `CORS_ORIGINS` (fail-closed otherwise, Pitfall 2), the distinct staging `NEXT_PUBLIC_API_URL` build arg (baked at build, Pitfall 3), and the redshirt/DNS/TLS host-infra prerequisites (`user_setup`); the exact hostname is chosen there (e.g. `staging.oviddb.org` / `api.staging.oviddb.org`) and confirmed at the 07-08 Task 3 human-verify gate.
 
 3. **NavBar login = GitHub only:** should production login expose all configured providers (Google/Apple/Mastodon), or is single-provider acceptable for staging? Adjacent to WEBUI-04; confirm scope.
+   - **→ RESOLVED (scope decision):** GitHub-only NavBar login is acceptable for staging; **NavBar provider expansion is out of scope for Phase 7.** WEBUI-04's add-provider path (settings) initiates OAuth independently of NavBar login, so this does not block the requirement — a settings "Link a provider" CTA (07-07) covers Google/Apple/Mastodon linking regardless of the NavBar. A production multi-provider login picker is deferred (revisit in a launch/login-UX pass; login providers AUTH-01..04 are already "complete").
 
 ## Environment Availability
 
