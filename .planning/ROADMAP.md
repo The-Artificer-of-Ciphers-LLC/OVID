@@ -219,6 +219,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. An authenticated user can submit a new disc entry through the submit form (WEBUI-03).
   4. The account settings surface lets a user add/remove linked providers, wired to the AUTH-06/07 backend behavior (WEBUI-04).
 
+**Re-review (carried in from retired branches):** The **multi-disc-set** (`/v1/set` API, `SiblingDiscs`/`SetSearchInput`, submit-form set linking, migration `900000000008`) and **chapter-name** (`DiscChapter` API + `ChapterResponse`, `ChapterEditor`/`ChapterList`, client-side chapter extraction, migration `900000000009`) features were **re-integrated onto `main` from the now-retired `gsd/phase-02`/`gsd/phase-03` lineage** (commits `f2c7a20`, `63d9417`) — ported onto a different baseline and **not yet reviewed in this milestone's plan context**. When planning this phase, re-review BOTH features end-to-end (UI + API + client) against the current architecture; do not assume they were designed against it. Test suites pass, but design/scope review is outstanding.
+
 **Plans**: TBD
 **UI hint**: yes
 

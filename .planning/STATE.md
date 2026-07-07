@@ -174,6 +174,8 @@ Items acknowledged and carried forward:
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
 | Fingerprint | matrix256 pressing-level alias (MATRIX-01) — spike-first, single-source | Deferred to v2 | 2026-07-05 (init) |
+| Re-integration | **Multi-disc-set** (set API/UI/client, migration 900000000008) re-integrated onto `main` from retired `gsd/phase-02` (`f2c7a20`); superseded auth/redis line dropped. Tests green, but ported onto a different baseline. | Shipped on `main` — **re-review in Phase 7** (new-plan context) | 2026-07-07 |
+| Re-integration | **Chapter-name** (DiscChapter API/UI, client chapter extraction, migration 900000000009) re-integrated onto `main` from retired `gsd/phase-03` (`63d9417`). Tests green, but ported onto a different baseline. | Shipped on `main` — **re-review in Phase 7** (new-plan context) | 2026-07-07 |
 
 ## Session Continuity
 
