@@ -56,6 +56,17 @@ def _make_apple_id_token_no_email(sub="apple.user.002"):
     return pyjwt.encode(payload, "test-key-that-is-at-least-32-bytes-long", algorithm="HS256")
 
 
+def _apple_login_and_get_state(client: TestClient) -> str:
+    """Drive the real /apple/login endpoint to seed request.session['apple_state']
+    (via the TestClient's cookie jar) and return the state value the callback must
+    round-trip (HI-01)."""
+    from urllib.parse import parse_qs, urlparse
+
+    resp = client.get("/v1/auth/apple/login", follow_redirects=False)
+    parsed = urlparse(resp.headers["location"])
+    return parse_qs(parsed.query)["state"][0]
+
+
 def _patch_apple_configured():
     """Patch Apple env vars so routes are active."""
     return ExitStack(), {
@@ -180,7 +191,8 @@ class TestAppleCallback:
     def test_callback_decodes_id_token_and_upserts_user(self, client: TestClient, db_session: Session):
         """Apple callback extracts sub from ID token and creates user."""
         with _apple_patches():
-            resp = client.get("/v1/auth/apple/callback?code=auth_code_123")
+            state = _apple_login_and_get_state(client)
+            resp = client.get(f"/v1/auth/apple/callback?code=auth_code_123&state={state}")
 
         assert resp.status_code == 200
         data = resp.json()
@@ -200,9 +212,11 @@ class TestAppleCallback:
     def test_callback_idempotent(self, client: TestClient, db_session: Session):
         """Second callback with same Apple sub returns same user."""
         with _apple_patches():
-            resp1 = client.get("/v1/auth/apple/callback?code=code1")
+            state1 = _apple_login_and_get_state(client)
+            resp1 = client.get(f"/v1/auth/apple/callback?code=code1&state={state1}")
         with _apple_patches():
-            resp2 = client.get("/v1/auth/apple/callback?code=code2")
+            state2 = _apple_login_and_get_state(client)
+            resp2 = client.get(f"/v1/auth/apple/callback?code=code2&state={state2}")
 
         assert resp1.json()["user"]["id"] == resp2.json()["user"]["id"]
 
@@ -214,7 +228,8 @@ class TestAppleCallback:
             "token_type": "Bearer",
         }
         with _apple_patches(token_response=token_resp):
-            resp = client.get("/v1/auth/apple/callback?code=code3")
+            state = _apple_login_and_get_state(client)
+            resp = client.get(f"/v1/auth/apple/callback?code=code3&state={state}")
 
         assert resp.status_code == 200
         user = db_session.query(User).filter(User.username == "apple_apple.user.002").first()
@@ -249,33 +264,38 @@ class TestAppleCallbackErrors:
         """httpx timeout during token exchange → 502."""
         import httpx
         with _apple_patches(token_error=httpx.TimeoutException("timeout")):
-            resp = client.get("/v1/auth/apple/callback?code=abc")
+            state = _apple_login_and_get_state(client)
+            resp = client.get(f"/v1/auth/apple/callback?code=abc&state={state}")
         assert resp.status_code == 502
 
     def test_token_exchange_error_returns_502(self, client: TestClient):
         """Generic exception during token exchange → 502."""
         with _apple_patches(token_error=Exception("connection error")):
-            resp = client.get("/v1/auth/apple/callback?code=abc")
+            state = _apple_login_and_get_state(client)
+            resp = client.get(f"/v1/auth/apple/callback?code=abc&state={state}")
         assert resp.status_code == 502
 
     def test_token_endpoint_non_200_returns_401(self, client: TestClient):
         """Apple token endpoint returns error status → 401."""
         with _apple_patches(token_status=400, token_response={"error": "invalid_grant"}):
-            resp = client.get("/v1/auth/apple/callback?code=abc")
+            state = _apple_login_and_get_state(client)
+            resp = client.get(f"/v1/auth/apple/callback?code=abc&state={state}")
         assert resp.status_code == 401
         assert resp.json()["detail"]["error"] == "auth_failed"
 
     def test_no_id_token_in_response_returns_401(self, client: TestClient):
         """Token response missing id_token → 401."""
         with _apple_patches(token_response={"access_token": "at"}):
-            resp = client.get("/v1/auth/apple/callback?code=abc")
+            state = _apple_login_and_get_state(client)
+            resp = client.get(f"/v1/auth/apple/callback?code=abc&state={state}")
         assert resp.status_code == 401
         assert resp.json()["detail"]["error"] == "provider_error"
 
     def test_invalid_id_token_returns_401(self, client: TestClient):
         """Malformed id_token string → 401."""
         with _apple_patches(token_response={"id_token": "not.valid.jwt", "access_token": "at"}):
-            resp = client.get("/v1/auth/apple/callback?code=abc")
+            state = _apple_login_and_get_state(client)
+            resp = client.get(f"/v1/auth/apple/callback?code=abc&state={state}")
         assert resp.status_code == 401
         assert resp.json()["detail"]["error"] == "invalid_token"
 
@@ -286,13 +306,34 @@ class TestAppleCallbackErrors:
             "k-that-is-at-least-32-bytes-long", algorithm="HS256",
         )
         with _apple_patches(token_response={"id_token": bad_token, "access_token": "at"}):
-            resp = client.get("/v1/auth/apple/callback?code=abc")
+            state = _apple_login_and_get_state(client)
+            resp = client.get(f"/v1/auth/apple/callback?code=abc&state={state}")
         assert resp.status_code == 401
         assert resp.json()["detail"]["error"] == "invalid_token"
 
     def test_jwks_error_returns_502(self, client: TestClient):
         """JWKS fetch error → 502."""
         with _apple_patches(jwks_error=pyjwt.PyJWKClientError("Connection error")):
-            resp = client.get("/v1/auth/apple/callback?code=abc")
+            state = _apple_login_and_get_state(client)
+            resp = client.get(f"/v1/auth/apple/callback?code=abc&state={state}")
         assert resp.status_code == 502
         assert resp.json()["detail"]["error"] == "provider_error"
+
+    def test_state_mismatch_returns_401(self, client: TestClient):
+        """A callback presenting a wrong/stale state is rejected (HI-01 — login
+        CSRF / auth-code injection defense), mirroring indieauth/mastodon."""
+        with _apple_patches():
+            _apple_login_and_get_state(client)  # seeds request.session['apple_state']
+            resp = client.get("/v1/auth/apple/callback?code=abc&state=attacker-supplied-state")
+        assert resp.status_code == 401
+        assert resp.json()["detail"]["error"] == "auth_failed"
+        assert resp.json()["detail"]["reason"] == "State mismatch"
+
+    def test_missing_state_returns_401(self, client: TestClient):
+        """A callback with no state param at all is rejected (HI-01)."""
+        with _apple_patches():
+            _apple_login_and_get_state(client)  # seeds request.session['apple_state']
+            resp = client.get("/v1/auth/apple/callback?code=abc")
+        assert resp.status_code == 401
+        assert resp.json()["detail"]["error"] == "auth_failed"
+        assert resp.json()["detail"]["reason"] == "State mismatch"

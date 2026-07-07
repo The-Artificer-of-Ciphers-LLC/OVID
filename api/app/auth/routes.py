@@ -385,6 +385,14 @@ async def apple_callback(request: Request, db: Session = Depends(get_db)):
     if not code:
         raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "No authorization code"})
 
+    # Verify state (HI-01): apple_login mints and stores this in the session;
+    # mirrors indieauth_callback/mastodon_callback's state verification so the
+    # Apple round-trip is not vulnerable to login CSRF / auth-code injection.
+    state = request.query_params.get("state")
+    expected_state = request.session.pop("apple_state", None)
+    if not expected_state or state != expected_state:
+        raise HTTPException(status_code=401, detail={"error": "auth_failed", "reason": "State mismatch"})
+
     # Generate the JWT client_secret Apple requires
     try:
         client_secret = generate_apple_client_secret()
