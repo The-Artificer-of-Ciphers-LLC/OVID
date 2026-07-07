@@ -63,6 +63,17 @@ Each provider's OAuth **redirect (callback) URI** is `{OVID_API_URL}/v1/auth/<pr
 
 In production, set `OVID_API_URL` to your public HTTPS URL (e.g. `https://api.oviddb.org`) so the redirect URIs you register with each provider match what OVID sends.
 
+!!! danger "`web_redirect_uri` hosts must be listed in `CORS_ORIGINS`"
+    Every `*_login` endpoint accepts an optional `web_redirect_uri` query param so a
+    browser-based client can receive the OAuth JWT via a `302` redirect instead of a JSON
+    body. OVID validates that URL's **host** against the same `CORS_ORIGINS` allowlist used
+    for CORS — it does **not** accept an arbitrary host. This is fail-closed by design: if
+    `CORS_ORIGINS` is unset, empty, or `*`, **every** specific `web_redirect_uri` host is
+    rejected with `400 invalid_redirect_uri`, since the freshly-minted JWT would otherwise be
+    exfiltrated to an attacker-chosen origin (open redirect). Operators must add every origin
+    that legitimately supplies `web_redirect_uri` (e.g. your web frontend's origin) to
+    `CORS_ORIGINS` for this flow to work.
+
 ---
 
 ## Per-provider registration

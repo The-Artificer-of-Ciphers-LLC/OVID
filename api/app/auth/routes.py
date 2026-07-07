@@ -4,6 +4,7 @@ import logging
 import os
 import secrets
 import time
+from urllib.parse import urlparse
 
 import httpx
 import jwt as pyjwt
@@ -75,6 +76,41 @@ if _GOOGLE_CLIENT_ID:
         server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
         client_kwargs={"scope": "openid email profile"},
     )
+
+
+# ---------------------------------------------------------------------------
+# Shared web_redirect_uri validation (HI-02 — open redirect / JWT exfiltration)
+# ---------------------------------------------------------------------------
+def _validate_web_redirect_uri(uri: str) -> None:
+    """Allowlist-check a caller-supplied ``web_redirect_uri`` before it is stored
+    in the session.
+
+    ``finalize_auth`` appends the freshly-minted 30-day JWT to this URL and 302s
+    the browser there. A scheme-only check (the old behavior) lets an attacker
+    point ``web_redirect_uri`` at an arbitrary absolute URL and exfiltrate the
+    victim's JWT via an open redirect. The allowlist is derived from the
+    deployment's own ``CORS_ORIGINS`` — the set of web origins this API already
+    trusts — so no separate config surface is introduced. Fails CLOSED: an
+    empty/unset allowlist or a wildcard ``CORS_ORIGINS`` rejects every specific
+    host rather than permitting one.
+    """
+    parsed = urlparse(uri)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "invalid_redirect_uri", "reason": "Host not allowed"},
+        )
+
+    allowed_hosts = {
+        urlparse(origin.strip()).netloc
+        for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
+        if origin.strip() and origin.strip() != "*"
+    }
+    if parsed.netloc not in allowed_hosts:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "invalid_redirect_uri", "reason": "Host not allowed"},
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -181,8 +217,7 @@ async def github_login(request: Request, web_redirect_uri: str = "", pending_lin
         raise HTTPException(status_code=501, detail="GitHub OAuth not configured")
 
     if web_redirect_uri:
-        if not web_redirect_uri.startswith(("http://", "https://")):
-            raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
+        _validate_web_redirect_uri(web_redirect_uri)
         request.session["web_redirect_uri"] = web_redirect_uri
 
     if pending_link_id:
@@ -351,8 +386,7 @@ async def apple_login(request: Request, web_redirect_uri: str = "", pending_link
         raise HTTPException(status_code=501, detail="Apple Sign-In not configured")
 
     if web_redirect_uri:
-        if not web_redirect_uri.startswith(("http://", "https://")):
-            raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
+        _validate_web_redirect_uri(web_redirect_uri)
         request.session["web_redirect_uri"] = web_redirect_uri
 
     if pending_link_id:
@@ -484,8 +518,7 @@ async def indieauth_login(request: Request, url: str = "", web_redirect_uri: str
         raise HTTPException(status_code=400, detail={"error": "missing_url", "reason": "url query param required"})
 
     if web_redirect_uri:
-        if not web_redirect_uri.startswith(("http://", "https://")):
-            raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
+        _validate_web_redirect_uri(web_redirect_uri)
         request.session["web_redirect_uri"] = web_redirect_uri
 
     if pending_link_id:
@@ -614,8 +647,7 @@ async def google_login(request: Request, web_redirect_uri: str = "", pending_lin
         raise HTTPException(status_code=501, detail="Google OAuth not configured")
 
     if web_redirect_uri:
-        if not web_redirect_uri.startswith(("http://", "https://")):
-            raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
+        _validate_web_redirect_uri(web_redirect_uri)
         request.session["web_redirect_uri"] = web_redirect_uri
 
     if pending_link_id:
@@ -686,8 +718,7 @@ async def mastodon_login(request: Request, domain: str = "", web_redirect_uri: s
         raise HTTPException(status_code=400, detail={"error": "missing_domain", "reason": "domain query param required"})
 
     if web_redirect_uri:
-        if not web_redirect_uri.startswith(("http://", "https://")):
-            raise HTTPException(status_code=400, detail={"error": "invalid_redirect_uri", "reason": "Only http/https schemes are allowed"})
+        _validate_web_redirect_uri(web_redirect_uri)
         request.session["web_redirect_uri"] = web_redirect_uri
 
     if pending_link_id:

@@ -330,6 +330,30 @@ class TestWebRedirectUri:
         assert resp.status_code == 400
         assert resp.json()["detail"]["error"] == "invalid_redirect_uri"
 
+    def test_login_rejects_disallowed_host(self, client: TestClient):
+        """web_redirect_uri with a valid http(s) scheme but a host NOT in the
+        CORS_ORIGINS allowlist → 400 (HI-02 — open redirect / JWT exfiltration).
+        Without a host allowlist this would 302 the browser to an
+        attacker-chosen origin carrying the victim's fresh JWT."""
+        with patch("app.auth.routes._GITHUB_CLIENT_ID", "fake-client-id"):
+            resp = client.get(
+                "/v1/auth/github/login?web_redirect_uri=http://evil.example/cb"
+            )
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "invalid_redirect_uri"
+        assert resp.json()["detail"]["reason"] == "Host not allowed"
+
+    def test_login_redirect_uri_allowlist_fails_closed_on_wildcard_cors(self, client: TestClient):
+        """A wildcard CORS_ORIGINS must not implicitly allow every redirect host —
+        fail CLOSED, never open on a permissive CORS config."""
+        with patch("app.auth.routes._GITHUB_CLIENT_ID", "fake-client-id"), \
+             patch.dict("os.environ", {"CORS_ORIGINS": "*"}):
+            resp = client.get(
+                "/v1/auth/github/login?web_redirect_uri=http://localhost:3000/auth/callback"
+            )
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "invalid_redirect_uri"
+
     def test_callback_without_redirect_returns_json(self, client: TestClient, db_session: Session):
         """Without web_redirect_uri in session, callback returns JSON (regression guard)."""
         with _patch_oauth():
