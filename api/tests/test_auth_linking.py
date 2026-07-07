@@ -109,7 +109,8 @@ class TestEmailConflict:
 
     def test_google_verified_email_conflict_returns_409_with_pending_link(self, client: TestClient, db_session: Session):
         """A Google login (verified email) matching an existing account returns 409 with
-        existing_user_id AND a pending_link_id backed by a real PendingAccountLink row."""
+        a pending_link_id backed by a real PendingAccountLink row — and MUST NOT leak the
+        internal existing_user_id (ME-02: user/UUID enumeration)."""
         existing_user, _ = _create_user_with_link(
             db_session, username="existing", email="shared@example.com",
             provider="github", provider_id="gh_existing",
@@ -125,7 +126,8 @@ class TestEmailConflict:
         assert resp.status_code == 409
         body = resp.json()
         assert body["error"] == "email_conflict"
-        assert body["existing_user_id"] == str(existing_user.id)
+        assert "existing_user_id" not in body
+        assert "pending_link_id" in body
 
         # pending_link_id must reference a real, unconsumed offer for the existing user.
         from app.models import PendingAccountLink

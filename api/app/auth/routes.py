@@ -176,12 +176,14 @@ def finalize_auth(
     # DB pending-link id; the merge only completes when the existing account re-auths
     # through an already-linked provider (see resolve_auth's consume path).
     if result.merge_offer is not None:
+        # ME-02: the internal existing_user_id is deliberately NOT included — the
+        # client only needs pending_link_id to drive re-auth, and returning the
+        # internal user UUID here would enable user/email enumeration.
         from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=409,
             content={
                 "error": "email_conflict",
-                "existing_user_id": str(result.merge_offer.existing_user_id),
                 "pending_link_id": str(result.merge_offer.id),
             },
         )
