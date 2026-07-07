@@ -10,7 +10,6 @@ import httpx
 import jwt as pyjwt
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
