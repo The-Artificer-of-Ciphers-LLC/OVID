@@ -1,13 +1,14 @@
 ---
 phase: 05-adr-0001-completion-dvdread1-promotion
 verified: 2026-07-06T00:00:00Z
-status: human_needed
+status: passed
 score: 4/4 success criteria verified (28/28 plan must-have truths verified in code)
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
   # No previous VERIFICATION.md existed — initial verification.
 human_verification:
+
   - test: "On a real `docker compose` + Postgres deployment, run `python scripts/promote_dvdread1.py` (optionally with `-f <compose-file>`). Confirm it (a) captures the current OVID_MODE, (b) flips the api service to OVID_MODE=mirror and restarts, (c) runs `alembic upgrade head`, (d) restores the captured OVID_MODE on both success and failure, and (e) prints the CRITICAL manual-recovery command if the restore step itself fails."
     expected: "Writes are 405-gated during the window, reads are briefly interrupted across the two restarts, discs with a recorded dvdread1-* alias come back with dvdread1-* primary, discs without one stay on dvd1-*, and OVID_MODE ends on its original value regardless of migration outcome."
     why_human: "scripts/promote_dvdread1.py orchestrates `docker compose exec/up` subprocesses against a live api container + Postgres; the real end-to-end restart/restore round-trip cannot be exercised in this static/CI environment (flagged untestable-here in 05-07-SUMMARY). The script's capture/restore/finally logic is statically verified below; only the live-deployment behavior needs a human."
