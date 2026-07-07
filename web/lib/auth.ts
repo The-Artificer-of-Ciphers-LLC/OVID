@@ -41,29 +41,32 @@ export function useAuth(): AuthState {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = getToken();
-    if (!stored) {
-      setLoading(false);
-      return;
-    }
-
-    setTokenState(stored);
-
     let cancelled = false;
-    getMe(stored)
-      .then((u) => {
+
+    // Run the auth check as an async continuation so the loading-state
+    // update always happens in a callback rather than synchronously in the
+    // effect body (react-hooks/set-state-in-effect).
+    (async () => {
+      const stored = getToken();
+      if (!stored) {
+        return;
+      }
+
+      setTokenState(stored);
+
+      try {
+        const u = await getMe(stored);
         if (!cancelled) setUser(u);
-      })
-      .catch(() => {
+      } catch {
         // Token is invalid or expired — clear it
         if (!cancelled) {
           clearToken();
           setTokenState(null);
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      }
+    })().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
 
     return () => {
       cancelled = true;

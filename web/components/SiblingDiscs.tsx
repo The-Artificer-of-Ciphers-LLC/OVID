@@ -44,7 +44,9 @@ export default function SiblingDiscs({
   discNumber,
   totalDiscs,
   siblings,
-  currentFingerprint,
+  // currentFingerprint is part of the prop contract (passed by callers/tests)
+  // but the current disc slot is identified via discNumber below, so it is
+  // intentionally not destructured here.
 }: SiblingDiscsProps) {
   // Build a map of disc_number -> sibling for quick lookup
   const siblingByNumber = new Map<number, SiblingDiscSummary>();

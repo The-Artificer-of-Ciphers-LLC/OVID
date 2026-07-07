@@ -20,7 +20,7 @@ const localStorageMock = {
   get length() {
     return Object.keys(storage).length;
   },
-  key: vi.fn((_i: number) => null),
+  key: vi.fn(() => null),
 };
 
 Object.defineProperty(globalThis, "localStorage", { value: localStorageMock });
