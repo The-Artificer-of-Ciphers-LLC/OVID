@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import SiblingDiscs from "@/components/SiblingDiscs";
 import ChapterList from "@/components/ChapterList";
 import type { SiblingDiscSummary, ChapterResponse, DiscLookupResponse } from "@/lib/api";
@@ -340,9 +340,9 @@ describe("DiscDetailPage — fingerprint aliases (WEBUI-02)", () => {
 
     const section = screen.getByTestId("fingerprint-aliases");
     expect(section).toBeTruthy();
-    expect(screen.getByText("dvd1-primary123")).toBeTruthy();
-    expect(screen.getByText("dvdread1-secondary456")).toBeTruthy();
-    expect(screen.getByText("primary")).toBeTruthy();
+    expect(within(section).getByText("dvd1-primary123")).toBeTruthy();
+    expect(within(section).getByText("dvdread1-secondary456")).toBeTruthy();
+    expect(within(section).getByText("primary")).toBeTruthy();
   });
 
   it("shows the no-aliases empty copy when there are no additional aliases", async () => {
