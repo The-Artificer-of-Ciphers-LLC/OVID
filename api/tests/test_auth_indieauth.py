@@ -203,6 +203,47 @@ class TestDiscoverEndpoints:
 
 
 # ---------------------------------------------------------------------------
+# Enabled-path fixture: register the (default-off) indieauth_router
+# ---------------------------------------------------------------------------
+
+@pytest.fixture()
+def indieauth_client(client: TestClient) -> TestClient:
+    """TestClient against an app that has ``indieauth_router`` registered.
+
+    IndieAuth is off by default (D-08): ``main.py`` only registers the router
+    when ``OVID_ENABLE_INDIEAUTH`` is truthy, so the shared ``client`` fixture's
+    default app returns 404 for these routes. This fixture models the
+    operator-opted-in deployment by registering the router at runtime (routes
+    match dynamically per request), then restores the route table on teardown.
+    """
+    from main import app
+    from app.auth.routes import indieauth_router
+
+    saved_routes = list(app.router.routes)
+    app.include_router(indieauth_router)
+    try:
+        yield client
+    finally:
+        app.router.routes[:] = saved_routes
+
+
+# ---------------------------------------------------------------------------
+# IndieAuth gating (D-08 — disabled by default → 404)
+# ---------------------------------------------------------------------------
+
+class TestIndieAuthGating:
+    def test_login_404_when_disabled(self, client: TestClient):
+        """Default app (OVID_ENABLE_INDIEAUTH unset) does not register the router → 404."""
+        resp = client.get("/v1/auth/indieauth/login?url=https://user.example.com")
+        assert resp.status_code == 404
+
+    def test_callback_404_when_disabled(self, client: TestClient):
+        """Callback is equally unreachable by default → 404."""
+        resp = client.get("/v1/auth/indieauth/callback?code=abc&state=xyz")
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
 # IndieAuth login route
 # ---------------------------------------------------------------------------
 
@@ -219,10 +260,10 @@ def _mock_discovery(endpoints=None, error=None):
 
 
 class TestIndieAuthLogin:
-    def test_login_redirects_to_authorization_endpoint(self, client: TestClient):
+    def test_login_redirects_to_authorization_endpoint(self, indieauth_client: TestClient):
         """Login discovers endpoints and redirects with PKCE params."""
         with _mock_discovery():
-            resp = client.get(
+            resp = indieauth_client.get(
                 "/v1/auth/indieauth/login?url=https://user.example.com",
                 follow_redirects=False,
             )
@@ -234,24 +275,60 @@ class TestIndieAuthLogin:
         assert "code_challenge_method=S256" in location
         assert "state=" in location
 
-    def test_login_missing_url_returns_400(self, client: TestClient):
+    def test_login_missing_url_returns_400(self, indieauth_client: TestClient):
         """No url param → 400."""
-        resp = client.get("/v1/auth/indieauth/login")
+        resp = indieauth_client.get("/v1/auth/indieauth/login")
         assert resp.status_code == 400
         assert resp.json()["detail"]["error"] == "missing_url"
 
-    def test_login_http_url_returns_400(self, client: TestClient):
+    def test_login_http_url_returns_400(self, indieauth_client: TestClient):
         """http:// URL (non-localhost) → 400."""
-        resp = client.get("/v1/auth/indieauth/login?url=http://evil.com")
+        resp = indieauth_client.get("/v1/auth/indieauth/login?url=http://evil.com")
         assert resp.status_code == 400
         assert resp.json()["detail"]["error"] == "invalid_url"
 
-    def test_login_discovery_fails_returns_400(self, client: TestClient):
+    def test_login_discovery_fails_returns_400(self, indieauth_client: TestClient):
         """Discovery error → 400."""
         with _mock_discovery(error=DiscoveryError("No endpoints")):
-            resp = client.get("/v1/auth/indieauth/login?url=https://user.example.com")
+            resp = indieauth_client.get("/v1/auth/indieauth/login?url=https://user.example.com")
         assert resp.status_code == 400
         assert resp.json()["detail"]["error"] == "discovery_failed"
+
+
+# ---------------------------------------------------------------------------
+# IndieAuth localhost bypass derivation (AUTH-10 — provably off in production)
+# ---------------------------------------------------------------------------
+
+class TestIndieAuthLocalhostBypass:
+    """The login call site must read config.ALLOW_LOCALHOST_BYPASS at call time,
+    so the dev-only localhost bypass is unreachable under OVID_ENV=production.
+    We prove behavior by monkeypatching the single source of truth."""
+
+    def test_localhost_rejected_when_bypass_off(self, indieauth_client: TestClient, monkeypatch):
+        """AUTH-10: with ALLOW_LOCALHOST_BYPASS False (production), a localhost URL is rejected.
+
+        validate_url raises before discovery is ever attempted → 400 invalid_url,
+        proving the bypass is unreachable in production.
+        """
+        monkeypatch.setattr("app.auth.config.ALLOW_LOCALHOST_BYPASS", False)
+        with _mock_discovery():  # patched, but must never be reached on the reject path
+            resp = indieauth_client.get(
+                "/v1/auth/indieauth/login?url=http://localhost:8080",
+                follow_redirects=False,
+            )
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "invalid_url"
+
+    def test_localhost_accepted_when_bypass_on(self, indieauth_client: TestClient, monkeypatch):
+        """AUTH-10: with ALLOW_LOCALHOST_BYPASS True (development), a localhost URL passes validate_url."""
+        monkeypatch.setattr("app.auth.config.ALLOW_LOCALHOST_BYPASS", True)
+        with _mock_discovery():
+            resp = indieauth_client.get(
+                "/v1/auth/indieauth/login?url=http://localhost:8080",
+                follow_redirects=False,
+            )
+        assert resp.status_code == 307
+        assert "auth.example.com/auth" in resp.headers["location"]
 
 
 # ---------------------------------------------------------------------------
@@ -283,10 +360,10 @@ def _indieauth_callback_patches(token_response=None, token_status=200, token_err
 
 
 class TestIndieAuthCallback:
-    def _setup_session(self, client: TestClient):
+    def _setup_session(self, indieauth_client: TestClient):
         """Do a login flow first to populate session state, then return the state."""
         with _mock_discovery():
-            resp = client.get(
+            resp = indieauth_client.get(
                 "/v1/auth/indieauth/login?url=https://user.example.com",
                 follow_redirects=False,
             )
@@ -296,12 +373,12 @@ class TestIndieAuthCallback:
         state_match = re.search(r"state=([^&]+)", location)
         return state_match.group(1) if state_match else ""
 
-    def test_callback_exchanges_code_and_upserts_user(self, client: TestClient, db_session: Session):
+    def test_callback_exchanges_code_and_upserts_user(self, indieauth_client: TestClient, db_session: Session):
         """Full callback flow: exchange code, get me URL, upsert user."""
-        state = self._setup_session(client)
+        state = self._setup_session(indieauth_client)
 
         with _indieauth_callback_patches():
-            resp = client.get(f"/v1/auth/indieauth/callback?code=auth_code&state={state}")
+            resp = indieauth_client.get(f"/v1/auth/indieauth/callback?code=auth_code&state={state}")
 
         assert resp.status_code == 200
         data = resp.json()
@@ -313,44 +390,44 @@ class TestIndieAuthCallback:
         ).first()
         assert link is not None
 
-    def test_callback_no_code_returns_401(self, client: TestClient):
+    def test_callback_no_code_returns_401(self, indieauth_client: TestClient):
         """Missing code param → 401."""
-        resp = client.get("/v1/auth/indieauth/callback?state=abc")
+        resp = indieauth_client.get("/v1/auth/indieauth/callback?state=abc")
         assert resp.status_code == 401
 
-    def test_callback_state_mismatch_returns_401(self, client: TestClient):
+    def test_callback_state_mismatch_returns_401(self, indieauth_client: TestClient):
         """Wrong state → 401."""
-        self._setup_session(client)
+        self._setup_session(indieauth_client)
         with _indieauth_callback_patches():
-            resp = client.get("/v1/auth/indieauth/callback?code=abc&state=wrong")
+            resp = indieauth_client.get("/v1/auth/indieauth/callback?code=abc&state=wrong")
         assert resp.status_code == 401
         assert resp.json()["detail"]["error"] == "auth_failed"
 
-    def test_callback_token_timeout_returns_502(self, client: TestClient):
+    def test_callback_token_timeout_returns_502(self, indieauth_client: TestClient):
         """httpx timeout during token exchange → 502."""
-        state = self._setup_session(client)
+        state = self._setup_session(indieauth_client)
         with _indieauth_callback_patches(token_error=httpx.TimeoutException("timeout")):
-            resp = client.get(f"/v1/auth/indieauth/callback?code=abc&state={state}")
+            resp = indieauth_client.get(f"/v1/auth/indieauth/callback?code=abc&state={state}")
         assert resp.status_code == 502
 
-    def test_callback_token_error_returns_502(self, client: TestClient):
+    def test_callback_token_error_returns_502(self, indieauth_client: TestClient):
         """Generic exception during token exchange → 502."""
-        state = self._setup_session(client)
+        state = self._setup_session(indieauth_client)
         with _indieauth_callback_patches(token_error=Exception("connection refused")):
-            resp = client.get(f"/v1/auth/indieauth/callback?code=abc&state={state}")
+            resp = indieauth_client.get(f"/v1/auth/indieauth/callback?code=abc&state={state}")
         assert resp.status_code == 502
 
-    def test_callback_token_non_200_returns_401(self, client: TestClient):
+    def test_callback_token_non_200_returns_401(self, indieauth_client: TestClient):
         """Token endpoint returns error → 401."""
-        state = self._setup_session(client)
+        state = self._setup_session(indieauth_client)
         with _indieauth_callback_patches(token_status=400, token_response={"error": "invalid_code"}):
-            resp = client.get(f"/v1/auth/indieauth/callback?code=abc&state={state}")
+            resp = indieauth_client.get(f"/v1/auth/indieauth/callback?code=abc&state={state}")
         assert resp.status_code == 401
 
-    def test_callback_no_me_field_returns_401(self, client: TestClient):
+    def test_callback_no_me_field_returns_401(self, indieauth_client: TestClient):
         """Token response missing 'me' → 401."""
-        state = self._setup_session(client)
+        state = self._setup_session(indieauth_client)
         with _indieauth_callback_patches(token_response={"access_token": "at"}):
-            resp = client.get(f"/v1/auth/indieauth/callback?code=abc&state={state}")
+            resp = indieauth_client.get(f"/v1/auth/indieauth/callback?code=abc&state={state}")
         assert resp.status_code == 401
         assert resp.json()["detail"]["error"] == "provider_error"
