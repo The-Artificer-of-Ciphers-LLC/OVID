@@ -23,7 +23,7 @@
 - [ ] **IDENT-02 [guardrail]**: The alias check-then-insert write path is race-safe under concurrent gunicorn workers (no duplicate/split pressings under load)
 - [x] **IDENT-03**: The client submits all known Disc Identity strings (`dvd1-*`, `dvdread1-*`, BD tiers) on submission so the API can store them as aliases (ADR 0001 Phase 2 complete)
 - [x] **IDENT-04**: `dvdread1-*` (libdvdread Disc ID) is promoted to the primary DVD fingerprint, with `dvd1-*` retained as a resolvable alias (ADR 0001 Phase 3)
-- [ ] **IDENT-05 [guardrail]**: A permanent CI regression test proves an existing `dvd1-*` string still resolves to its disc after every migration step (anti-fragmentation guarantee)
+- [x] **IDENT-05 [guardrail]**: A permanent CI regression test proves an existing `dvd1-*` string still resolves to its disc after every migration step (anti-fragmentation guarantee)
 
 ### OAuth & Accounts (AUTH)
 
