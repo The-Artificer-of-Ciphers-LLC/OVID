@@ -41,7 +41,7 @@ def upgrade() -> None:
         sa.Column('fingerprint', sa.String(length=50), nullable=False),
         sa.Column('disc_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(['disc_id'], ['discs.id']),
+        sa.ForeignKeyConstraint(['disc_id'], ['discs.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('fingerprint'),
     )

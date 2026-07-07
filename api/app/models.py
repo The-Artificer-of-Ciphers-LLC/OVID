@@ -175,7 +175,7 @@ class FingerprintRegistry(Base):
         String(50), unique=True, nullable=False
     )
     disc_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("discs.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("discs.id", ondelete="CASCADE"), nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow
