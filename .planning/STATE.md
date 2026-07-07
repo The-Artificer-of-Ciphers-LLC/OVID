@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-current_phase_name: OAuth & Account Linking
+current_phase_name: web-ui-production-readiness
 status: executing
-stopped_at: Phase 7 UI-SPEC approved
-last_updated: "2026-07-07T16:37:58.759Z"
-last_activity: 2026-07-07 -- Phase 6 executed + security-review remediation (8 findings) applied; awaiting manual live-OAuth verification
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-07-07T17:39:53.355Z"
+last_activity: 2026-07-07 -- Phase 07 execution started
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 35
-  completed_plans: 35
+  total_plans: 43
+  completed_plans: 36
   percent: 75
 current_phase: 06
 ---
@@ -23,16 +23,16 @@ current_phase: 06
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Given a disc in any drive, OVID returns the correct disc identity and structure — deterministically and reproducibly — so ripping tools can name, tag, and route content without manual correction.
-**Current focus:** Phase 06 — OAuth & Account Linking
+**Current focus:** Phase 07 — web-ui-production-readiness
 
 ## Current Position
 
-Phase: 06 (OAuth & Account Linking) — EXECUTING
-Current Phase Name: OAuth & Account Linking
-Plan: 7 of 7
+Phase: 07 (web-ui-production-readiness) — EXECUTING
+Current Phase Name: web-ui-production-readiness
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-07-07 -- Phase 6 executed + security-review remediation (8 findings) applied; awaiting manual live-OAuth verification
-Last Activity Description: Phase 7 planning complete — 8 plans ready
+Last activity: 2026-07-07 -- Phase 07 execution started
+Last Activity Description: Phase 07 execution started
 
 Progress: [███░░░░░░░] 38%
 
@@ -89,6 +89,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 06 P05 | 18min | 3 tasks | 4 files |
 | Phase 06 P06 | 16min | 2 tasks | 5 files |
 | Phase 06 P07 | 165s | 2 tasks | 2 files |
+| Phase 07 P01 | 7min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -156,6 +157,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 06-06: Apple client-secret exp shrunk to now+300 (~5min); per-exchange regeneration IS the automated rotation (AUTH-03, D-10/D-11) — theft/replay window collapses months->minutes
 - [Phase ?]: 06-06: IndieAuth split onto indieauth_router, registered only when OVID_ENABLE_INDIEAUTH truthy (default 404, D-08); localhost bypass derived from config.ALLOW_LOCALHOST_BYPASS as a call-time module attr (never hardcoded True) — provably unreachable in production (AUTH-10, D-09); router flag independent of the OVID_ENV guard (Pitfall 6)
 - [Phase ?]: DOCS-03: docs/auth-setup.md documents the DNS-rebinding TOCTOU (T-06-05d) as an explicit accepted residual, carried forward from Plan 06-02 rather than dropped
+- [Phase ?]: [Phase 07-01]: Executed Task 2 (primitives) and Task 3 (tests) as a single TDD RED->GREEN cycle (test-first, confirmed failing, then implementation-to-green), per the plan's own note that Task 3 is the RED->GREEN partner to Task 2
+- [Phase ?]: [Phase 07-01]: Kept @media (prefers-color-scheme: dark) strategy; no @custom-variant dark class toggle added (RESEARCH A1) despite UI-SPEC prose mentioning it -- avoids breaking OS-following dark mode with no manual toggle in scope
+- [Phase ?]: [Phase 07-01]: Deliberately did NOT run requirements mark-complete for WEBUI-01..04 despite them appearing in 07-01's frontmatter requirements field -- this plan only shipped the token layer + primitives foundation, not the actual search/detail/submit/settings user-facing functionality those requirement IDs describe; checking them off now would be a false-complete state until the later plans (07-02..07-08) that implement the actual surfaces land
 
 ### Pending Todos
 
@@ -180,6 +184,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-07T15:39:44.138Z
-Stopped at: Phase 7 UI-SPEC approved
-Resume file: .planning/phases/07-web-ui-production-readiness/07-UI-SPEC.md
+Last session: 2026-07-07T17:38:03.012Z
+Stopped at: Completed 07-01-PLAN.md
+Resume file: None
