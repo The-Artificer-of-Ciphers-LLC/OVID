@@ -119,8 +119,9 @@ Each task was committed atomically. Task 1 and Task 3 were executed as a single 
 1. **Task 3 (RED): Extend disc-detail tests — alias rendering + withheld message** - `5bb767b` (test) — 8 new tests added to `disc-detail.test.tsx`; confirmed failing (8/8 fail) against the unmodified page.
 2. **Task 1 (GREEN): Render fingerprint aliases + unverified-withheld message** - `07a5c14` (feat) — `disc/[fingerprint]/page.tsx` implementation turns the RED suite green (25/25 pass).
 3. **Task 2: Migrate SiblingDiscs + ChapterList to D-02/D-03 floor** - `a90f141` (refactor) — token/focus parity, no behavior or data-testid changes.
+4. **Fix-up: scope duplicate alias-text assertion** - `e61a016` (fix) — test-file-only fix (`within(section)` scoping) discovered while confirming GREEN; captured as its own atomic commit rather than folded into `07a5c14`.
 
-**Plan metadata:** (this commit, following SUMMARY.md write)
+**Plan metadata:** `c8baef1` (docs: complete plan) — superseded in content by this fix-up note; hashes above are authoritative.
 
 ## Files Created/Modified
 - `web/app/disc/[fingerprint]/page.tsx` - New fingerprint-aliases `<section>` (WEBUI-02), unverified-withheld branch replacing `DiscStructure`, fingerprint block + status badge folded from `text-xs` to `text-sm`.
