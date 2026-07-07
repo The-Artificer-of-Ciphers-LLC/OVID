@@ -75,8 +75,8 @@ export default function SiblingDiscs({
                 data-testid="sibling-card-current"
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-normal text-neutral-500">Disc {slotNum}</span>
-                  <span className="text-xs rounded px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  <span className="text-sm font-normal text-neutral-500">Disc {slotNum}</span>
+                  <span className="text-sm rounded px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                     Current
                   </span>
                 </div>
@@ -96,7 +96,7 @@ export default function SiblingDiscs({
                 aria-disabled="true"
                 data-testid={`sibling-card-empty-${slotNum}`}
               >
-                <p className="text-xs font-normal text-neutral-400">Disc {slotNum}</p>
+                <p className="text-sm font-normal text-neutral-400">Disc {slotNum}</p>
                 <p className="text-sm text-neutral-400 mt-1">Not yet submitted</p>
               </div>
             );
@@ -112,21 +112,21 @@ export default function SiblingDiscs({
               key={slotNum}
               href={`/disc/${sibling.fingerprint}`}
               aria-label={`View Disc ${sibling.disc_number}: ${sibling.main_title ?? "Untitled"}`}
-              className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 min-w-[180px] max-w-[220px] hover:border-neutral-300 hover:shadow-sm transition-all dark:border-neutral-800 dark:bg-neutral-900"
+              className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 min-w-[180px] max-w-[220px] outline-none hover:border-neutral-300 hover:shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:border-neutral-800 dark:bg-neutral-900 dark:focus-visible:ring-offset-neutral-950"
               data-testid={`sibling-card-${sibling.disc_number}`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-normal text-neutral-500">Disc {sibling.disc_number}</span>
-                <span className={`text-xs rounded px-2 py-1 ${badgeColor}`}>
+                <span className="text-sm font-normal text-neutral-500">Disc {sibling.disc_number}</span>
+                <span className={`text-sm rounded px-2 py-1 ${badgeColor}`}>
                   {sibling.format}
                 </span>
               </div>
               <p className="text-sm font-bold truncate">{sibling.main_title ?? "Untitled"}</p>
               {sibling.duration_secs != null && (
-                <p className="text-xs text-neutral-400">{_formatDuration(sibling.duration_secs)}</p>
+                <p className="text-sm text-neutral-400">{_formatDuration(sibling.duration_secs)}</p>
               )}
               {sibling.track_count != null && (
-                <p className="text-xs text-neutral-400">{sibling.track_count} tracks</p>
+                <p className="text-sm text-neutral-400">{sibling.track_count} tracks</p>
               )}
             </Link>
           );

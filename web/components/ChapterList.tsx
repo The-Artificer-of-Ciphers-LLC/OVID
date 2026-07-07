@@ -44,7 +44,7 @@ export default function ChapterList({ chapters, titleIndex }: ChapterListProps) 
     <div>
       <button
         type="button"
-        className="text-sm text-blue-600 hover:underline cursor-pointer inline-flex items-center gap-1"
+        className="text-sm text-blue-600 hover:underline cursor-pointer inline-flex items-center gap-1 outline-none rounded focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
         aria-expanded={expanded}
         aria-controls={`chapter-table-${titleIndex}`}
         data-testid={`chapter-toggle-${titleIndex}`}
@@ -57,7 +57,7 @@ export default function ChapterList({ chapters, titleIndex }: ChapterListProps) 
         <table
           id={`chapter-table-${titleIndex}`}
           data-testid={`chapter-table-${titleIndex}`}
-          className="ml-8 mt-2 mb-2 text-xs"
+          className="ml-8 mt-2 mb-2 text-sm"
         >
           <thead>
             <tr>
