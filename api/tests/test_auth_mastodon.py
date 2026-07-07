@@ -154,6 +154,71 @@ class TestMastodonLogin:
         assert "client_id=cached_id" in resp.headers["location"]
 
 
+class TestMastodonRegistrationHardening:
+    """AUTH-05: no-redirect-following and no-raw-response-reflection on the
+    dynamic-registration POST to ``/api/v1/apps`` (T-06-05b, T-06-05c).
+    """
+
+    @patch("app.auth.mastodon.socket.getaddrinfo")
+    @patch("httpx.AsyncClient.post")
+    def test_ssrf_registration_does_not_follow_redirect_to_private(self, mock_post, mock_dns, client, db_session):
+        # Validation passes (public IP), then the instance answers the
+        # registration POST with a 302 whose Location points at a private/
+        # link-local IP (cloud metadata endpoint).
+        mock_dns.return_value = _gai("8.8.8.8")
+        private_location = "http://169.254.169.254/latest/meta-data/"
+        mock_resp = httpx.Response(
+            302,
+            headers={"location": private_location},
+            request=httpx.Request("POST", "https://mastodon.example.com/api/v1/apps"),
+        )
+        mock_post.return_value = mock_resp
+
+        resp = client.get(
+            "/v1/auth/mastodon/login?domain=redirect.example.com", follow_redirects=False
+        )
+
+        # The 302 is treated as a non-200 failure — OVID does NOT chase the
+        # redirect to the private Location (httpx AsyncClient default
+        # follow_redirects=False is preserved).
+        assert resp.status_code == 502
+        detail = resp.json()["detail"]
+        assert detail["error"] == "bad_gateway"
+        assert "Registration failed with status 302" in detail["reason"]
+        # The private Location is never reflected back to the caller.
+        assert private_location not in resp.text
+        assert "169.254.169.254" not in resp.text
+        # Exactly one outbound request was made (no follow-up to the Location).
+        assert mock_post.call_count == 1
+
+    @patch("app.auth.mastodon.socket.getaddrinfo")
+    @patch("httpx.AsyncClient.post")
+    def test_ssrf_registration_error_does_not_reflect_upstream_body(self, mock_post, mock_dns, client, db_session):
+        # A non-200 registration response with a body containing internal detail
+        # must NOT be reflected into the error surfaced to the caller.
+        mock_dns.return_value = _gai("8.8.8.8")
+        leaky_body = "internal db error at 10.0.0.5: connection refused"
+        mock_resp = httpx.Response(
+            500,
+            text=leaky_body,
+            request=httpx.Request("POST", "https://mastodon.example.com/api/v1/apps"),
+        )
+        mock_post.return_value = mock_resp
+
+        resp = client.get(
+            "/v1/auth/mastodon/login?domain=broken.example.com", follow_redirects=False
+        )
+
+        assert resp.status_code == 502
+        detail = resp.json()["detail"]
+        assert detail["error"] == "bad_gateway"
+        # Generic status-only message — raw upstream body (and the internal IP it
+        # contained) is never reflected to the caller.
+        assert detail["reason"] == "Registration failed with status 500"
+        assert leaky_body not in resp.text
+        assert "10.0.0.5" not in resp.text
+
+
 class TestMastodonCallback:
     @patch("httpx.AsyncClient.post")
     @patch("httpx.AsyncClient.get")
