@@ -158,6 +158,11 @@ None - no external service configuration required. This plan is the pure decisio
 - `resolve_auth` + `AuthResult` are ready for Plan 06-05 to call from a thin `finalize_auth` route wrapper that translates `request.session` reads and `AuthResult` into the existing HTTP response shapes (409 body + `pending_link_id`, redirect, `{token, user}`).
 - No blockers. Live login path untouched; full api suite green (387) and warning-clean.
 
+## Self-Check: PASSED
+
+- Files verified present: api/app/auth/merge.py, api/tests/test_auth_merge.py, 06-04-SUMMARY.md
+- Commits verified in history: a21bf2b (test), fcaa11f (feat), 0c9fa60 (test), 771f386 (feat)
+
 ---
 *Phase: 06-oauth-account-linking*
 *Completed: 2026-07-06*

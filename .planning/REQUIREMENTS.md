@@ -142,7 +142,7 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 | AUTH-06 | Phase 6 | Pending |
 | AUTH-07 | Phase 6 | Pending |
 | AUTH-08 | Phase 6 | Complete |
-| AUTH-09 | Phase 6 | Pending |
+| AUTH-09 | Phase 6 | Complete |
 | AUTH-10 | Phase 6 | Complete |
 | VERIFY-01 | Phase 2 | Complete |
 | VERIFY-02 | Phase 1 | Complete |
