@@ -43,23 +43,24 @@ created: 2026-07-06
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 6-XX-XX | XX | X | AUTH-08 | nOAuth merge takeover | Merge requires re-auth of existing account via already-linked provider; unverified/unauthenticated merge rejected | unit | `pytest tests/test_auth_linking.py -q` | ❌ W0 | ⬜ pending |
-| 6-XX-XX | XX | X | AUTH-09 | — | finalize_auth isolated: verified-email merge success / unverified-email rejection / merge-without-reauth rejection | unit | `pytest tests/test_finalize_auth.py -q` | ❌ W0 | ⬜ pending |
-| 6-XX-XX | XX | X | AUTH-10 | localhost SSRF bypass in prod | App refuses to boot when localhost bypass reachable under `OVID_ENV=production` | unit | `pytest tests/test_auth_boot_guard.py -q` | ❌ W0 | ⬜ pending |
-| 6-XX-XX | XX | X | AUTH-05 | Mastodon SSRF | Reserved-IP/hostname rejected; IPv6 covered; no redirect-following on outbound requests | unit | `pytest tests/test_auth_mastodon.py -q` | ✅ | ⬜ pending |
+| 6-05 | 05 | 3 | AUTH-08 | nOAuth merge takeover | Old session-carried implicit-merge path removed; merge requires re-auth via already-linked provider; GitHub email read from verified `/user/emails` | unit | `.venv/bin/python -m pytest tests/test_auth_linking.py -q` | ❌ W0 | ⬜ pending |
+| 6-04 | 04 | 2 | AUTH-09 | nOAuth merge takeover | `resolve_auth` (merge.py) isolated: verified-email merge success / unverified-email rejection / merge-without-reauth rejection | unit | `.venv/bin/python -m pytest tests/test_auth_merge.py -q` | ❌ W0 | ⬜ pending |
+| 6-03 | 03 | 1 | AUTH-10 | config-drift bypass | App refuses to boot when localhost bypass reachable under `OVID_ENV=production` | unit | `.venv/bin/python -m pytest tests/test_auth_config.py -q` | ❌ W0 | ⬜ pending |
+| 6-02 | 02 | 1 | AUTH-05 | Mastodon SSRF | Reserved-IP/hostname rejected; IPv6 (dual-stack getaddrinfo) covered; no redirect-following/no raw reflection on outbound requests | unit | `.venv/bin/python -m pytest tests/test_auth_mastodon.py -q` | ✅ | ⬜ pending |
 
-*Planner replaces these seed rows with the concrete per-task map. Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+*Seed map aligned to the committed plan set (06-01..06-07); the executor marks Status/File Exists as tasks land. Run all commands from `api/`. Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `api/tests/test_finalize_auth.py` — new isolated unit-test file for `finalize_auth` (AUTH-09)
-- [ ] `api/tests/test_auth_boot_guard.py` — new test for the `OVID_ENV` import-time boot assertion (AUTH-10)
-- [ ] PendingAccountLink flow tests folded into `api/tests/test_auth_linking.py` (AUTH-06/07/08)
-- [ ] Existing `api/tests/conftest.py` fixtures cover the new table (SQLite/Postgres UUID shim already present)
+- [ ] `api/tests/test_auth_merge.py` — new isolated unit-test file for `merge.py::resolve_auth` (AUTH-08/09, Plan 04)
+- [ ] `api/tests/test_auth_config.py` — new test for the `OVID_ENV` import-time boot assertion / `ALLOW_LOCALHOST_BYPASS` (AUTH-10, Plan 03)
+- [ ] `api/tests/conftest.py` — add `OVID_ENV` default so all test imports survive the new boot assertion (Plan 03)
+- [ ] PendingAccountLink re-auth flow tests folded into `api/tests/test_auth_linking.py` (AUTH-06/07/08, Plan 05)
+- [ ] Existing `conftest.py` SQLite/Postgres UUID shim covers the new `PendingAccountLink` table (Plan 01)
 
-*Existing auth test infrastructure (`test_auth_*.py`, `conftest.py`) covers most phase requirements; the three files above are the net-new additions.*
+*Existing auth test infrastructure (`test_auth_*.py`, `conftest.py`) covers most phase requirements; `test_auth_merge.py` and `test_auth_config.py` are the net-new additions (plain `unittest.mock`, no respx — following `test_auth_linking.py`).*
 
 ---
 
