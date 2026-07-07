@@ -214,15 +214,32 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Requirements**: WEBUI-01, WEBUI-02, WEBUI-03, WEBUI-04
 **Success Criteria** (what must be TRUE):
 
-  1. A user can search by movie title and see known disc releases, live at oviddb.org (WEBUI-01).
+  1. A user can search by movie title and see known disc releases — verifiably deployable and live on a staging URL (the public `oviddb.org` apex cutover is promoted to Phase 8 alongside seeding + domain redirects, per D-06) (WEBUI-01).
   2. The disc detail view renders the full normalized structure (titles, main-feature marker, chapters, audio/subtitle tracks) and shows fingerprint aliases (WEBUI-02).
   3. An authenticated user can submit a new disc entry through the submit form (WEBUI-03).
   4. The account settings surface lets a user add/remove linked providers, wired to the AUTH-06/07 backend behavior (WEBUI-04).
 
 **Re-review (carried in from retired branches):** The **multi-disc-set** (`/v1/set` API, `SiblingDiscs`/`SetSearchInput`, submit-form set linking, migration `900000000008`) and **chapter-name** (`DiscChapter` API + `ChapterResponse`, `ChapterEditor`/`ChapterList`, client-side chapter extraction, migration `900000000009`) features were **re-integrated onto `main` from the now-retired `gsd/phase-02`/`gsd/phase-03` lineage** (commits `f2c7a20`, `63d9417`) — ported onto a different baseline and **not yet reviewed in this milestone's plan context**. When planning this phase, re-review BOTH features end-to-end (UI + API + client) against the current architecture; do not assume they were designed against it. Test suites pass, but design/scope review is outstanding.
 
-**Plans**: TBD
+**Plans**: 8 plans
 **UI hint**: yes
+
+**Wave 1** *(parallel — disjoint files)*
+
+- [ ] 07-01-PLAN.md — Tailwind `@theme` token layer + Button/Input/Field primitives with baked focus-visible (D-02/D-03) [Wave 1] (WEBUI-01, WEBUI-02, WEBUI-03, WEBUI-04)
+- [ ] 07-02-PLAN.md — D-04 `finalize_auth` merge-offer redirect (enumeration-safe) + R-3 `link_provider` cleanup [Wave 1, tdd] (WEBUI-04)
+- [ ] 07-03-PLAN.md — R-1 unverified-sibling structural redaction + R-2 `AUTH_WRITE_LIMIT` on `POST /v1/set` [Wave 1, tdd] (WEBUI-02, WEBUI-03)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 07-04-PLAN.md — disc detail: render fingerprint aliases + unverified-withheld message + Sibling/Chapter parity (WEBUI-02) [Wave 2, depends 07-01/07-03]
+- [ ] 07-05-PLAN.md — search surface: anchored input + primitive migration + AA-contrast empty state (WEBUI-01) [Wave 2, depends 07-01]
+- [ ] 07-06-PLAN.md — submit + set/chapter authoring a11y parity (WEBUI-03, D-01 R-4) [Wave 2, depends 07-01]
+- [ ] 07-07-PLAN.md — settings add-provider + enumeration-safe merge banner + ProviderList parity (WEBUI-04, D-05) [Wave 2, depends 07-01/07-02, checkpoint:decision]
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 07-08-PLAN.md — D-06 staging deploy wiring + phase gate + human staging/a11y sign-off (WEBUI-01) [Wave 3, depends 07-04/07-05/07-06/07-07, checkpoint:human-verify]
 
 ### Phase 8: Launch Readiness — ARM, Seeding & Announcement
 
@@ -256,7 +273,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | 4. Blu-ray/UHD Fingerprinting | 6/6 | Complete    | 2026-07-06 |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 7/7 | Complete    | 2026-07-06 |
 | 6. OAuth & Account Linking | 7/7 | Complete   | 2026-07-07 |
-| 7. Web UI Production Readiness | 0/TBD | Not started | - |
+| 7. Web UI Production Readiness | 0/8 | Not started | - |
 | 8. Launch Readiness — ARM, Seeding & Announcement | 0/TBD | Not started | - |
 
 ---
