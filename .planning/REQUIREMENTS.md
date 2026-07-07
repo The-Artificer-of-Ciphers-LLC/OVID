@@ -27,13 +27,13 @@
 
 ### OAuth & Accounts (AUTH)
 
-- [ ] **AUTH-01**: Sign in with GitHub works end-to-end
-- [ ] **AUTH-02**: Sign in with Google works end-to-end
+- [x] **AUTH-01**: Sign in with GitHub works end-to-end
+- [x] **AUTH-02**: Sign in with Google works end-to-end
 - [ ] **AUTH-03**: Sign in with Apple works end-to-end, generating a short-lived ES256 JWT client secret per token exchange (not a static secret), with automated secret rotation
 - [x] **AUTH-04**: Sign in with Mastodon works via per-instance app registration (`POST /api/v1/apps`) with user-supplied instance URL
 - [ ] **AUTH-05 [guardrail]**: The Mastodon instance URL is validated against SSRF (hostname/IP-range checks) before any outbound `.well-known`/registration request
-- [ ] **AUTH-06**: A user can link multiple providers to one account and use any linked provider to log in
-- [ ] **AUTH-07**: The account settings page lists all linked providers and allows add/remove, enforcing a minimum of one remaining login method
+- [x] **AUTH-06**: A user can link multiple providers to one account and use any linked provider to log in
+- [x] **AUTH-07**: The account settings page lists all linked providers and allows add/remove, enforcing a minimum of one remaining login method
 - [ ] **AUTH-08 [guardrail]**: On a new provider login whose verified email matches an existing account, OVID OFFERS to link and requires explicit confirmation / re-auth of the existing account — never silent/automatic merge (nOAuth/CVE-class takeover defense)
 - [ ] **AUTH-09 [guardrail]**: The `finalize_auth` helper has isolated unit tests as a blocking exit criterion (currently an untested path per CONCERNS.md)
 - [ ] **AUTH-10 [guardrail]**: The IndieAuth localhost bypass is provably unreachable in production configuration (test-enforced)
@@ -134,13 +134,13 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 | IDENT-03 | Phase 5 | Complete |
 | IDENT-04 | Phase 5 | Complete |
 | IDENT-05 | Phase 1 | Complete |
-| AUTH-01 | Phase 6 | Pending |
-| AUTH-02 | Phase 6 | Pending |
+| AUTH-01 | Phase 6 | Complete |
+| AUTH-02 | Phase 6 | Complete |
 | AUTH-03 | Phase 6 | Pending |
 | AUTH-04 | Phase 6 | Complete |
 | AUTH-05 | Phase 6 | Complete |
-| AUTH-06 | Phase 6 | Pending |
-| AUTH-07 | Phase 6 | Pending |
+| AUTH-06 | Phase 6 | Complete |
+| AUTH-07 | Phase 6 | Complete |
 | AUTH-08 | Phase 6 | Complete |
 | AUTH-09 | Phase 6 | Complete |
 | AUTH-10 | Phase 6 | Complete |

@@ -4,14 +4,14 @@ milestone: v0.2.0
 milestone_name: milestone
 current_phase_name: OAuth & Account Linking
 status: executing
-stopped_at: Completed 06-04-PLAN.md
-last_updated: "2026-07-07T03:16:00.751Z"
+stopped_at: Completed 06-05-PLAN.md
+last_updated: "2026-07-07T03:35:45.528Z"
 last_activity: 2026-07-07 -- Phase 06 execution started
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 35
-  completed_plans: 32
+  completed_plans: 33
   percent: 63
 current_phase: 6
 ---
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 06 (OAuth & Account Linking) — EXECUTING
 Current Phase Name: OAuth & Account Linking
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-07-07 -- Phase 06 execution started
 Last Activity Description: Phase 06 execution started
@@ -86,6 +86,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 06 P02 | 5min | 2 tasks | 2 files |
 | Phase 06 P03 | 7min | 2 tasks | 9 files |
 | Phase 06 P04 | 18min | 2 tasks | 2 files |
+| Phase 06 P05 | 18min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -148,6 +149,8 @@ Recent decisions affecting current work:
 - [Phase ?]: AUTH-05: dual-stack getaddrinfo SSRF validation (both families + is_reserved) at the Mastodon validate-before-registration choke point; DNS-rebinding TOCTOU accepted as documented v0.2.0 residual (T-06-05d).
 - [Phase ?]: OVID_ENV required (fail-fast at import); ALLOW_LOCALHOST_BYPASS derived solely from it, False under production — IndieAuth localhost bypass unreachable in prod (AUTH-10)
 - [Phase ?]: resolve_auth (merge.py): verified-email match OFFERS a PendingAccountLink (never silent merge); consume requires same existing_user_id re-auth via an already-linked provider (nOAuth defense, AUTH-08/09)
+- [Phase ?]: 06-05: finalize_auth is now a thin resolve_auth wrapper; session-carried implicit-merge (nOAuth) flaw removed; 409 merge-offer carries pending_link_id
+- [Phase ?]: 06-05: per-provider email_verified computed at source — GitHub via GET /user/emails primary+verified; Mastodon/IndieAuth always False
 
 ### Pending Todos
 
@@ -169,6 +172,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-07T03:16:00.746Z
-Stopped at: Completed 06-04-PLAN.md
+Last session: 2026-07-07T03:35:45.523Z
+Stopped at: Completed 06-05-PLAN.md
 Resume file: None
