@@ -250,3 +250,202 @@ class TestResolveAuthLoginOfferSeparate:
         )
         assert link is not None
         assert str(link.user_id) == str(user.id)
+
+
+# ---------------------------------------------------------------------------
+# Task 2: re-auth consume path
+# ---------------------------------------------------------------------------
+
+class TestResolveAuthConsumePath:
+    def test_reauth_success_consumes_and_attaches(self, db_session: Session):
+        """D-02: with a pending offer for user_a (new_provider=github) and user_a
+        already linked to google, re-authenticating via google consumes the offer,
+        attaches the github link to user_a, and returns user_a."""
+        user_a, _ = _create_user_with_link(
+            db_session,
+            username="user_a",
+            email="a@example.com",
+            provider="google",
+            provider_id="g_a",
+        )
+        pending = _create_pending_link(
+            db_session,
+            existing_user_id=user_a.id,
+            new_provider="github",
+            new_provider_id="gh_new",
+        )
+
+        result = resolve_auth(
+            db_session,
+            provider="google",
+            provider_id="g_a",
+            email="a@example.com",
+            email_verified=True,
+            display_name="User A",
+            pending_link_id=str(pending.id),
+        )
+
+        assert result.merge_offer is None
+        assert result.user is not None
+        assert str(result.user.id) == str(user_a.id)
+        # New provider attached to the EXISTING user.
+        attached = (
+            db_session.query(UserOAuthLink)
+            .filter(UserOAuthLink.provider == "github", UserOAuthLink.provider_id == "gh_new")
+            .first()
+        )
+        assert attached is not None
+        assert str(attached.user_id) == str(user_a.id)
+        # Offer consumed (single-use marker set).
+        db_session.refresh(pending)
+        assert pending.consumed_at is not None
+
+    def test_merge_without_reauth_different_user_rejected(self, db_session: Session):
+        """AUTH-08 / D-02 (required case 3): presenting the pending_link_id while
+        authenticating as a DIFFERENT existing account raises MergeReauthMismatchError
+        — no attach, offer NOT consumed."""
+        user_a, _ = _create_user_with_link(
+            db_session,
+            username="user_a",
+            email="a@example.com",
+            provider="google",
+            provider_id="g_a",
+        )
+        user_b, _ = _create_user_with_link(
+            db_session,
+            username="user_b",
+            email="b@example.com",
+            provider="google",
+            provider_id="g_b",
+        )
+        pending = _create_pending_link(
+            db_session,
+            existing_user_id=user_a.id,
+            new_provider="github",
+            new_provider_id="gh_new",
+        )
+
+        with pytest.raises(MergeReauthMismatchError):
+            resolve_auth(
+                db_session,
+                provider="google",
+                provider_id="g_b",  # user_b, NOT the pending offer's owner
+                email="b@example.com",
+                email_verified=True,
+                display_name="User B",
+                pending_link_id=str(pending.id),
+            )
+
+        # No github link attached to anyone; offer untouched.
+        assert (
+            db_session.query(UserOAuthLink)
+            .filter(UserOAuthLink.provider == "github", UserOAuthLink.provider_id == "gh_new")
+            .first()
+            is None
+        )
+        db_session.refresh(pending)
+        assert pending.consumed_at is None
+
+    def test_expired_pending_rejected(self, db_session: Session):
+        """TTL enforced: a pending link past expires_at is rejected and not consumed."""
+        user_a, _ = _create_user_with_link(
+            db_session,
+            username="user_a",
+            email="a@example.com",
+            provider="google",
+            provider_id="g_a",
+        )
+        pending = _create_pending_link(
+            db_session,
+            existing_user_id=user_a.id,
+            new_provider="github",
+            new_provider_id="gh_new",
+            expires_in_minutes=-5,  # already expired
+        )
+
+        with pytest.raises(PendingLinkInvalidError):
+            resolve_auth(
+                db_session,
+                provider="google",
+                provider_id="g_a",
+                email="a@example.com",
+                email_verified=True,
+                display_name="User A",
+                pending_link_id=str(pending.id),
+            )
+
+        db_session.refresh(pending)
+        assert pending.consumed_at is None
+        assert (
+            db_session.query(UserOAuthLink)
+            .filter(UserOAuthLink.provider == "github", UserOAuthLink.provider_id == "gh_new")
+            .first()
+            is None
+        )
+
+    def test_already_consumed_pending_rejected(self, db_session: Session):
+        """Single-use enforced: a pending link with consumed_at set is rejected."""
+        user_a, _ = _create_user_with_link(
+            db_session,
+            username="user_a",
+            email="a@example.com",
+            provider="google",
+            provider_id="g_a",
+        )
+        pending = _create_pending_link(
+            db_session,
+            existing_user_id=user_a.id,
+            new_provider="github",
+            new_provider_id="gh_new",
+            consumed=True,
+        )
+
+        with pytest.raises(PendingLinkInvalidError):
+            resolve_auth(
+                db_session,
+                provider="google",
+                provider_id="g_a",
+                email="a@example.com",
+                email_verified=True,
+                display_name="User A",
+                pending_link_id=str(pending.id),
+            )
+
+        # No new link attached by the rejected re-consume attempt.
+        assert (
+            db_session.query(UserOAuthLink)
+            .filter(UserOAuthLink.provider == "github", UserOAuthLink.provider_id == "gh_new")
+            .first()
+            is None
+        )
+
+    def test_unknown_provider_link_during_reauth_rejected(self, db_session: Session):
+        """Cannot prove ownership: if the re-auth (provider, provider_id) resolves to
+        no existing user, MergeReauthMismatchError is raised (fail closed)."""
+        user_a, _ = _create_user_with_link(
+            db_session,
+            username="user_a",
+            email="a@example.com",
+            provider="google",
+            provider_id="g_a",
+        )
+        pending = _create_pending_link(
+            db_session,
+            existing_user_id=user_a.id,
+            new_provider="github",
+            new_provider_id="gh_new",
+        )
+
+        with pytest.raises(MergeReauthMismatchError):
+            resolve_auth(
+                db_session,
+                provider="google",
+                provider_id="nonexistent",  # no link resolves
+                email="ghost@example.com",
+                email_verified=True,
+                display_name="Ghost",
+                pending_link_id=str(pending.id),
+            )
+
+        db_session.refresh(pending)
+        assert pending.consumed_at is None
