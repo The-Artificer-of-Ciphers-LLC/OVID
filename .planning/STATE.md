@@ -4,14 +4,14 @@ milestone: v0.2.0
 milestone_name: milestone
 current_phase_name: web-ui-production-readiness
 status: executing
-stopped_at: Completed 07-04-PLAN.md
-last_updated: "2026-07-07T18:13:49.693Z"
+stopped_at: Completed 07-05-PLAN.md
+last_updated: "2026-07-07T18:28:17.608Z"
 last_activity: 2026-07-07
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 43
-  completed_plans: 39
+  completed_plans: 40
   percent: 75
 current_phase: 06
 ---
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 07 (web-ui-production-readiness) — EXECUTING
 Current Phase Name: web-ui-production-readiness
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-07-07
 Last Activity Description: Phase 07 execution started
@@ -93,6 +93,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 07 P02 | 10min | 2 tasks | 3 files |
 | Phase 07 P03 | 15min | 2 tasks | 4 files |
 | Phase 07 P04 | 3min | 3 tasks | 4 files |
+| Phase 07 P05 | 12min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -170,6 +171,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-03: Fixed pre-existing test_disc_lookup.py::test_lookup_disc_in_set which encoded the R-1 leak as expected behavior; switched sibling fixture to verified status
 - [Phase ?]: 07-04: Executed Task 1/Task 3 as one TDD RED->GREEN unit (test-first, confirmed-failing, then page.tsx implementation), matching the plan's own RED-partner framing and 07-01's precedent.
 - [Phase ?]: 07-04: Marked WEBUI-02 complete — full structure rendering pre-existed; this plan closed the remaining fingerprint-aliases gap, both halves now proven by disc-detail.test.tsx.
+- [Phase ?]: 07-05: SearchForm migrated to Button/Input/Field primitives (inherits focus-visible ring); centered mx-auto max-w-2xl layout makes the title Input the widest focal control; CTA copy is Search discs.
+- [Phase ?]: 07-05: No change needed to Button.tsx colors -- primary variant (bg-blue-600/hover:bg-blue-700) already matches UI-SPEC's --color-accent/--color-accent-hover hex values exactly.
+- [Phase ?]: 07-05: Rule 1 auto-fix -- bumped @tailwindcss/node and @tailwindcss/postcss 4.2.2 to 4.3.2 (within existing ^4 range) to eliminate a genuine DEP0205 module.register() deprecation warning, root-caused via --trace-deprecation.
+- [Phase ?]: 07-05: Left WEBUI-01 unchecked in REQUIREMENTS.md -- the requirement text includes (live at oviddb.org), a deployment condition owned by 07-08, not this plan.
 
 ### Pending Todos
 
@@ -194,6 +199,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-07T18:13:40.383Z
-Stopped at: Completed 07-04-PLAN.md
+Last session: 2026-07-07T18:28:17.603Z
+Stopped at: Completed 07-05-PLAN.md
 Resume file: None
