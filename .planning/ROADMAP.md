@@ -221,13 +221,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Re-review (carried in from retired branches):** The **multi-disc-set** (`/v1/set` API, `SiblingDiscs`/`SetSearchInput`, submit-form set linking, migration `900000000008`) and **chapter-name** (`DiscChapter` API + `ChapterResponse`, `ChapterEditor`/`ChapterList`, client-side chapter extraction, migration `900000000009`) features were **re-integrated onto `main` from the now-retired `gsd/phase-02`/`gsd/phase-03` lineage** (commits `f2c7a20`, `63d9417`) — ported onto a different baseline and **not yet reviewed in this milestone's plan context**. When planning this phase, re-review BOTH features end-to-end (UI + API + client) against the current architecture; do not assume they were designed against it. Test suites pass, but design/scope review is outstanding.
 
-**Plans**: 1/8 plans executed
+**Plans**: 2/8 plans executed
 **UI hint**: yes
 
 **Wave 1** *(parallel — disjoint files)*
 
 - [x] 07-01-PLAN.md — Tailwind `@theme` token layer + Button/Input/Field primitives with baked focus-visible (D-02/D-03) [Wave 1] (WEBUI-01, WEBUI-02, WEBUI-03, WEBUI-04)
-- [ ] 07-02-PLAN.md — D-04 `finalize_auth` merge-offer redirect (enumeration-safe) + R-3 `link_provider` cleanup [Wave 1, tdd] (WEBUI-04)
+- [x] 07-02-PLAN.md — D-04 `finalize_auth` merge-offer redirect (enumeration-safe) + R-3 `link_provider` cleanup [Wave 1, tdd] (WEBUI-04)
 - [ ] 07-03-PLAN.md — R-1 unverified-sibling structural redaction + R-2 `AUTH_WRITE_LIMIT` on `POST /v1/set` [Wave 1, tdd] (WEBUI-02, WEBUI-03)
 
 **Wave 2** *(blocked on Wave 1)*
@@ -273,7 +273,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | 4. Blu-ray/UHD Fingerprinting | 6/6 | Complete    | 2026-07-06 |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 7/7 | Complete    | 2026-07-06 |
 | 6. OAuth & Account Linking | 7/7 | Complete   | 2026-07-07 |
-| 7. Web UI Production Readiness | 1/8 | In Progress|  |
+| 7. Web UI Production Readiness | 2/8 | In Progress|  |
 | 8. Launch Readiness — ARM, Seeding & Announcement | 0/TBD | Not started | - |
 
 ---
