@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Blu-ray/UHD Fingerprinting** - Bring BD/UHD discs to fingerprinting parity with the DVD path (Tier 1 AACS + Tier 2 BDMV, coexisting as an alias pair) (completed 2026-07-06)
 - [x] **Phase 5: ADR 0001 Completion — dvdread1-* Promotion** - Complete alias submission and promote `dvdread1-*` to the primary DVD fingerprint, keeping `dvd1-*` a permanent alias (completed 2026-07-06)
 - [x] **Phase 6: OAuth & Account Linking** - All four OAuth providers working end-to-end with secure, confirm-gated account linking (completed 2026-07-07)
-- [ ] **Phase 7: Web UI Production Readiness** - Search, disc detail, submission, and account settings live at oviddb.org
+- [x] **Phase 7: Web UI Production Readiness** - Search, disc detail, submission, and account settings live at oviddb.org (completed 2026-07-07)
 - [ ] **Phase 8: Launch Readiness — ARM, Seeding & Announcement** - ARM upstream review, ≥500-entry seeding, DNS redirects, remaining docs, and the public announcement
 
 ## Phase Details
@@ -221,7 +221,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Re-review (carried in from retired branches):** The **multi-disc-set** (`/v1/set` API, `SiblingDiscs`/`SetSearchInput`, submit-form set linking, migration `900000000008`) and **chapter-name** (`DiscChapter` API + `ChapterResponse`, `ChapterEditor`/`ChapterList`, client-side chapter extraction, migration `900000000009`) features were **re-integrated onto `main` from the now-retired `gsd/phase-02`/`gsd/phase-03` lineage** (commits `f2c7a20`, `63d9417`) — ported onto a different baseline and **not yet reviewed in this milestone's plan context**. When planning this phase, re-review BOTH features end-to-end (UI + API + client) against the current architecture; do not assume they were designed against it. Test suites pass, but design/scope review is outstanding.
 
-**Plans**: 7/8 plans executed
+**Plans**: 8/8 plans complete
 **UI hint**: yes
 
 **Wave 1** *(parallel — disjoint files)*
@@ -239,7 +239,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 07-08-PLAN.md — D-06 staging deploy wiring + phase gate + human staging/a11y sign-off (WEBUI-01) [Wave 3, depends 07-04/07-05/07-06/07-07, checkpoint:human-verify]
+- [x] 07-08-PLAN.md — D-06 staging deploy wiring + phase gate + human staging/a11y sign-off (WEBUI-01) [Wave 3, depends 07-04/07-05/07-06/07-07, checkpoint:human-verify]
 
 ### Phase 8: Launch Readiness — ARM, Seeding & Announcement
 
@@ -273,7 +273,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | 4. Blu-ray/UHD Fingerprinting | 6/6 | Complete    | 2026-07-06 |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 7/7 | Complete    | 2026-07-06 |
 | 6. OAuth & Account Linking | 7/7 | Complete   | 2026-07-07 |
-| 7. Web UI Production Readiness | 7/8 | In Progress|  |
+| 7. Web UI Production Readiness | 8/8 | Complete   | 2026-07-07 |
 | 8. Launch Readiness — ARM, Seeding & Announcement | 0/TBD | Not started | - |
 
 ---

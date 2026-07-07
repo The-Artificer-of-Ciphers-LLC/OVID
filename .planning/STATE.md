@@ -2,19 +2,18 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-current_phase: 07
 current_phase_name: web-ui-production-readiness
-status: executing
-stopped_at: Completed 07-07-PLAN.md
-last_updated: "2026-07-07T23:22:51.152Z"
+status: verifying
+stopped_at: Completed 07-08-PLAN.md autonomous tasks (docs+env staging wiring, phase gate); Task 3 human-verify checkpoint pending
+last_updated: "2026-07-07T23:35:07.319Z"
 last_activity: 2026-07-07
-last_activity_desc: Phase 07 execution started
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 43
-  completed_plans: 42
-  percent: 75
+  completed_plans: 43
+  percent: 88
+current_phase: 07
 ---
 
 # Project State
@@ -31,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 Phase: 07 (web-ui-production-readiness) — EXECUTING
 Current Phase Name: web-ui-production-readiness
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-07
 Last Activity Description: Phase 07 execution started
 
@@ -97,6 +96,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 07 P05 | 12min | 2 tasks | 4 files |
 | Phase 07 P06 | 10min | 3 tasks | 4 files |
 | Phase 07 P07-07 | 18min | 3 tasks | 5 files |
+| Phase 07 P08 | 20min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -183,6 +183,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-07: Add-provider flow uses option-b (frontend-only) — credentialed fetch(POST /link/{provider}) primes the session cookie, then window.location.assign()s the deterministic /login URL as a top-level navigation. No backend change.
 - [Phase ?]: 07-07: Add-provider CTA candidates limited to github/google/apple; mastodon/indieauth excluded per R-3 (link_requires_domain 400) and D-05 (IndieAuth hidden in production).
 - [Phase ?]: 07-07: Fixed apiFetch's error-body parsing to also read FastAPI's nested {detail:{error,reason}} shape, not just the flat disc/set {error,message} envelope — required for cannot_unlink_last to reach the UI correctly.
+- [Phase ?]: Staging deploy (D-06): staging.oviddb.org/api.staging.oviddb.org hosts, x300 port bracket, no committed docker-compose.staging.yml (local/uncommitted overlay recipe embedded in docs/deployment.md instead)
 
 ### Pending Todos
 
@@ -207,6 +208,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-07T23:22:51.144Z
-Stopped at: Completed 07-07-PLAN.md
+Last session: 2026-07-07T23:35:07.314Z
+Stopped at: Completed 07-08-PLAN.md autonomous tasks (docs+env staging wiring, phase gate); Task 3 human-verify checkpoint pending
 Resume file: None
