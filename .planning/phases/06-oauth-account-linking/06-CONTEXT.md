@@ -44,7 +44,7 @@ Phase 7 wires to.
   `existing_user_id == freshly-authenticated user.id`, marks `consumed_at`, then attaches the new
   provider. This reuses a trust anchor OVID already verified — never trusts the new provider's email claim.
   (Every "existing account" has ≥1 linked provider by definition, so the anchor always exists.)
-- **D-03:** The emailed-confirmation-link variant is explicitly **deferred** — OVID has zero SMTP/email
+- **D-03 [informational]:** The emailed-confirmation-link variant is explicitly **deferred** — OVID has zero SMTP/email
   infrastructure today; building it solely for this flow is disproportionate. Revisit only if OVID
   gains general email capability. Session-state-only and bare-signed-token-only were both rejected.
 - **D-04:** `finalize_auth` must be refactored to be unit-testable with a plain DB fixture (no
