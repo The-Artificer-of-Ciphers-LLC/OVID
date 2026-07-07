@@ -226,13 +226,36 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
         logger.warning("auth_failed provider=github reason=malformed_response")
         raise HTTPException(status_code=401, detail={"error": "provider_error", "reason": "Malformed GitHub response"})
 
+    # Verified-email signal (D-05, Pitfall 2): GET /user's `email` is a display value
+    # GitHub does NOT guarantee is verified. The trust signal is GET /user/emails'
+    # primary+verified entry (the `user:email` scope is already requested). Fall back
+    # to the profile email (display-only, email_verified=False) if the call is
+    # unavailable or has no primary+verified entry — never 500 on this path.
+    github_email = github_user.get("email")
+    email_verified = False
+    try:
+        emails_resp = await oauth.github.get("user/emails", token=token)
+        if emails_resp.status_code == 200:
+            entries = emails_resp.json()
+            if isinstance(entries, list):
+                primary_verified = next(
+                    (e for e in entries if e.get("primary") and e.get("verified")),
+                    None,
+                )
+                if primary_verified is not None:
+                    github_email = primary_verified.get("email")
+                    email_verified = True
+    except Exception as e:
+        logger.warning("github_user_emails_fetch_failed detail=%s", str(e))
+
     return finalize_auth(
         request,
         db,
         provider="github",
         provider_id=str(github_id),
-        email=github_user.get("email"),
+        email=github_email,
         display_name=github_user.get("name") or github_user.get("login"),
+        email_verified=email_verified,
     )
 
 
@@ -416,6 +439,9 @@ async def apple_callback(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail={"error": "invalid_token", "reason": "ID token missing sub claim"})
 
     apple_email = claims.get("email")
+    # Apple returns email_verified from its already-JWKS-verified ID token, but as a
+    # string "true"/"false" in some issuance paths (Pitfall 3) — normalize both forms.
+    apple_email_verified = str(claims.get("email_verified", "")).strip().lower() == "true"
 
     return finalize_auth(
         request,
@@ -424,6 +450,7 @@ async def apple_callback(request: Request, db: Session = Depends(get_db)):
         provider_id=apple_sub,
         email=apple_email,
         display_name=None,
+        email_verified=apple_email_verified,
     )
 
 
@@ -550,6 +577,8 @@ async def indieauth_callback(request: Request, db: Session = Depends(get_db)):
         provider_id=me_url,
         email=None,
         display_name=me_url,
+        # D-06: IndieAuth never yields a verified email — never eligible to merge.
+        email_verified=False,
     )
 
 # ---------------------------------------------------------------------------
@@ -762,6 +791,8 @@ async def mastodon_callback(request: Request, db: Session = Depends(get_db)):
         provider_id=provider_id,
         email=placeholder_email,
         display_name=display_name or username,
+        # D-06: Mastodon gives no verified email (placeholder) — never eligible to merge.
+        email_verified=False,
     )
 
 # ---------------------------------------------------------------------------

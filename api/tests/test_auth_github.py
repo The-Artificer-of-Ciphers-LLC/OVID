@@ -20,16 +20,36 @@ def _mock_github_user(github_id=12345, email="octocat@github.com", name="Octocat
     return {"id": github_id, "email": email, "name": name, "login": login}
 
 
-def _patch_oauth(github_user=None, token=None, status_code=200, token_error=None, api_error=None):
+def _patch_oauth(
+    github_user=None,
+    token=None,
+    status_code=200,
+    token_error=None,
+    api_error=None,
+    emails=None,
+    emails_status=200,
+):
     """Context manager that patches authlib's OAuth client for GitHub.
 
-    Returns patches for authorize_access_token and get (user API).
-    Also patches _GITHUB_CLIENT_ID so the route guard passes.
+    Patches authorize_access_token and get (both the GET /user and GET /user/emails
+    calls). GET /user/emails is dispatched by path; by default it returns a single
+    primary+verified entry matching the profile email (so the happy path is
+    email_verified=True). Pass `emails=[...]` to override, or `emails=[]` for the
+    no-verified-entry branch. Also patches _GITHUB_CLIENT_ID so the route guard passes.
     """
     if github_user is None:
         github_user = _mock_github_user()
     if token is None:
         token = {"access_token": "gho_fake_token_123"}
+
+    # Default /user/emails: a primary+verified entry matching the profile email.
+    if emails is None:
+        profile_email = github_user.get("email")
+        emails = (
+            [{"email": profile_email, "primary": True, "verified": True}]
+            if profile_email
+            else []
+        )
 
     mock_oauth = MagicMock()
 
@@ -42,10 +62,17 @@ def _patch_oauth(github_user=None, token=None, status_code=200, token_error=None
     if api_error:
         mock_oauth.github.get = AsyncMock(side_effect=api_error)
     else:
-        resp_mock = MagicMock()
-        resp_mock.status_code = status_code
-        resp_mock.json.return_value = github_user
-        mock_oauth.github.get = AsyncMock(return_value=resp_mock)
+        def _get_response(path, token=None):
+            resp = MagicMock()
+            if path == "user/emails":
+                resp.status_code = emails_status
+                resp.json.return_value = emails
+            else:
+                resp.status_code = status_code
+                resp.json.return_value = github_user
+            return resp
+
+        mock_oauth.github.get = AsyncMock(side_effect=_get_response)
 
     # Stack both patches: the oauth client and the client ID guard
     from contextlib import ExitStack
@@ -123,6 +150,53 @@ class TestGitHubCallback:
 
         assert resp.status_code == 200
         assert resp.json()["user"]["display_name"] == "ghostuser"
+
+    def test_callback_uses_verified_primary_from_user_emails(self, client: TestClient, db_session: Session):
+        """The email + verified signal come from GET /user/emails' primary+verified
+        entry, NOT the GET /user profile email (D-05, Pitfall 2)."""
+        # Profile email differs from the verified primary; a non-primary verified and a
+        # primary-unverified entry must be ignored.
+        profile = _mock_github_user(github_id=314159, email="public@display.example")
+        emails = [
+            {"email": "public@display.example", "primary": False, "verified": True},
+            {"email": "unverified-primary@example.com", "primary": True, "verified": False},
+            {"email": "real@verified.example", "primary": True, "verified": True},
+        ]
+        with _patch_oauth(github_user=profile, emails=emails):
+            resp = client.get("/v1/auth/github/callback")
+
+        assert resp.status_code == 200
+        user = db_session.query(User).filter(User.username == "github_314159").first()
+        assert user is not None
+        assert user.email == "real@verified.example"
+        assert user.email_verified is True
+
+    def test_callback_no_primary_verified_entry_is_unverified(self, client: TestClient, db_session: Session):
+        """With no primary+verified entry, the profile email is display-only fallback
+        and email_verified is False."""
+        profile = _mock_github_user(github_id=271828, email="fallback@display.example")
+        emails = [{"email": "someone@example.com", "primary": False, "verified": True}]
+        with _patch_oauth(github_user=profile, emails=emails):
+            resp = client.get("/v1/auth/github/callback")
+
+        assert resp.status_code == 200
+        user = db_session.query(User).filter(User.username == "github_271828").first()
+        assert user is not None
+        assert user.email == "fallback@display.example"
+        assert user.email_verified is False
+
+    def test_callback_user_emails_unavailable_falls_back_unverified(self, client: TestClient, db_session: Session):
+        """If GET /user/emails is unavailable (non-200), fall back to the profile email
+        as unverified — never 500 on this path."""
+        profile = _mock_github_user(github_id=161803, email="profile@display.example")
+        with _patch_oauth(github_user=profile, emails_status=500):
+            resp = client.get("/v1/auth/github/callback")
+
+        assert resp.status_code == 200
+        user = db_session.query(User).filter(User.username == "github_161803").first()
+        assert user is not None
+        assert user.email == "profile@display.example"
+        assert user.email_verified is False
 
 
 # ---------------------------------------------------------------------------
