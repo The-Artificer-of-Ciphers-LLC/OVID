@@ -16,6 +16,11 @@ os.environ["DATABASE_URL"] = "sqlite://"
 # Auth config reads OVID_SECRET_KEY at import time — set a test value.
 os.environ.setdefault("OVID_SECRET_KEY", "test-secret-key-for-unit-tests-32b")
 
+# Auth config also requires OVID_ENV at import time (no default). This line is
+# load-bearing: without it every api test fails to import once OVID_ENV became
+# required. setdefault keeps any explicitly-exported value intact.
+os.environ.setdefault("OVID_ENV", "development")
+
 import uuid  # noqa: E402
 from datetime import datetime, timedelta, timezone  # noqa: E402
 

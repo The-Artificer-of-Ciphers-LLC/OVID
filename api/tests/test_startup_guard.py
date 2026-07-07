@@ -23,6 +23,7 @@ def _import_rate_limit(env_overrides: dict[str, str]) -> subprocess.CompletedPro
     env = {
         "DATABASE_URL": "sqlite://",
         "OVID_SECRET_KEY": "test-secret-key-for-unit-tests-32b",
+        "OVID_ENV": "development",
         "PATH": str(Path(sys.executable).parent),
     }
     env.update(env_overrides)

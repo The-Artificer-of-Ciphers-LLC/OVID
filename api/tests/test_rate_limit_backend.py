@@ -27,6 +27,7 @@ def _probe_storage_class(env_overrides: dict[str, str]) -> str:
     env = {
         "DATABASE_URL": "sqlite://",
         "OVID_SECRET_KEY": "test-secret-key-for-unit-tests-32b",
+        "OVID_ENV": "development",
         "PATH": str(Path(sys.executable).parent),
     }
     env.update(env_overrides)
@@ -81,6 +82,7 @@ def _probe_read_limits(env_overrides: dict[str, str]) -> tuple[str, str]:
     env = {
         "DATABASE_URL": "sqlite://",
         "OVID_SECRET_KEY": "test-secret-key-for-unit-tests-32b",
+        "OVID_ENV": "development",
         "PATH": str(Path(sys.executable).parent),
     }
     env.update(env_overrides)
