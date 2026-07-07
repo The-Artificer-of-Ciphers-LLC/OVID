@@ -4,6 +4,9 @@ import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { submitDisc, ApiError, type DiscSubmitRequest, type TitleCreate, type ChapterCreate, type DiscSetSearchResult } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import Button from "@/components/Button";
+import Field from "@/components/Field";
+import Input from "@/components/Input";
 import SetSearchInput from "@/components/SetSearchInput";
 import ChapterEditor from "@/components/ChapterEditor";
 
@@ -155,7 +158,8 @@ export default function SubmitForm() {
   }
 
   // -----------------------------------------------------------------------
-  // Shared input class
+  // Shared select class (D-02 token/D-03 focus-visible parity; Input primitive
+  // only wraps <input>, so <select> mirrors its classes directly)
   // -----------------------------------------------------------------------
 
   const EDITION_SUGGESTIONS = [
@@ -163,8 +167,10 @@ export default function SubmitForm() {
     "Criterion Collection", "Special Edition", "Ultimate Edition",
   ];
 
-  const inputClass =
-    "w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900";
+  const selectClass =
+    "w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none " +
+    "focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 " +
+    "dark:border-neutral-700 dark:bg-neutral-900";
 
   // -----------------------------------------------------------------------
   // Render
@@ -174,18 +180,17 @@ export default function SubmitForm() {
     <div>
       {/* File input */}
       <div className="mb-6">
-        <label htmlFor="fp-file" className="block text-sm font-medium mb-1">
-          Fingerprint JSON file
-        </label>
-        <input
-          id="fp-file"
-          type="file"
-          accept=".json"
-          onChange={handleFileChange}
-          data-testid="fp-file-input"
-          className="block w-full text-sm text-neutral-500 file:mr-3 file:rounded file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700 file:cursor-pointer file:transition-colors"
-        />
-        <p className="mt-1 text-xs text-neutral-400">
+        <Field id="fp-file" label="Fingerprint JSON file">
+          <Input
+            id="fp-file"
+            type="file"
+            accept=".json"
+            onChange={handleFileChange}
+            data-testid="fp-file-input"
+            className="text-sm text-neutral-500 file:mr-3 file:rounded file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700 file:cursor-pointer file:transition-colors"
+          />
+        </Field>
+        <p className="mt-1 text-sm text-neutral-500">
           Generate with: <code>ovid fingerprint /dev/disc0 --json &gt; disc.json</code>
         </p>
       </div>
@@ -193,6 +198,7 @@ export default function SubmitForm() {
       {parseError && (
         <div
           data-testid="parse-error"
+          aria-live="polite"
           className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
         >
           {parseError}
@@ -210,7 +216,7 @@ export default function SubmitForm() {
             <h3 className="font-semibold mb-2">Fingerprint Preview</h3>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
               <dt className="text-neutral-500">Fingerprint</dt>
-              <dd className="font-mono text-xs break-all">{fpData.fingerprint}</dd>
+              <dd className="font-mono text-sm break-all">{fpData.fingerprint}</dd>
               <dt className="text-neutral-500">Format</dt>
               <dd>{fpData.format}</dd>
               <dt className="text-neutral-500">Titles</dt>
@@ -222,52 +228,45 @@ export default function SubmitForm() {
           <fieldset className="mb-6 space-y-4">
             <legend className="text-sm font-semibold mb-2">Release Details</legend>
 
-            <div>
-              <label htmlFor="release-title" className="block text-sm font-medium mb-1">
-                Release Title <span className="text-red-500">*</span>
-              </label>
-              <input
+            <Field id="release-title" label="Release Title *">
+              <Input
                 id="release-title"
                 type="text"
                 required
                 value={releaseTitle}
                 onChange={(e) => setReleaseTitle(e.target.value)}
                 placeholder="e.g. Blade Runner 2049"
-                className={inputClass}
               />
-            </div>
+            </Field>
 
             <div className="flex gap-4">
               <div className="flex-1">
-                <label htmlFor="release-year" className="block text-sm font-medium mb-1">
-                  Year
-                </label>
-                <input
-                  id="release-year"
-                  type="number"
-                  min={1900}
-                  max={2099}
-                  value={releaseYear}
-                  onChange={(e) =>
-                    setReleaseYear(e.target.value === "" ? "" : Number(e.target.value))
-                  }
-                  placeholder="e.g. 2017"
-                  className={inputClass}
-                />
+                <Field id="release-year" label="Year">
+                  <Input
+                    id="release-year"
+                    type="number"
+                    min={1900}
+                    max={2099}
+                    value={releaseYear}
+                    onChange={(e) =>
+                      setReleaseYear(e.target.value === "" ? "" : Number(e.target.value))
+                    }
+                    placeholder="e.g. 2017"
+                  />
+                </Field>
               </div>
               <div className="flex-1">
-                <label htmlFor="content-type" className="block text-sm font-medium mb-1">
-                  Content Type
-                </label>
-                <select
-                  id="content-type"
-                  value={contentType}
-                  onChange={(e) => setContentType(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="movie">Movie</option>
-                  <option value="tv_show">TV Show</option>
-                </select>
+                <Field id="content-type" label="Content Type">
+                  <select
+                    id="content-type"
+                    value={contentType}
+                    onChange={(e) => setContentType(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="movie">Movie</option>
+                    <option value="tv_show">TV Show</option>
+                  </select>
+                </Field>
               </div>
             </div>
           </fieldset>
@@ -276,19 +275,15 @@ export default function SubmitForm() {
           <fieldset className="mb-6 space-y-4">
             <legend className="text-sm font-semibold mb-2">Disc Details</legend>
 
-            <div>
-              <label htmlFor="edition-name" className="block text-sm font-medium mb-1">
-                Edition Name
-              </label>
-              <input
+            <Field id="edition-name" label="Edition Name">
+              <Input
                 id="edition-name"
                 type="text"
                 value={editionName}
                 onChange={(e) => setEditionName(e.target.value)}
                 placeholder="e.g. Director's Cut, Criterion Collection"
-                className={inputClass}
               />
-            </div>
+            </Field>
           </fieldset>
 
           {/* Set toggle */}
@@ -310,7 +305,7 @@ export default function SubmitForm() {
                 }}
                 data-testid="set-toggle"
               />
-              <div className="w-9 h-5 bg-neutral-200 peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full dark:bg-neutral-700" />
+              <div className="w-9 h-5 bg-neutral-200 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-neutral-950 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full dark:bg-neutral-700" />
               <span className="text-sm font-normal">Part of a multi-disc set?</span>
             </label>
           </div>
@@ -332,37 +327,43 @@ export default function SubmitForm() {
               {selectedSetInfo && (
                 <div className="rounded border border-neutral-200 bg-neutral-50 p-3 text-sm dark:border-neutral-800 dark:bg-neutral-900">
                   Selected: {selectedSetInfo.edition_name ?? "Unnamed set"} ({selectedSetInfo.discs.length}/{selectedSetInfo.total_discs} discs)
-                  <button type="button" className="ml-2 text-blue-600 text-xs" onClick={() => { setSelectedSetId(null); setSelectedSetInfo(null); }}>Change</button>
+                  <button
+                    type="button"
+                    className="ml-2 rounded text-blue-600 text-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+                    onClick={() => { setSelectedSetId(null); setSelectedSetInfo(null); }}
+                  >
+                    Change
+                  </button>
                 </div>
               )}
 
               {isCreatingNewSet && (
-                <div>
-                  <label htmlFor="set-edition-name" className="block text-sm font-medium mb-1">Edition Name</label>
-                  <input
+                <Field id="set-edition-name" label="Edition Name">
+                  <Input
                     id="set-edition-name"
                     type="text"
                     list="edition-suggestions"
                     value={editionName}
                     onChange={(e) => setEditionName(e.target.value)}
                     placeholder="e.g. Extended Edition"
-                    className={inputClass}
                     data-testid="set-edition-name"
                   />
                   <datalist id="edition-suggestions">
                     {EDITION_SUGGESTIONS.map(s => <option key={s} value={s} />)}
                   </datalist>
-                </div>
+                </Field>
               )}
 
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label htmlFor="disc-number" className="block text-sm font-medium mb-1">Disc Number</label>
-                  <input id="disc-number" type="number" min={1} value={discNumber} onChange={(e) => setDiscNumber(Number(e.target.value))} className={inputClass} />
+                  <Field id="disc-number" label="Disc Number">
+                    <Input id="disc-number" type="number" min={1} value={discNumber} onChange={(e) => setDiscNumber(Number(e.target.value))} />
+                  </Field>
                 </div>
                 <div className="flex-1">
-                  <label htmlFor="total-discs" className="block text-sm font-medium mb-1">Total Discs</label>
-                  <input id="total-discs" type="number" min={1} value={totalDiscs} onChange={(e) => setTotalDiscs(Number(e.target.value))} className={inputClass} />
+                  <Field id="total-discs" label="Total Discs">
+                    <Input id="total-discs" type="number" min={1} value={totalDiscs} onChange={(e) => setTotalDiscs(Number(e.target.value))} />
+                  </Field>
                 </div>
               </div>
             </fieldset>
@@ -392,6 +393,7 @@ export default function SubmitForm() {
           {submitError && (
             <div
               data-testid="submit-error"
+              aria-live="polite"
               className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
             >
               {submitError}
@@ -400,6 +402,7 @@ export default function SubmitForm() {
           {submitSuccess && (
             <div
               data-testid="submit-success"
+              aria-live="polite"
               className="mb-4 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
             >
               {submitSuccess}
@@ -407,13 +410,9 @@ export default function SubmitForm() {
           )}
 
           {/* Submit button */}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {submitting ? "Submitting…" : "Submit Disc"}
-          </button>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? "Submitting…" : "Submit disc"}
+          </Button>
         </form>
       )}
     </div>
