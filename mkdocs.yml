@@ -39,6 +39,7 @@ nav:
   - Technical:
     - API Reference: api-reference.md
     - Fingerprint Spec: fingerprint-spec.md
+    - Auth Setup: auth-setup.md
   - Community:
     - Contributing: contributing.md
     - ARM Integration: arm-integration.md
