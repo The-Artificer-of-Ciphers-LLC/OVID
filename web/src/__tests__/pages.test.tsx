@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import DiscCard from "@/components/DiscCard";
 import DiscStructure from "@/components/DiscStructure";
@@ -7,7 +7,28 @@ import type {
   SearchResultRelease,
   TitleResponse,
   DiscEditResponse,
+  SearchResponse,
 } from "@/lib/api";
+
+// ---------------------------------------------------------------------------
+// Mocks for HomePage (server component) — search surface (WEBUI-01)
+// ---------------------------------------------------------------------------
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => ({ get: () => null }),
+}));
+
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return {
+    ...actual,
+    searchReleases: vi.fn(),
+  };
+});
+
+import HomePage from "@/app/page";
+import { searchReleases } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // DiscCard
@@ -169,5 +190,89 @@ describe("EditHistory", () => {
   it("renders empty state", () => {
     render(<EditHistory edits={[]} />);
     expect(screen.getByText("No edit history.")).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// HomePage — search surface (WEBUI-01, 07-05)
+// ---------------------------------------------------------------------------
+
+describe("HomePage", () => {
+  const release: SearchResultRelease = {
+    id: "rel-001",
+    title: "Blade Runner 2049",
+    year: 2017,
+    content_type: "movie",
+    tmdb_id: 335984,
+    disc_count: 2,
+  };
+
+  function makeSearchResponse(
+    overrides: Partial<SearchResponse> = {},
+  ): SearchResponse {
+    return {
+      request_id: "req-1",
+      results: [release],
+      page: 1,
+      total_pages: 1,
+      total_results: 1,
+      ...overrides,
+    };
+  }
+
+  async function renderHomePage(params: {
+    q?: string;
+    year?: string;
+    page?: string;
+  }) {
+    const element = await HomePage({ searchParams: Promise.resolve(params) });
+    return render(element);
+  }
+
+  it("renders the submit CTA with the 'Search discs' label and a focus-visible ring", async () => {
+    await renderHomePage({});
+    const cta = screen.getByRole("button", { name: "Search discs" });
+    expect(cta).toBeTruthy();
+    expect(cta.className).toMatch(/focus-visible:ring/);
+  });
+
+  it("shows the no-query empty state at AA-safe contrast (not neutral-400)", async () => {
+    await renderHomePage({});
+    const hint = screen.getByText("Enter a title to search the database.");
+    expect(hint).toBeTruthy();
+    expect(hint.className).not.toMatch(/text-neutral-400/);
+  });
+
+  it("renders the results grid and count when search returns results", async () => {
+    vi.mocked(searchReleases).mockResolvedValue(makeSearchResponse());
+    await renderHomePage({ q: "Blade Runner" });
+
+    expect(screen.getByTestId("disc-card-title")).toHaveTextContent(
+      "Blade Runner 2049",
+    );
+    expect(screen.getByText(/1 result for/)).toBeTruthy();
+  });
+
+  it("renders zero-results copy with a follow-up hint", async () => {
+    vi.mocked(searchReleases).mockResolvedValue(
+      makeSearchResponse({ results: [], total_results: 0 }),
+    );
+    await renderHomePage({ q: "Nonexistent Title" });
+
+    expect(screen.getByText("No releases found.")).toBeTruthy();
+    expect(
+      screen.getByText("Check the spelling or try a broader title."),
+    ).toBeTruthy();
+  });
+
+  it("renders pagination controls when there are multiple result pages", async () => {
+    vi.mocked(searchReleases).mockResolvedValue(
+      makeSearchResponse({ page: 1, total_pages: 3, total_results: 30 }),
+    );
+    await renderHomePage({ q: "Blade Runner" });
+
+    expect(screen.getByText("Page 1 of 3")).toBeTruthy();
+    expect(screen.getByText("Next →")).toBeTruthy();
+    expect(screen.queryByText("← Previous")).toBeNull();
   });
 });
