@@ -132,6 +132,24 @@ def _create_user_with_link(
     return user
 
 
+def _load_pending_link(db: Session, pending_link_id: str) -> PendingAccountLink:
+    """Load a PendingAccountLink by id, raising if the id is malformed or missing."""
+    try:
+        _pid = _uuid.UUID(pending_link_id) if isinstance(pending_link_id, str) else pending_link_id
+    except (ValueError, AttributeError):
+        raise PendingLinkInvalidError("Invalid pending link id")
+    pending = db.query(PendingAccountLink).filter(PendingAccountLink.id == _pid).first()
+    if pending is None:
+        raise PendingLinkInvalidError("Pending link not found")
+    return pending
+
+
+def _consume_pending_link(db: Session, pending: PendingAccountLink) -> None:
+    """Mark a pending link single-use consumed and commit."""
+    pending.consumed_at = _utcnow()
+    db.commit()
+
+
 # ---------------------------------------------------------------------------
 # Public resolver
 # ---------------------------------------------------------------------------
@@ -156,9 +174,54 @@ def resolve_auth(
     4. Otherwise → create a SEPARATE identity (placeholder email if the claimed
        address would collide).
 
-    The pending-merge consume path (leading ``pending_link_id`` branch) is added in
-    Task 2.
+    Pending-merge consume path (leading ``pending_link_id`` branch): reject the offer
+    unless the SAME ``existing_user_id`` re-authenticates via an ALREADY-linked
+    provider (single-use + TTL enforced; fail closed on mismatch/expiry/reuse).
     """
+    # 0. Pending-merge consume (re-auth required). Runs first so a presented
+    #    pending_link_id is always validated against the freshly-authed identity.
+    if pending_link_id is not None:
+        pending = _load_pending_link(db, pending_link_id)
+        # Single-use + TTL are the primary guards — check before any attach.
+        if pending.consumed_at is not None:
+            logger.info("pending_link_rejected reason=consumed pending_link_id=%s", pending.id)
+            raise PendingLinkInvalidError("Pending link already consumed")
+        if _ensure_aware(pending.expires_at) <= _utcnow():
+            logger.info("pending_link_rejected reason=expired pending_link_id=%s", pending.id)
+            raise PendingLinkInvalidError("Pending link expired")
+
+        # The trust anchor: the re-auth must resolve to an ALREADY-linked provider
+        # owned by the SAME existing account. Never trust the new provider's email.
+        freshly = _resolve_existing_link(db, provider, provider_id)
+        if freshly is None or str(freshly.id) != str(pending.existing_user_id):
+            logger.info(
+                "merge_reauth_mismatch pending_link_id=%s provider=%s",
+                pending.id,
+                provider,
+            )
+            raise MergeReauthMismatchError(
+                "Re-authentication did not prove ownership of the existing account"
+            )
+
+        # Attach the new provider to the existing user. Guard against a duplicate
+        # link so a race/double-consume can't crash (consumed_at is the real guard).
+        if _resolve_existing_link(db, pending.new_provider, pending.new_provider_id) is None:
+            db.add(
+                UserOAuthLink(
+                    user_id=freshly.id,
+                    provider=pending.new_provider,
+                    provider_id=pending.new_provider_id,
+                )
+            )
+        _consume_pending_link(db, pending)  # commits the attach + consumed_at
+        db.refresh(freshly)
+        logger.info(
+            "pending_link_consumed existing_user_id=%s new_provider=%s",
+            pending.existing_user_id,
+            pending.new_provider,
+        )
+        return AuthResult(user=freshly, merge_offer=None)
+
     # 1. Existing-link login (AUTH-06).
     existing = _resolve_existing_link(db, provider, provider_id)
     if existing is not None:
