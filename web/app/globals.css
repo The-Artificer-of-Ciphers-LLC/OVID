@@ -12,6 +12,15 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@theme {
+  --color-accent: #2563eb;
+  --color-accent-ring: #3b82f6;
+  --color-accent-hover: #1d4ed8;
+  --color-destructive: #dc2626;
+  --radius-control: 4px;
+  --radius-card: 8px;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -22,5 +31,4 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
