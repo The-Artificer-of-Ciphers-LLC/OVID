@@ -27,16 +27,26 @@ def validate_mastodon_domain(domain: str) -> str:
     if not domain or " " in domain:
         raise ValueError("Invalid domain format")
         
-    # DNS resolution
+    # Dual-stack DNS resolution (IPv4 + IPv6). An AAAA-only or dual-stack host
+    # pointing at a private/loopback IPv6 address must not slip past an
+    # IPv4-only check (AUTH-05).
     try:
-        ip_addr = socket.gethostbyname(domain)
+        infos = socket.getaddrinfo(domain, None)
     except socket.gaierror:
         raise ValueError("Could not resolve domain")
-        
-    ip = ipaddress.ip_address(ip_addr)
-    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
-        raise ValueError("Domain resolves to private or restricted IP")
-        
+
+    resolved_ips = {info[4][0] for info in infos}
+    for ip_str in resolved_ips:
+        ip = ipaddress.ip_address(ip_str)
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+        ):
+            raise ValueError("Domain resolves to private or restricted IP")
+
     return domain
 
 
