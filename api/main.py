@@ -33,9 +33,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# SessionMiddleware is required for OAuth state (CSRF protection).
+# SessionMiddleware is required for OAuth state (CSRF protection) and (per the
+# Phase 7 option-b provider-link flow) carries link_to_user_id — so in any HTTPS
+# deployment it must be marked Secure (HTTPS-only). Defaults to False so local
+# http://localhost dev and the TestClient test suite are unaffected; set
+# SESSION_COOKIE_SECURE=true in staging/production.
+_session_cookie_secure = os.environ.get("SESSION_COOKIE_SECURE", "false").strip().lower() in (
+    "true",
+    "1",
+    "yes",
+)
 # Must be added before route handlers that use request.session.
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SECRET_KEY,
+    https_only=_session_cookie_secure,  # Secure flag: set SESSION_COOKIE_SECURE=true in HTTPS (staging/prod)
+    same_site="lax",  # load-bearing: the Phase-7 provider-link flow relies on the session cookie surviving a top-level cross-subdomain navigation
+)
 app.add_middleware(RequestIdMiddleware)
 
 # Mirror-mode guard — when OVID_MODE=mirror, reject all write methods.

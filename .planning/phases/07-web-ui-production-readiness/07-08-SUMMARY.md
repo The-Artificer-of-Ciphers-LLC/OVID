@@ -138,31 +138,35 @@ no `api/main.py` change was made for the 07-07 cross-origin session-cookie depen
 
 ## Deviations from Plan
 
-### Considered but not changed (no deviation — documented investigation)
+### Considered at plan time, FIXED in a follow-up hardening commit (no longer deferred)
 
 **SessionMiddleware cookie config (`api/main.py`) for 07-07's add-provider flow.** While researching the
 dependency context (07-07's Option B credentialed-fetch-then-navigate flow, which needs the session
 cookie to survive a cross-subdomain round-trip on staging), I read `api/main.py`'s
 `SessionMiddleware(secret_key=SECRET_KEY)` call and confirmed its defaults: `SameSite=Lax`, `HttpOnly`,
-no explicit `Domain`, `https_only=False` (no `Secure` attribute set). I evaluated whether this needed a
-code fix and concluded **no functional change is required**: the credentialed fetch sets a cookie scoped
-to the API host only (by design — the OAuth round-trip returns the JWT via a `web_redirect_uri` query
-param, not a cookie the web origin needs to read, so no shared-domain cookie is needed), and
-`SameSite=Lax` cookies ARE sent on the subsequent **top-level** `window.location.assign()` navigation to
-the API's own `/login` route (Lax blocks cross-site use only on subresource/fetch requests, not
-top-level GET navigations). This is documented as the mechanism in `docs/deployment.md` rather than
-requiring a code change.
-- **Not treated as a Rule 1/2 auto-fix:** `api/main.py` is pre-existing Phase 6 code, not touched by
-  this plan's own files (`.env.example`, `docs/deployment.md` only), not causing any test failure or
-  blocking this plan's own verification, and not newly exposed by anything this plan modifies. The
-  missing `Secure`/`https_only=True` attribute is a real, if narrow, hardening gap (the session cookie
-  would still work but isn't marked HTTPS-only) — noted here for visibility rather than silently
-  ignored, but left unmodified since it is outside this plan's scope and not required for D-06's
-  staging verification to succeed. No `deferred-items.md` was written per this run's explicit
-  authorization (documented directly in this SUMMARY instead).
+no explicit `Domain`, `https_only=False` (no `Secure` attribute set). At the time this plan executed, I
+concluded no functional change was required for the flow to *work* (the credentialed fetch sets a
+cookie scoped to the API host only — by design, since the OAuth round-trip returns the JWT via a
+`web_redirect_uri` query param, not a cookie the web origin needs to read — and `SameSite=Lax` cookies
+ARE sent on the subsequent **top-level** `window.location.assign()` navigation to the API's own
+`/login` route, since Lax blocks cross-site use only on subresource/fetch requests, not top-level GET
+navigations), and left the missing `Secure`/`https_only=True` attribute "documented for visibility, not
+changed" — a real, if narrow, hardening gap (the session cookie would still work but wasn't marked
+HTTPS-only).
 
-**Total deviations:** 0 code deviations. One investigated-but-not-modified pre-existing config item,
-documented above for transparency.
+**This was surfaced again during the Phase 7 deploy review and FIXED inline** in a follow-up hardening
+commit (`fix(07): env-gate session cookie Secure flag for production (surfaced by D-06 deploy review)`),
+rather than left deferred: `api/main.py` now reads an optional `SESSION_COOKIE_SECURE` env var
+(defaulting to `false`, so local `http://localhost` dev and the existing TestClient suite are
+unaffected) and passes it through as `SessionMiddleware(..., https_only=SESSION_COOKIE_SECURE,
+same_site="lax")`. `SESSION_COOKIE_SECURE=true` is now documented as required env for any HTTPS
+deployment in both `.env.example` and `docs/deployment.md` (staging "Required env wiring" section,
+alongside `CORS_ORIGINS` and the `SameSite=Lax` mechanism already documented there), and covered by
+`api/tests/test_session_cookie_secure.py`.
+
+**Total deviations:** 0 code deviations within this plan's own scope. One item identified during this
+plan's investigation as a real hardening gap, initially left unmodified as out-of-scope, and
+subsequently fixed (not merely documented) in a dedicated follow-up commit — see above.
 
 ## Issues Encountered
 None. Both autonomous tasks completed on the first pass with no fix-attempt cycles.

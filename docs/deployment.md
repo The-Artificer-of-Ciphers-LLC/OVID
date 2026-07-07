@@ -414,6 +414,10 @@ without colliding with any stack that may be running simultaneously.
      on the subsequent **top-level** cross-site navigation to the API's `/login` route (Lax only blocks
      cross-site use on subresource/fetch requests, not top-level GET navigations), so the round-trip
      succeeds without any `SameSite=None` or shared-`Domain` change.
+5. **`SESSION_COOKIE_SECURE=true` is required for any HTTPS deployment** (staging and production alike) —
+   set it on the staging API alongside wiring #1-4 above. The session cookie carries OAuth CSRF state and,
+   per the provider-link flow in #4, `link_to_user_id`, so it must never be sent over plain HTTP; leaving
+   it unset defaults to `false` (correct only for local `http://localhost` dev, see `.env.example`).
 
 ### Build + run (local, uncommitted overlay — follows the prod/test pattern)
 
