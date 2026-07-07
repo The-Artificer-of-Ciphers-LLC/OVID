@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Input from "@/components/Input";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,11 +44,16 @@ function formatTimeValue(secs: number | null): string {
 }
 
 // ---------------------------------------------------------------------------
-// Shared input class (matches project pattern)
+// Shared D-03 focus-visible ring for the compact inline text buttons
+// (kept as raw <button>s rather than the Button primitive to preserve their
+// compact inline-link visual shape -- matches the 07-04 ChapterList precedent)
 // ---------------------------------------------------------------------------
 
-const inputClass =
-  "rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900";
+const linkButtonBaseClass =
+  "rounded text-sm cursor-pointer outline-none " +
+  "focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950";
+
+const linkButtonClass = `${linkButtonBaseClass} text-blue-600 hover:underline`;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -100,12 +106,12 @@ export default function ChapterEditor({
     <div>
       <button
         type="button"
-        className="text-sm text-blue-600 hover:underline cursor-pointer inline-flex items-center gap-1"
+        className={`${linkButtonClass} inline-flex items-center gap-1`}
         aria-expanded={expanded}
         aria-controls={`chapter-editor-${titleIndex}`}
         onClick={() => setExpanded((prev) => !prev)}
       >
-        <span>{expanded ? "\u25BC" : "\u25B6"}</span>
+        <span>{expanded ? "▼" : "▶"}</span>
         Add chapters
       </button>
       {expanded && (
@@ -122,9 +128,9 @@ export default function ChapterEditor({
               <span className="text-sm tabular-nums text-neutral-500 w-8 text-right">
                 {ch.chapter_index}
               </span>
-              <input
+              <Input
                 type="text"
-                className={`${inputClass} flex-1`}
+                className="flex-1"
                 placeholder="Chapter name (optional)"
                 maxLength={200}
                 aria-label={`Name for chapter ${ch.chapter_index}`}
@@ -134,10 +140,10 @@ export default function ChapterEditor({
                   handleNameChange(ch.chapter_index, e.target.value)
                 }
               />
-              <input
+              <Input
                 type="text"
                 inputMode="numeric"
-                className={`${inputClass} w-28`}
+                className="w-28"
                 placeholder="0:00:00"
                 aria-label={`Start time for chapter ${ch.chapter_index}`}
                 data-testid={`chapter-time-${titleIndex}-${ch.chapter_index}`}
@@ -148,18 +154,18 @@ export default function ChapterEditor({
               />
               <button
                 type="button"
-                className="text-neutral-400 hover:text-red-600 text-sm cursor-pointer"
+                className={`${linkButtonBaseClass} text-neutral-500 hover:text-red-600`}
                 aria-label={`Remove chapter ${ch.chapter_index}`}
                 data-testid={`chapter-remove-${titleIndex}-${ch.chapter_index}`}
                 onClick={() => handleRemove(ch.chapter_index)}
               >
-                {"\u00D7"}
+                {"×"}
               </button>
             </div>
           ))}
           <button
             type="button"
-            className="text-sm text-blue-600 hover:underline cursor-pointer mt-1"
+            className={`${linkButtonClass} mt-1`}
             data-testid={`chapter-add-${titleIndex}`}
             onClick={handleAdd}
           >

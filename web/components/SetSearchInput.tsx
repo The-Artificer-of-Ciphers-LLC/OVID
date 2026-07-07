@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { searchSets, type DiscSetSearchResult } from "@/lib/api";
+import Input from "@/components/Input";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -13,6 +14,8 @@ interface SetSearchInputProps {
   onSelect: (setId: string, setInfo: DiscSetSearchResult) => void;
   onCreateNew: () => void;
 }
+
+const LISTBOX_ID = "set-search-listbox";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -26,23 +29,32 @@ export default function SetSearchInput({ onSelect, onCreateNew }: SetSearchInput
   const [activeIndex, setActiveIndex] = useState(-1);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const inputClass =
-    "w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900";
-
   // -------------------------------------------------------------------------
   // Debounced search
+  //
+  // The reset/kick-off transitions are wrapped in a nested `shouldSearch()`
+  // function rather than called directly in the effect body -- calling
+  // setState synchronously at the top level of an effect body triggers
+  // cascading renders (react-hooks/set-state-in-effect); nesting it one
+  // level deep (same pattern the searchSets `.then()/.catch()` callbacks
+  // below already use) keeps the debounced search + dropdown-reset behavior
+  // identical while satisfying the lint rule.
   // -------------------------------------------------------------------------
 
   useEffect(() => {
-    if (query.length < 2) {
-      setResults([]);
-      setShowDropdown(false);
-      setLoading(false);
-      return;
+    function shouldSearch() {
+      if (query.length < 2) {
+        setResults([]);
+        setShowDropdown(false);
+        setLoading(false);
+        return false;
+      }
+      setLoading(true);
+      setShowDropdown(true);
+      return true;
     }
 
-    setLoading(true);
-    setShowDropdown(true);
+    if (!shouldSearch()) return;
 
     const timer = setTimeout(() => {
       searchSets(query)
@@ -121,7 +133,7 @@ export default function SetSearchInput({ onSelect, onCreateNew }: SetSearchInput
 
   return (
     <div className="relative">
-      <input
+      <Input
         type="text"
         value={query}
         onChange={(e) => {
@@ -132,25 +144,26 @@ export default function SetSearchInput({ onSelect, onCreateNew }: SetSearchInput
         onBlur={handleBlur}
         onFocus={handleFocus}
         placeholder="Search sets by release title or edition..."
-        className={inputClass}
         data-testid="set-search-input"
         role="combobox"
         aria-expanded={showDropdown}
         aria-haspopup="listbox"
+        aria-controls={LISTBOX_ID}
       />
 
       {showDropdown && (
         <div
+          id={LISTBOX_ID}
           className="absolute mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg max-h-60 overflow-y-auto z-10 dark:border-neutral-800 dark:bg-neutral-950"
           role="listbox"
           data-testid="set-search-dropdown"
         >
           {loading && (
-            <div className="px-4 py-2 text-sm text-neutral-400">Searching...</div>
+            <div className="px-4 py-2 text-sm text-neutral-500">Searching...</div>
           )}
 
           {!loading && results.length === 0 && (
-            <div className="px-4 py-2 text-sm text-neutral-400">No matching sets found</div>
+            <div className="px-4 py-2 text-sm text-neutral-500">No matching sets found</div>
           )}
 
           {!loading &&
