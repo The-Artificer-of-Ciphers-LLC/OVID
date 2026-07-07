@@ -415,6 +415,21 @@ class TestExplicitLinkUnlink:
         assert resp.status_code in (302, 307)
         assert "/v1/auth/google/login" in resp.headers.get("location", "")
 
+    @pytest.mark.parametrize("provider", ["mastodon", "indieauth"])
+    def test_link_domain_provider_returns_400(self, client: TestClient, db_session: Session, provider: str):
+        """R-3: POST /link/{mastodon,indieauth} needs a domain/url a bare POST
+        can't carry — explicit 400 link_requires_domain, no session mutation,
+        no redirect to a login route that would itself just 400."""
+        user, _ = _create_user_with_link(db_session, provider="github", provider_id="gh_1")
+
+        resp = client.post(
+            f"/v1/auth/link/{provider}",
+            headers=_auth_header(user),
+            follow_redirects=False,
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "link_requires_domain"
+
     def test_link_invalid_provider_returns_400(self, client: TestClient, db_session: Session):
         """POST /link/{provider} with an unsupported provider name should 400."""
         user, _ = _create_user_with_link(db_session, provider="github", provider_id="gh_1")
