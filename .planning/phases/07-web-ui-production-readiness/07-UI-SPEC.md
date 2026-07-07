@@ -41,14 +41,29 @@ applied in `layout.tsx`. Remove it so Geist is the single source of truth for th
 
 ---
 
+## Visual Hierarchy
+
+One clear focal point per primary surface — the accent (10%) and Display/Heading type steer the eye there first.
+
+| Surface | Focal point (draws the eye first) |
+|---------|-----------------------------------|
+| Search (`page.tsx`) | The **search input** is the primary anchor — centered, widest control, accent "Search discs" CTA; results list is secondary and only appears after query. |
+| Disc detail (`disc/[fingerprint]/page.tsx`) | The **title + primary-fingerprint block** at the top — Display title over the Geist Mono canonical fingerprint; aliases, chapters, and tracks read as supporting detail below. |
+| Submit (`submit/page.tsx`) | The form's **first field** — a single-column form with one visible primary "Submit disc" CTA; the eye enters at the top field and flows straight down. |
+| Settings (`settings/page.tsx`) | The **linked-providers list** — the account's active login methods are the anchor; add/remove controls and any conflict banner orbit it. |
+
+---
+
 ## Spacing Scale
 
 Tailwind-native 4px base scale (already in use throughout the app). Declared canonical tokens:
 
+Every token is a multiple of 4 — **zero sub-4px values**, no exceptions.
+
 | Token | Value | Usage |
 |-------|-------|-------|
-| xs | 4px | Icon/inline gaps (`gap-1`), tight control padding |
-| sm | 8px | Compact spacing, input vertical padding (`py-2`), badge/x-padding |
+| xs | 4px | Icon/inline gaps (`gap-1`), tight control padding, badge vertical padding (`py-1`) |
+| sm | 8px | Compact spacing, input vertical padding (`py-2`), badge horizontal padding |
 | — | 12px | Row rhythm (`gap-3`, `py-3`) — list rows, form field gaps (multiple of 4, retained) |
 | md | 16px | Default element spacing, page gutter (`px-4`), card padding (`p-4`) |
 | lg | 24px | Section padding (`py-6` pagination block) |
@@ -56,9 +71,10 @@ Tailwind-native 4px base scale (already in use throughout the app). Declared can
 | 2xl | 48px | Major section breaks |
 | 3xl | 64px | Page-level spacing |
 
-Exceptions: badge vertical padding `py-0.5` (2px) and fine text nudges `mt-0.5` (2px) on
-`DiscCard` / status badges are sub-4px and are the only permitted exceptions (visual balance of
-inline pill labels). Do not introduce new sub-4px spacing elsewhere.
+Formerly-sub-4px usages are removed: badge vertical padding moves `py-0.5` → `py-1` (4px), and the
+`mt-0.5` (2px) text nudge on `DiscCard` / status badges is dropped (use 0, or `mt-1` = 4px if a gap is
+needed). Tighter inline-pill rhythm, if genuinely required, is achieved via `line-height` / `text-*`
+sizing — never a sub-4px spacing token. Do not introduce any sub-4px spacing anywhere.
 
 Radius: `rounded` (4px) is the default control radius; `rounded-lg` (8px) for cards. Declare as
 tokens `--radius-control: 4px` / `--radius-card: 8px`.
@@ -70,21 +86,23 @@ tokens `--radius-control: 4px` / `--radius-card: 8px`.
 Geist Sans throughout; Geist Mono for fingerprint / identity strings. Line heights are prescriptive
 targets for the token layer.
 
+Exactly **four sizes** and exactly **two weights** — no exceptions.
+
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
-| Display (page h1 / brand) | 36px (`text-4xl`) | 700 bold | 1.1 |
-| Heading (section h2 / card h3) | 18–20px (`text-lg`) | 600 semibold | 1.2 |
+| Display (page h1 / brand) | 36px (`text-4xl`) | 600 semibold | 1.1 |
+| Heading (section h2 / card h3) | 20px (`text-xl`) | 600 semibold | 1.2 |
 | Body | 16px (`text-base`) | 400 regular | 1.5 |
-| Label / meta / control | 14px (`text-sm`) | 500 medium (labels) · 400 (meta) | 1.4 |
+| Label / meta / control | 14px (`text-sm`) | 600 (labels/small buttons) · 400 (meta) | 1.4 |
 
 Notes:
-- Primary weight pair is **400 regular + 600 semibold**. `500 medium` is retained only for form
-  labels and small action buttons (existing pattern); `700 bold` is reserved for the display h1 and
-  brand mark. Do not add further weights.
-- `text-xs` (12px) exists on badges / small buttons; treat as the meta tier's small variant, not a
-  new role. Keep it at 12px min for WCAG legibility — never smaller.
+- The **only** two weights are **400 regular + 600 semibold**. Form labels and small action buttons
+  use 600 (formerly 500). The display h1 and brand mark use 600 (formerly 700). Do not add `500`,
+  `700`, or any further weight.
+- There is **no 12px tier**. Former `text-xs` (12px) badge / small-button text folds UP to the 14px
+  label/meta size (`text-sm`) — 14px is the smallest type in the system, never smaller (WCAG legibility).
 - Fingerprint / disc-identity strings and per-title chapter timing render in Geist Mono at the Body
-  or meta size so long hashes stay scannable.
+  or label/meta size so long hashes stay scannable.
 
 ---
 
@@ -99,7 +117,7 @@ Notes:
 | Accent (10%) | `#2563eb` (blue-600); ring `#3b82f6` (blue-500); hover `#1d4ed8` (blue-700) | See reserved list below |
 | Destructive | `#dc2626` (red-600) family; banner `red-50/red-200/red-700` light, `red-950/red-800/red-300` dark | Error banners, destructive confirm actions only |
 
-Accent reserved for: **primary action buttons** (Search, Submit disc, Login), the **active/hover link
+Accent reserved for: **primary action buttons** (Search discs, Submit disc, Login), the **active/hover link
 state**, the **`:focus-visible` ring on every interactive element**, and the **brand mark** (`◉ OVID`).
 Never apply accent to secondary/ghost buttons (Unlink, Previous/Next, Logout) — those stay
 neutral-bordered.
@@ -134,7 +152,7 @@ Existing copy is kept where it already reads well; new copy is prescriptive.
 
 | Element | Copy |
 |---------|------|
-| Primary CTA — search | "Search" |
+| Primary CTA — search | "Search discs" |
 | Primary CTA — submit flow | "Submit disc" |
 | Primary CTA — settings link-provider | "Link a provider" |
 | Empty state — no search yet (heading/body) | (centered hint) "Enter a title to search the database." |
