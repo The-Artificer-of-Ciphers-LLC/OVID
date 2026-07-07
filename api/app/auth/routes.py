@@ -171,28 +171,38 @@ def finalize_auth(
             },
         )
 
-    # Verified-email match → a merge OFFER (never an attach). Return 409 carrying the
-    # DB pending-link id; the merge only completes when the existing account re-auths
-    # through an already-linked provider (see resolve_auth's consume path).
+    # Verified-email match → a merge OFFER (never an attach). The merge only
+    # completes when the existing account re-auths through an already-linked
+    # provider (see resolve_auth's consume path).
     if result.merge_offer is not None:
         # ME-02: the internal existing_user_id is deliberately NOT included — the
         # client only needs pending_link_id to drive re-auth, and returning the
         # internal user UUID here would enable user/email enumeration.
+        merge_payload = {
+            "error": "email_conflict",
+            "pending_link_id": str(result.merge_offer.id),
+        }
+
+        # D-04: with a web_redirect_uri in session, 302 the browser back to the web
+        # app carrying the same enumeration-safe payload (mirrors the success-path
+        # redirect below) instead of dead-ending on raw JSON on the API host. Popped
+        # here (not just at l.193) so the merge branch consumes it exactly once —
+        # the success-path pop below never runs on this branch.
+        web_redirect_uri = request.session.pop("web_redirect_uri", "")
+        if web_redirect_uri:
+            from starlette.responses import RedirectResponse
+            separator = "&" if "?" in web_redirect_uri else "?"
+            redirect_url = f"{web_redirect_uri}{separator}{urlencode(merge_payload)}"
+            return RedirectResponse(url=redirect_url, status_code=302)
+
         from fastapi.responses import JSONResponse
-        return JSONResponse(
-            status_code=409,
-            content={
-                "error": "email_conflict",
-                "pending_link_id": str(result.merge_offer.id),
-            },
-        )
+        return JSONResponse(status_code=409, content=merge_payload)
 
     user = result.user
     jwt_token = create_access_token(user.id)
 
     web_redirect_uri = request.session.pop("web_redirect_uri", "")
     if web_redirect_uri:
-        from urllib.parse import urlencode
         from starlette.responses import RedirectResponse
         separator = "&" if "?" in web_redirect_uri else "?"
         redirect_url = f"{web_redirect_uri}{separator}{urlencode({'token': jwt_token})}"
@@ -867,14 +877,22 @@ def link_provider(provider: str, request: Request, current_user: User = Depends(
     if provider not in ["github", "apple", "google", "mastodon", "indieauth"]:
         raise HTTPException(status_code=400, detail={"error": "invalid_provider", "reason": "Unsupported provider"})
     
+    # mastodon/indieauth need a domain/url to begin their flow (see their
+    # respective /login routes' `domain`/`url` query params) that a bare POST here
+    # can't carry — refuse explicitly rather than redirecting to a login route that
+    # will itself 400 on a missing domain/url (R-3).
+    if provider in ("mastodon", "indieauth"):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "link_requires_domain",
+                "reason": "This provider requires a domain/url; link via the provider's own login flow with that parameter set.",
+            },
+        )
+
     request.session["link_to_user_id"] = str(current_user.id)
-    
+
     from starlette.responses import RedirectResponse
-    if provider == "mastodon" or provider == "indieauth":
-        # These require a domain/url which isn't easily supported in a simple POST without body.
-        # For explicit link tests, we'll just return success if it's test-driven, or wait,
-        # the plan doesn't specify passing domain. If the test tests GitHub, we just redirect.
-        pass
     return RedirectResponse(url=f"/v1/auth/{provider}/login")
 
 @auth_router.delete("/unlink/{provider}")
