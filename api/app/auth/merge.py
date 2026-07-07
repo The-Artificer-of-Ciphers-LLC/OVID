@@ -24,6 +24,7 @@ import uuid as _uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.auth.users import ProviderAlreadyLinkedError
@@ -145,10 +146,27 @@ def _load_pending_link(db: Session, pending_link_id: str) -> PendingAccountLink:
     return pending
 
 
-def _consume_pending_link(db: Session, pending: PendingAccountLink) -> None:
-    """Mark a pending link single-use consumed and commit."""
-    pending.consumed_at = _utcnow()
-    db.commit()
+def _consume_pending_link(db: Session, pending: PendingAccountLink) -> bool:
+    """Atomically mark a pending link single-use consumed (LO-01).
+
+    Uses a conditional ``UPDATE ... WHERE consumed_at IS NULL`` — portable across
+    SQLite and Postgres — instead of a read-then-write ``consumed_at is None``
+    check followed by a separate write. That read-then-write pattern is racy: two
+    concurrent consumes of the same ``pending_link_id`` can both pass the read
+    check, and the second ``UserOAuthLink`` insert then raises an uncaught
+    ``IntegrityError`` (500) on the unique constraint instead of a clean 4xx.
+    Returns ``True`` if this call won the race (consumed exactly one row),
+    ``False`` if the row was already consumed by someone else.
+    """
+    result = db.execute(
+        update(PendingAccountLink)
+        .where(
+            PendingAccountLink.id == pending.id,
+            PendingAccountLink.consumed_at.is_(None),
+        )
+        .values(consumed_at=_utcnow())
+    )
+    return result.rowcount > 0
 
 
 # ---------------------------------------------------------------------------
@@ -183,7 +201,8 @@ def resolve_auth(
     #    pending_link_id is always validated against the freshly-authed identity.
     if pending_link_id is not None:
         pending = _load_pending_link(db, pending_link_id)
-        # Single-use + TTL are the primary guards — check before any attach.
+        # TTL is checked up front off the loaded row; single-use is enforced
+        # atomically below (LO-01) rather than by this same read-then-write check.
         if pending.consumed_at is not None:
             logger.info("pending_link_rejected reason=consumed pending_link_id=%s", pending.id)
             raise PendingLinkInvalidError("Pending link already consumed")
@@ -204,8 +223,18 @@ def resolve_auth(
                 "Re-authentication did not prove ownership of the existing account"
             )
 
+        # Atomic single-use consume (LO-01): the conditional UPDATE is the real
+        # guard against a concurrent double-consume. If another request already
+        # won the race (rowcount == 0), fail closed with the same clean 4xx the
+        # expired/consumed path already raises — never an uncaught IntegrityError.
+        if not _consume_pending_link(db, pending):
+            db.rollback()
+            logger.info("pending_link_rejected reason=consumed pending_link_id=%s", pending.id)
+            raise PendingLinkInvalidError("Pending link already consumed")
+
         # Attach the new provider to the existing user. Guard against a duplicate
-        # link so a race/double-consume can't crash (consumed_at is the real guard).
+        # link in case it was somehow already attached (belt-and-suspenders —
+        # the UPDATE above is what actually prevents a double-attach race).
         if _resolve_existing_link(db, pending.new_provider, pending.new_provider_id) is None:
             db.add(
                 UserOAuthLink(
@@ -214,7 +243,7 @@ def resolve_auth(
                     provider_id=pending.new_provider_id,
                 )
             )
-        _consume_pending_link(db, pending)  # commits the attach + consumed_at
+        db.commit()
         db.refresh(freshly)
         logger.info(
             "pending_link_consumed existing_user_id=%s new_provider=%s",

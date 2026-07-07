@@ -449,3 +449,98 @@ class TestResolveAuthConsumePath:
 
         db_session.refresh(pending)
         assert pending.consumed_at is None
+
+
+# ---------------------------------------------------------------------------
+# LO-01: atomic single-use consume (no racy read-then-write double-consume)
+# ---------------------------------------------------------------------------
+
+class TestAtomicSingleUseConsume:
+    """The pending-link consume is an atomic conditional UPDATE (``... WHERE
+    consumed_at IS NULL``), not a racy read-then-write check. A double-consume
+    of the same pending_link_id must fail closed with PendingLinkInvalidError —
+    never an uncaught IntegrityError/500 from a duplicate UserOAuthLink insert
+    racing the ``uq_oauth_provider_id`` unique constraint."""
+
+    def test_double_consume_second_attempt_rejected_not_crashed(self, db_session: Session):
+        """Simulates two consumes of the same pending_link_id: the first
+        succeeds and attaches the new provider; the second raises
+        PendingLinkInvalidError rather than crashing."""
+        user_a, _ = _create_user_with_link(
+            db_session,
+            username="user_a",
+            email="a@example.com",
+            provider="google",
+            provider_id="g_a",
+        )
+        pending = _create_pending_link(
+            db_session,
+            existing_user_id=user_a.id,
+            new_provider="github",
+            new_provider_id="gh_new",
+        )
+
+        # First consume succeeds and attaches the new provider.
+        result = resolve_auth(
+            db_session,
+            provider="google",
+            provider_id="g_a",
+            email="a@example.com",
+            email_verified=True,
+            display_name="User A",
+            pending_link_id=str(pending.id),
+        )
+        assert result.user.id == user_a.id
+        assert (
+            db_session.query(UserOAuthLink)
+            .filter_by(provider="github", provider_id="gh_new")
+            .count()
+            == 1
+        )
+
+        # Second consume of the SAME pending_link_id must fail closed — no
+        # IntegrityError/500, just the standard invalid-link rejection.
+        with pytest.raises(PendingLinkInvalidError):
+            resolve_auth(
+                db_session,
+                provider="google",
+                provider_id="g_a",
+                email="a@example.com",
+                email_verified=True,
+                display_name="User A",
+                pending_link_id=str(pending.id),
+            )
+
+        # Still exactly one link — no duplicate insert attempted or crashed.
+        assert (
+            db_session.query(UserOAuthLink)
+            .filter_by(provider="github", provider_id="gh_new")
+            .count()
+            == 1
+        )
+
+    def test_consume_pending_link_atomic_update_reports_already_consumed(self, db_session: Session):
+        """Unit-level: ``_consume_pending_link``'s conditional UPDATE reports
+        rowcount==0 (already consumed) on a second call against the same row —
+        the guarantee is enforced by the DB, not a prior in-Python read."""
+        from app.auth.merge import _consume_pending_link
+
+        user_b, _ = _create_user_with_link(
+            db_session,
+            username="user_b",
+            email="b@example.com",
+            provider="google",
+            provider_id="g_b",
+        )
+        pending = _create_pending_link(
+            db_session,
+            existing_user_id=user_b.id,
+            new_provider="mastodon",
+            new_provider_id="masto:1",
+        )
+
+        assert _consume_pending_link(db_session, pending) is True
+        db_session.commit()
+        # Same row, already consumed by the call above — the conditional
+        # WHERE consumed_at IS NULL now matches zero rows.
+        assert _consume_pending_link(db_session, pending) is False
