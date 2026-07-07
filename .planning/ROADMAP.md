@@ -185,12 +185,26 @@ Decimal phases appear between their surrounding integers in numeric order.
   6. The IndieAuth localhost bypass is provably unreachable in production configuration — a startup assertion refuses to boot if the bypass flag is set alongside a production indicator (AUTH-10 [guardrail]); the OAuth setup guide is published (DOCS-03).
 
 **Plans**: 7 plans
+**Wave 1**
+
 - [ ] 06-01-PLAN.md — PendingAccountLink model + migration 900000000007 (nOAuth merge-state carrier)
 - [ ] 06-02-PLAN.md — Mastodon SSRF dual-stack hardening + no-redirect/no-reflection locks (AUTH-04/05)
 - [ ] 06-03-PLAN.md — OVID_ENV boot assertion + ALLOW_LOCALHOST_BYPASS + compose/.env plumbing (AUTH-10)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 06-04-PLAN.md — merge.py resolve_auth: confirm-gated re-auth merge + email-trust (TDD; AUTH-08/09)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 06-05-PLAN.md — routes.py wiring: finalize_auth thin wrapper + per-provider verified-email (AUTH-01/02/06/07/08)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 06-06-PLAN.md — Apple short-exp secret + IndieAuth router split/gating + localhost-bypass derivation (AUTH-03/10)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 06-07-PLAN.md — docs/auth-setup.md OAuth setup guide + mkdocs nav (DOCS-03)
 
 ### Phase 7: Web UI Production Readiness
