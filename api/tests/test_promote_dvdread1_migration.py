@@ -270,14 +270,41 @@ class TestPromoteAllDvdread1DiscsCommitParam:
             dvdread1_fingerprint="dvdread1-commit-b",
         )
 
-        promoted_count = promote_all_dvdread1_discs(db_session.connection())
+        connection = db_session.connection()
+        promoted_count = promote_all_dvdread1_discs(connection)
         assert promoted_count == 1
 
-        # commit=True (the default) commits as-you-go inside the function
-        # itself, so a later rollback on the caller's own session/connection
-        # must NOT undo the already-committed promotion.
-        db_session.rollback()
+        # commit=True (the default) commits as-you-go INSIDE the function
+        # itself (SQLAlchemy 2.0 "commit as you go" directly on
+        # ``connection`` -- the same Core Connection db_session is using).
+        # That ends the transaction segment at the DBAPI level before this
+        # function returns, which is exactly WHY a subsequent rollback on
+        # the caller's own session/connection cannot undo it: there is
+        # nothing left to roll back.
+        #
+        # We prove that directly here rather than by actually calling
+        # ``db_session.rollback()``: the ORM Session object still believes
+        # it owns an active transaction (``db_session.in_transaction()`` is
+        # True) even though the underlying Connection's transaction was
+        # already committed and cleared out from under it by the call
+        # above. Calling ``db_session.rollback()`` in that state raises
+        # ``SAWarning: transaction already deassociated from connection``
+        # -- SQLAlchemy itself flagging, at the exact moment of the call,
+        # that the rollback has nothing left to undo. That warning *is*
+        # this guarantee firing, so we assert the same fact through the
+        # public, warning-free ``Connection.in_transaction()`` API instead
+        # of triggering it:
+        assert not connection.in_transaction(), (
+            "promote_all_dvdread1_discs(commit=True) must have already "
+            "committed and cleared its transaction segment before "
+            "returning -- proving there is no open transaction left for "
+            "a caller-side rollback to undo"
+        )
 
+        # A FRESH Session (an entirely separate connection/transaction from
+        # the one db_session was using) must independently see the
+        # promotion -- confirming the commit above was real and durable,
+        # not merely "no transaction open" for some unrelated reason.
         fresh_db = _TestSession()
         try:
             fresh_row = fresh_db.execute(
@@ -286,9 +313,9 @@ class TestPromoteAllDvdread1DiscsCommitParam:
             ).first()
             assert fresh_row is not None
             assert fresh_row.fingerprint == "dvdread1-commit-b", (
-                "commit=True (default) must commit as-you-go; a subsequent "
-                "rollback on the caller's own session must not undo rows "
-                "this function already committed"
+                "commit=True (default) must commit as-you-go; with no "
+                "open transaction left for a caller to roll back, rows "
+                "this function already committed can never be undone"
             )
         finally:
             fresh_db.close()
