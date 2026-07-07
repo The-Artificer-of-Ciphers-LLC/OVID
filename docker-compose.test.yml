@@ -62,6 +62,7 @@ services:
       OVID_WORKERS:          "${OVID_WORKERS:-4}"
       SECRET_KEY:            ${OVID_SECRET_KEY}
       OVID_MODE:             ${OVID_MODE:-standalone}
+      OVID_ENV:              ${OVID_ENV:-development}
       LOG_LEVEL:             ${LOG_LEVEL:-debug}
       CORS_ORIGINS:          ${CORS_ORIGINS:-http://holodeck.nomorestars.com:3200}
       OVID_API_URL:          ${OVID_API_URL:-http://holodeck.nomorestars.com:8200}
