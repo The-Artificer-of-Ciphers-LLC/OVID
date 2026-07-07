@@ -164,6 +164,11 @@ None for this plan directly. Note: `OVID_ENV` is a BREAKING change for existing 
 - `config.ALLOW_LOCALHOST_BYPASS` and `config.OVID_ENV` are ready for Plan 06's `routes.py` IndieAuth `validate_url(url, allow_localhost=config.ALLOW_LOCALHOST_BYPASS)` call site.
 - No blockers.
 
+## Self-Check: PASSED
+
+- All 4 declared files + SUMMARY verified present on disk.
+- All 4 commits (aeeeb38, ef480e4, 90ecd5c, 460349d) verified in git history.
+
 ---
 *Phase: 06-oauth-account-linking*
 *Completed: 2026-07-06*
