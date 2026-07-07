@@ -4,13 +4,41 @@
 // Base URL resolution
 // ---------------------------------------------------------------------------
 
-function getBaseUrl(): string {
+export function getBaseUrl(): string {
   // Server-side: use internal Docker network URL
   if (typeof window === "undefined") {
     return process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
   }
   // Client-side: use public URL
   return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+}
+
+// Extracts {error, message} from either of the two error envelope
+// conventions this API uses: the flat disc/set `_error_response` shape
+// ({error, message}) or FastAPI's default `HTTPException(detail={...})`
+// shape, which nests everything under a `detail` key ({detail: {error,
+// reason}}) — and `detail` can also be a plain string for framework-level
+// errors (e.g. auth dependency failures). Falling back to `body.error`
+// alone (the disc/set-only shape) silently produced `code: "api_error"` and
+// an unreadable "[object Object]" message for every auth-route error.
+function extractErrorDetail(
+  body: unknown,
+  statusText: string,
+): { error: string; message: string } {
+  const record = (body ?? {}) as Record<string, unknown>;
+  const detail = record.detail;
+  const stringDetail = typeof detail === "string" ? detail : undefined;
+  const nested =
+    detail && typeof detail === "object" ? (detail as Record<string, unknown>) : record;
+
+  const error = typeof nested.error === "string" ? nested.error : "api_error";
+  const message =
+    (typeof nested.message === "string" && nested.message) ||
+    (typeof nested.reason === "string" && nested.reason) ||
+    stringDetail ||
+    statusText;
+
+  return { error, message };
 }
 
 async function apiFetch<T>(
@@ -28,7 +56,8 @@ async function apiFetch<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: "unknown", message: res.statusText }));
-    throw new ApiError(res.status, body.error ?? "api_error", body.message ?? body.detail ?? res.statusText);
+    const { error, message } = extractErrorDetail(body, res.statusText);
+    throw new ApiError(res.status, error, message);
   }
 
   return res.json() as Promise<T>;
@@ -339,6 +368,50 @@ export function unlinkProvider(
       headers: { Authorization: `Bearer ${token}` },
     },
   );
+}
+
+// ---------------------------------------------------------------------------
+// Add-provider flow (WEBUI-04, D-05 "middle depth", 07-07 decision: option-b)
+// ---------------------------------------------------------------------------
+
+/**
+ * Starts the authenticated "link a provider" flow. `POST /v1/auth/link/{provider}`
+ * requires Bearer auth and sets `link_to_user_id` in the session cookie, then
+ * 302s to `/v1/auth/{provider}/login` — a plain top-level navigation can't
+ * carry the Bearer header, and a followed `fetch` can't carry the browser
+ * through the cross-origin provider redirect. So this primes the session
+ * cookie via a credentialed, non-following fetch first, then returns the
+ * deterministic `/login` URL for the caller to `window.location.assign` as a
+ * top-level navigation (which now carries the session-cookie-authenticated
+ * OAuth round-trip).
+ */
+export async function linkProvider(provider: string, token: string): Promise<string> {
+  const base = getBaseUrl();
+  const res = await fetch(`${base}/v1/auth/link/${encodeURIComponent(provider)}`, {
+    method: "POST",
+    credentials: "include",
+    redirect: "manual",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  // Under redirect: "manual", the endpoint's normal 302 becomes an opaque
+  // "opaqueredirect" response (status 0, headers unreadable) — but the
+  // browser still processes the Set-Cookie on that response before
+  // opacifying it, so the session-priming side effect this call exists for
+  // still happens. A genuine non-redirect failure (400 invalid_provider /
+  // link_requires_domain, 401 unauthenticated) IS a normal readable response
+  // and must surface as an ApiError.
+  if (res.type !== "opaqueredirect" && !res.ok) {
+    const body = await res.json().catch(() => ({ error: "unknown", message: res.statusText }));
+    const { error, message } = extractErrorDetail(body, res.statusText);
+    throw new ApiError(res.status, error, message);
+  }
+
+  // The redirect target is deterministic server-side
+  // (`RedirectResponse(url=f"/v1/auth/{provider}/login")`) — construct it
+  // directly rather than trying to read the opaque response's Location.
+  const callbackUrl = `${window.location.origin}/auth/callback`;
+  return `${base}/v1/auth/${encodeURIComponent(provider)}/login?web_redirect_uri=${encodeURIComponent(callbackUrl)}`;
 }
 
 // Dispute / UPC functions

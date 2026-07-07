@@ -14,6 +14,19 @@ function CallbackHandler() {
     if (token) {
       setToken(token);
       router.replace("/");
+      return;
+    }
+
+    // D-04/D-05: the merge-offer branch redirects here (the same
+    // web_redirect_uri every login/link flow uses) carrying
+    // error=email_conflict&pending_link_id= instead of a token. Forward it to
+    // settings, which hosts the enumeration-safe merge banner (A2).
+    const error = searchParams.get("error");
+    if (error === "email_conflict") {
+      const pendingLinkId = searchParams.get("pending_link_id") ?? "";
+      router.replace(
+        `/settings?error=email_conflict&pending_link_id=${encodeURIComponent(pendingLinkId)}`,
+      );
     }
   }, [searchParams, router]);
 
