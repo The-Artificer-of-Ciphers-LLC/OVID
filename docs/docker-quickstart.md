@@ -17,7 +17,7 @@ cd OVID
 cp .env.example .env
 ```
 
-The defaults in `.env.example` work for local development — no edits required.
+The defaults in `.env.example` work for local development — no edits required. Note that the API now **requires** `OVID_ENV` to be set to `development` or `production` before it will boot; the provided `docker-compose.yml` already sets `OVID_ENV=development` for you, so nothing to do here unless you're running the API outside of Compose.
 
 ### 2. Start the stack
 

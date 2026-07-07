@@ -87,6 +87,7 @@ Or directly (for debugging):
 cd api
 DATABASE_URL=postgresql://ovid:ovidlocal@localhost:5432/ovid \
 OVID_SECRET_KEY=dev-secret-change-in-production \
+OVID_ENV=development \
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -155,6 +156,7 @@ The submit wizard walks through: fingerprint → TMDB title search → pick rele
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `OVID_ENV` | (required) | Must be exactly `development` or `production`. The API refuses to boot without it (`RuntimeError: Required environment variable OVID_ENV is not set`) or with any other value. `docker compose up -d api` already sets this via `docker-compose.yml`; only relevant if you run `uvicorn` directly, as in step 7 below. |
 | `DATABASE_URL` | (required) | PostgreSQL connection string |
 | `OVID_SECRET_KEY` | (required) | JWT signing key — any random string ≥32 chars |
 | `OVID_API_URL` | `http://localhost:8000` | API base URL for ovid-client |

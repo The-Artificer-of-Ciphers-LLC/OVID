@@ -49,7 +49,16 @@ cp .env.example .env
 
 Edit `.env` and set the following:
 
+**`OVID_ENV` is required — the API refuses to boot without it.** Set it to
+`development` for a home/self-hosted deployment, or `production` if you're
+exposing your mirror to the internet (this also disables the localhost
+bypass in OAuth redirect validation). This applies in mirror mode too, even
+though OAuth itself isn't required there — see the note below.
+
 ```bash
+# Required — the API will not start without this
+OVID_ENV=development
+
 # Switch from standalone (default) to mirror
 OVID_MODE=mirror
 
@@ -104,6 +113,7 @@ All mirror-relevant environment variables from `.env`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `OVID_ENV` | *(required)* | Must be `development` or `production` — the API refuses to boot without it, and again refuses to boot if set to any other value. Required in every mode, including mirror. `production` also disables the localhost/loopback bypass in OAuth redirect validation. |
 | `OVID_MODE` | `standalone` | Set to `mirror` for self-hosting |
 | `SYNC_SOURCE_URL` | `https://api.oviddb.org` | Canonical server URL to sync from |
 | `SYNC_INTERVAL_MINUTES` | `60` | Minutes between sync polls |

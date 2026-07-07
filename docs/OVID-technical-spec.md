@@ -451,10 +451,16 @@ All endpoints return JSON. All responses include a `request_id` for debugging.
 | Email + password | Credential | Bcrypt hashed; optional if OAuth provider is linked |
 | GitHub | OAuth 2.0 | Ideal for the developer/enthusiast audience |
 | Google | OAuth 2.0 | Broad coverage |
-| Apple | OAuth 2.0 (Sign in with Apple) | Required by App Store rules if ever shipping an iOS client |
+| Apple | OAuth 2.0 (Sign in with Apple) | Required by App Store rules if ever shipping an iOS client; Apple's OAuth `client_secret` is itself a short-lived (~5-minute) ES256-signed JWT, regenerated automatically for every token exchange rather than a long-lived stored secret that needs manual rotation |
 | Mastodon / ActivityPub instances | OAuth 2.0 (per-instance) | On-brand for an open-source community project; see below |
 
 **Rate limiting:** 100 requests/minute unauthenticated, 500/minute authenticated.
+
+OVID also supports IndieAuth as an **opt-in, off-by-default** provider. It is not one of the headline providers above by design — self-hosted OVID nodes and technically-inclined contributors are its natural audience, not the default web sign-up path — so its routes only exist (and otherwise 404) when an operator explicitly sets `OVID_ENABLE_INDIEAUTH`. That flag is independent of the environment gating described next.
+
+#### Environment Gating (`OVID_ENV`)
+
+The API requires an explicit `OVID_ENV` (`development` or `production`) at boot and fails fast — refusing to start — if it is unset or holds any other value, the same pattern already used for `OVID_SECRET_KEY`. This is more than a label: `ALLOW_LOCALHOST_BYPASS`, the flag that lets OAuth redirect-URI validation accept loopback/localhost targets (needed so IndieAuth can be developed against `http://localhost` endpoints), is derived solely from `OVID_ENV != "production"`. Because that derivation happens once at import time from a required variable with no default, the localhost bypass is unreachable in production **by construction** — there is no configuration drift path (a stale `.env`, a copy-pasted compose override, a forgotten flag) that can silently re-enable a development convenience in a production deployment. See `docs/auth-setup.md` for the operator-facing variable reference and the upgrade steps required for existing deployments.
 
 #### Linked Accounts Flow
 
@@ -472,14 +478,13 @@ OVID adds second user_identities row (provider='google') → same user_id
 Either GitHub or Google login now reaches the same account
 ```
 
-**Email-match merge:** When a new OAuth login presents a verified email that already exists on another account, OVID presents a merge prompt rather than creating a duplicate:
+**Verified-email signal:** "Verified" is computed at the identity source, per provider, rather than trusted at face value — GitHub's signal comes from `GET /user/emails` (the primary, provider-verified address), Google's and Apple's come from the `email_verified` claim inside their signed `id_token`. Mastodon and IndieAuth do not expose an equivalent provider-attested claim, so OVID treats emails from those two providers as unverified for merge purposes. An unverified or non-matching email simply forks a new, separate identity — it never triggers a merge offer.
 
-```
-"An account with email user@example.com already exists.
- Link this GitHub login to that account? [Link] [Create new account]"
-```
+**Confirm-gated account merge:** When a new provider login presents a *verified* email that matches an existing account's verified email, OVID does not merge automatically and does not attach the new provider to the existing account. Instead the callback returns HTTP 409 with `{"error": "email_conflict", "pending_link_id": "<uuid>"}` — a merge **offer**, not an action. The offer is backed by a database row (single-use, consumed via a `consumed_at` marker; time-bounded via `expires_at`), and the existing account's internal id is deliberately never included in the response, to prevent an attacker from using the merge-offer flow to enumerate which emails already have OVID accounts.
 
-Merging requires the user to authenticate the existing account (prove they own it) before linking completes.
+The offer can only be completed one way: the user re-authenticates through a provider **already linked** to the existing account, passing the offer's `pending_link_id` back through that provider's login flow. Only when that fresh OAuth round-trip resolves to the same existing account does the server consume the offer and attach the new provider. Ownership of the target account is proven cryptographically by a live provider exchange each time — never inferred from browser session state.
+
+**Why this matters (nOAuth-class takeover):** The previous design merged implicitly — whichever account the browser session happened to be authenticated as absorbed the *next* login on any provider, regardless of whether that login actually belonged to the same person. That is the shape of the nOAuth account-takeover class: an attacker only needs to get a victim's browser to complete one more OAuth login (their own, attacker-controlled identity) while a session is live, and the identities silently merge. Because merging now requires proving ownership of the *existing* account through a provider already trusted for that account — not merely "whatever session happens to be open" — a session alone can never complete a takeover; full instructions for `/v1/auth/*` login/callback mechanics live in `docs/api-reference.md`.
 
 **Minimum identity rule:** A user must always retain at least one linked provider or an active password. The UI prevents removing the last auth method. The database enforces this via a `CHECK` constraint on the `users` table.
 
@@ -500,6 +505,8 @@ Mastodon uses standard OAuth 2.0 but each instance is its own authorization serv
 ```
 
 This makes OVID compatible with any Mastodon-compatible software (Mastodon, Pleroma, Akkoma, Pixelfed, etc.) without needing to whitelist specific instances.
+
+**SSRF hardening:** Accepting an arbitrary, user-supplied instance URL and then having the server fetch it is exactly the shape of a server-side request forgery risk — a malicious "instance" could point at OVID's own internal network. Before OVID makes any outbound request to a submitted instance, the resolved address is validated with a dual-stack (IPv4 + IPv6) DNS resolution check that rejects private, loopback, link-local, multicast, and other reserved ranges. Discovery and token-exchange requests do not follow redirects, and error bodies returned by the instance are never reflected verbatim back to the OVID client — both to avoid an instance using OVID as an open proxy or leaking internal request detail through error text. See `docs/auth-setup.md` for the validation implementation and its known limits.
 
 **Note on Mastodon token longevity:** Mastodon access tokens do not expire by default. OVID stores them encrypted but does not rely on them for ongoing access — they are only used at login time to verify identity. The OVID JWT is what governs session duration.
 
@@ -808,7 +815,7 @@ def identify_disc(drive_path, settings):
 | Database Migrations | Alembic | Standard Python migration tool |
 | Auth — sessions | JWT (PyJWT) | Short-lived access tokens (1 hour) + refresh tokens (30 days); stateless |
 | Auth — passwords | bcrypt | For email+password accounts; intentionally slow hashing |
-| Auth — OAuth | Authlib (Python) | Handles OAuth 2.0 flows for GitHub, Google, Apple, and dynamic Mastodon instances |
+| Auth — OAuth | Authlib (Python) | Handles OAuth 2.0 flows for GitHub, Google, Apple, and dynamic Mastodon instances, plus the opt-in IndieAuth provider |
 | Auth — tokens at rest | AES-256-GCM (cryptography lib) | OAuth access/refresh tokens encrypted before storing in DB |
 | Web UI | Plain HTML + HTMX or React | HTMX: simpler to maintain for a small team; React: better for interactive editor UIs |
 | Hosting (initial) | Railway, Fly.io, or Render | Low-ops, cheap for early traffic; migrate to VPS or cloud as traffic grows |
@@ -862,8 +869,9 @@ At this scale, a single server (2 vCPU, 4GB RAM) running FastAPI + PostgreSQL ha
 | Fingerprint collision attacks | Fingerprints are read-only computed values, not user-supplied; SHA-256 hash space makes collisions negligible |
 | SQL injection | All queries use parameterized statements (SQLAlchemy ORM) |
 | Auth token leakage | OVID JWTs expire after 1 hour; refresh tokens expire after 30 days with rotation on each use; OAuth provider tokens encrypted at rest with AES-256-GCM |
-| OAuth account takeover | Email-match merge requires re-authentication of the existing account before linking; provider_uid (not email) is the stable identity key — email is only used as a merge hint |
-| Malicious OAuth provider (Mastodon) | Instance URL validated against `/.well-known/oauth-authorization-server` before redirect; redirect URIs strictly allowlisted; instance_url stored and checked on token exchange |
+| OAuth account takeover (nOAuth-class) | Verified-email matches produce a confirm-gated merge *offer* (HTTP 409 + single-use, TTL-bounded `pending_link_id`), never an implicit merge; completing it requires a fresh re-authentication through a provider already linked to the target account, so browser session state alone can never complete a takeover; provider_uid (not email) remains the stable identity key |
+| Malicious OAuth provider (Mastodon) | Instance URL validated against `/.well-known/oauth-authorization-server` before redirect; redirect URIs strictly allowlisted; instance_url stored and checked on token exchange; outbound requests to the instance are additionally SSRF-hardened (dual-stack address validation, no redirect-following, no raw error reflection) |
+| Config drift silently re-enabling a dev bypass in production | `OVID_ENV` is a required boot-time variable with no default (fail-fast, same pattern as `OVID_SECRET_KEY`); the OAuth localhost-redirect bypass derives solely from `OVID_ENV != "production"`, so it is unreachable in production by construction, not merely off by default |
 | Account lockout (last auth method removed) | DB CHECK constraint + UI guard both prevent removing the last linked provider or password |
 | DRM-related legal risk | API and schema explicitly do NOT store encryption keys, CSS keys, AACS keys, or any data that constitutes circumvention under DMCA/similar laws. ToS must be explicit about this. |
 | Data poisoning (malicious disc entries) | Two-contributor verification model; edit history; admin override |

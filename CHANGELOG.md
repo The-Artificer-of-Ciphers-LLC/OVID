@@ -104,11 +104,12 @@ This project uses [Semantic Versioning](https://semver.org/) in the form `0.MILE
 #### OAuth & Account Linking
 - Google OAuth login/callback
 - Mastodon OAuth login/callback with per-instance dynamic client registration
-- Account linking: multiple OAuth providers per user, matched by email
+- Account linking: confirm-gated merge for multiple OAuth providers per user, matched by verified email — a new-provider login whose verified email matches an existing account returns a 409 `email_conflict` merge offer rather than linking silently; the user completes the merge by re-authenticating through an already-linked provider (nOAuth-safe)
 - `GET /v1/auth/providers` — list linked OAuth providers for the current user
 - `DELETE /v1/auth/providers/{provider}` — unlink a provider (cannot unlink the last one)
 - Apple Sign-In JWKS verification — tokens validated against Apple's published JSON Web Key Set
 - Shared `finalize_auth()` convergence point handling user upsert, linking, and JWT creation for all five providers
+- IndieAuth is opt-in: `/v1/auth/indieauth/*` routes return 404 unless `OVID_ENABLE_INDIEAUTH` is set to `1`/`true`/`yes`
 
 #### API Enhancements
 - CORS middleware with configurable allowed origins via `CORS_ORIGINS` env var (positioned before SessionMiddleware)
@@ -158,6 +159,9 @@ This project uses [Semantic Versioning](https://semver.org/) in the form `0.MILE
 
 ### Removed
 - `POST /v1/disc/{fingerprint}/verify` — retired; two-contributor confirmation now happens via re-submission through the disc submission endpoint rather than a dedicated verify call
+
+### Breaking Changes
+- `OVID_ENV` is now a required environment variable (`development` or `production`) — the API refuses to boot if it is unset or set to an invalid value. `production` disables the localhost bypass in redirect validation. Upgraders must set `OVID_ENV` before deploying this release.
 
 ### Fixed
 - CLI binary builds include Blu-ray module hidden imports for PyInstaller

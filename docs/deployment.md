@@ -38,6 +38,13 @@ cp .env.example .env
 # Edit .env — set OVID_DB_PASSWORD and OVID_SECRET_KEY at minimum
 ```
 
+**`OVID_ENV` is required** — the API refuses to boot without it. Set
+`OVID_ENV=development` for this environment; `docker-compose.yml` already
+supplies this default, so a plain `docker compose up` works as-is. This only
+matters if you're setting up `.env` by hand or running the API outside the
+provided compose files. See [`auth-setup.md`](auth-setup.md#the-ovid_env-requirement-required)
+for the full `OVID_ENV`/OAuth reference, and for configuring OAuth providers.
+
 ### Run
 
 ```bash
@@ -88,9 +95,16 @@ cp .env.production.example .env
 
 Fill in all values in `.env`:
 
+- `OVID_ENV` — **required**, must be `production` here. The API refuses to
+  boot without it (or with any value other than `development`/`production`).
+  `docker-compose.prod.yml` already hardcodes `OVID_ENV=production`, so this
+  only matters if you're assembling `.env` by hand for a non-standard deploy.
+  Setting `production` also disables the localhost/loopback bypass in OAuth
+  redirect validation.
 - `OVID_DB_PASSWORD` — strong random password
 - `OVID_SECRET_KEY` — generate with `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`
-- OAuth credentials for each provider (GitHub, Apple, Google)
+- OAuth credentials for each provider (GitHub, Apple, Google) — see
+  [`auth-setup.md`](auth-setup.md) for the authoritative per-provider setup reference
 
 ### 2. Pull or Build Images
 

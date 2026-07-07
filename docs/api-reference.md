@@ -338,6 +338,13 @@ GET /v1/auth/github/login          → Redirects to GitHub authorization
 GET /v1/auth/github/callback       → Handles GitHub callback, returns JWT
 ```
 
+### Google OAuth
+
+```
+GET /v1/auth/google/login          → Redirects to Google authorization
+GET /v1/auth/google/callback       → Handles Google callback, returns JWT
+```
+
 ### Apple Sign-In
 
 ```
@@ -345,12 +352,79 @@ GET /v1/auth/apple/login           → Redirects to Apple authorization
 POST /v1/auth/apple/callback       → Handles Apple callback, returns JWT
 ```
 
+### Mastodon
+
+```
+GET /v1/auth/mastodon/login?domain=<instance>  → Registers/looks up the instance client, redirects to authorization
+GET /v1/auth/mastodon/callback                 → Handles Mastodon callback, returns JWT
+```
+
+The `domain` query parameter (the user's Mastodon instance host, e.g. `mastodon.social`) is required; the server dynamically registers an OAuth client per instance on first use.
+
 ### IndieAuth
 
 ```
 GET /v1/auth/indieauth/login?url=  → Discovers endpoints, redirects to authorization
 GET /v1/auth/indieauth/callback    → Handles IndieAuth callback, returns JWT
 ```
+
+All `/login` endpoints above additionally accept two optional query parameters: `web_redirect_uri` (redirect target with `?token=` appended on success) and `pending_link_id` (see [Account linking](#account-linking-verified-email-merge) below).
+
+### Account linking — verified-email merge
+
+When a user authenticates via a provider whose verified email matches an existing account's verified email, the callback returns a merge offer rather than attaching the provider automatically.
+
+**Response 409 — email conflict (merge offer):**
+
+```json
+{
+  "error": "email_conflict",
+  "pending_link_id": "<uuid>"
+}
+```
+
+Nothing is linked at this point. The internal id of the existing account is deliberately omitted from the response to prevent user/email enumeration.
+
+**Completing the merge**
+
+There is no dedicated confirm endpoint. The offer is completed by re-authenticating through a provider already linked to the existing account, passing the offer id as a query parameter:
+
+```
+GET /v1/auth/<already-linked-provider>/login?pending_link_id=<uuid>
+```
+
+On that provider's callback, the server verifies the re-authentication resolves to the same existing account, consumes the pending link (single-use, TTL-bounded), and links the new provider to the account.
+
+**Response 400 — merge re-authentication resolves to a different user:**
+
+```json
+{
+  "error": "merge_reauth_required",
+  "reason": "Re-authenticate through an already-linked provider to complete the merge"
+}
+```
+
+**Response 409 — pending link invalid, expired, or already consumed:**
+
+```json
+{
+  "error": "pending_link_invalid",
+  "reason": "The merge request is invalid, expired, or already used"
+}
+```
+
+**Response 400 — provider identity already linked to another account:**
+
+```json
+{
+  "error": "already_linked",
+  "reason": "Provider is linked to another account"
+}
+```
+
+If the new provider's email is unverified, or does not match an existing account's verified email, no offer is made; the callback proceeds as an ordinary new-account sign-up.
+
+For the operator-facing walkthrough of provider setup and account linking, see [`auth-setup.md`](auth-setup.md).
 
 ### Current User
 
