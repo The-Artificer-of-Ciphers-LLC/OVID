@@ -61,6 +61,12 @@ export interface TrackResponse {
   is_default: boolean;
 }
 
+export interface ChapterResponse {
+  chapter_index: number;
+  name: string | null;
+  start_time_secs: number | null;
+}
+
 export interface TitleResponse {
   title_index: number;
   is_main_feature: boolean;
@@ -70,6 +76,7 @@ export interface TitleResponse {
   chapter_count: number | null;
   audio_tracks: TrackResponse[];
   subtitle_tracks: TrackResponse[];
+  chapters: ChapterResponse[];
 }
 
 export interface ReleaseResponse {
@@ -153,6 +160,12 @@ export interface TrackCreate {
   is_default: boolean;
 }
 
+export interface ChapterCreate {
+  chapter_index: number;
+  name: string | null;
+  start_time_secs: number | null;
+}
+
 export interface TitleCreate {
   title_index: number;
   title_type: string | null;
@@ -162,6 +175,7 @@ export interface TitleCreate {
   display_name: string | null;
   audio_tracks: TrackCreate[];
   subtitle_tracks: TrackCreate[];
+  chapters?: ChapterCreate[];
 }
 
 export interface ReleaseCreate {

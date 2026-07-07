@@ -85,6 +85,7 @@ def sync_diff(
         db.query(Disc)
         .options(
             subqueryload(Disc.titles).subqueryload(DiscTitle.tracks),
+            subqueryload(Disc.titles).subqueryload(DiscTitle.chapters),
             subqueryload(Disc.releases),
         )
         .filter(Disc.seq_num > since)

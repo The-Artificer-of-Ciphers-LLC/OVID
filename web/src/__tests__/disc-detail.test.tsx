@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import SiblingDiscs from "@/components/SiblingDiscs";
-import type { SiblingDiscSummary } from "@/lib/api";
+import ChapterList from "@/components/ChapterList";
+import type { SiblingDiscSummary, ChapterResponse } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -195,5 +196,73 @@ describe("SiblingDiscs", () => {
     const current = screen.getByTestId("sibling-card-current");
     expect(current.className).toContain("border-blue-500");
     expect(current.className).toContain("bg-blue-50");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ChapterList
+// ---------------------------------------------------------------------------
+
+const chaptersData: ChapterResponse[] = [
+  { chapter_index: 1, name: "Opening", start_time_secs: 0 },
+  { chapter_index: 2, name: "The Journey Begins", start_time_secs: 300 },
+  { chapter_index: 3, name: null, start_time_secs: 3661 },
+];
+
+describe("ChapterList", () => {
+  it("shows chapter toggle when title has chapters", () => {
+    render(<ChapterList chapters={chaptersData} titleIndex={1} />);
+    const toggle = screen.getByTestId("chapter-toggle-1");
+    expect(toggle).toBeTruthy();
+    expect(toggle.textContent).toContain("3 chapters");
+  });
+
+  it("shows em-dash when title has no chapters", () => {
+    const { container } = render(<ChapterList chapters={[]} titleIndex={1} />);
+    expect(container.textContent).toBe("\u2014");
+    expect(screen.queryByTestId("chapter-toggle-1")).toBeNull();
+  });
+
+  it("expands chapter list on toggle click", () => {
+    render(<ChapterList chapters={chaptersData} titleIndex={1} />);
+    expect(screen.queryByTestId("chapter-table-1")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("chapter-toggle-1"));
+
+    expect(screen.getByTestId("chapter-table-1")).toBeTruthy();
+    expect(screen.getByTestId("chapter-row-1-1")).toBeTruthy();
+    expect(screen.getByTestId("chapter-row-1-2")).toBeTruthy();
+    expect(screen.getByTestId("chapter-row-1-3")).toBeTruthy();
+  });
+
+  it("displays formatted chapter start times", () => {
+    render(<ChapterList chapters={chaptersData} titleIndex={1} />);
+    fireEvent.click(screen.getByTestId("chapter-toggle-1"));
+
+    // 3661 seconds = 1:01:01
+    expect(screen.getByText("1:01:01")).toBeTruthy();
+    // 300 seconds = 5:00
+    expect(screen.getByText("5:00")).toBeTruthy();
+  });
+
+  it("displays em-dash for null chapter name", () => {
+    render(<ChapterList chapters={chaptersData} titleIndex={1} />);
+    fireEvent.click(screen.getByTestId("chapter-toggle-1"));
+
+    // Chapter 3 has name=null, should show em-dash
+    const row3 = screen.getByTestId("chapter-row-1-3");
+    const cells = row3.querySelectorAll("td");
+    // Name is the second cell
+    expect(cells[1].textContent).toBe("\u2014");
+  });
+
+  it("uses singular 'chapter' for single chapter", () => {
+    const single: ChapterResponse[] = [
+      { chapter_index: 1, name: "Intro", start_time_secs: 0 },
+    ];
+    render(<ChapterList chapters={single} titleIndex={2} />);
+    const toggle = screen.getByTestId("chapter-toggle-2");
+    expect(toggle.textContent).toContain("1 chapter");
+    expect(toggle.textContent).not.toContain("chapters");
   });
 });

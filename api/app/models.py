@@ -2,7 +2,7 @@
 
 Tables:
   discs, releases, disc_releases, disc_titles, disc_tracks,
-  disc_sets, users, user_oauth_links, disc_edits
+  disc_chapters, disc_sets, users, user_oauth_links, disc_edits
 
 Schema follows tech-spec §3 with two additions from S02 research:
   - disc_sets table (R010) with release_id FK
@@ -270,6 +270,9 @@ class DiscTitle(Base):
     tracks: Mapped[list["DiscTrack"]] = relationship(
         back_populates="disc_title", cascade="all, delete-orphan"
     )
+    chapters: Mapped[list["DiscChapter"]] = relationship(
+        back_populates="disc_title", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         UniqueConstraint("disc_id", "title_index", name="uq_disc_titles_index"),
@@ -304,6 +307,33 @@ class DiscTrack(Base):
 
     __table_args__ = (
         Index("idx_disc_tracks_title", "disc_title_id"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# disc_chapters — chapter metadata per title (Phase 3)
+# ---------------------------------------------------------------------------
+class DiscChapter(Base):
+    __tablename__ = "disc_chapters"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    disc_title_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("disc_titles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    chapter_index: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    name: Mapped[str | None] = mapped_column(String(200))
+    start_time_secs: Mapped[int | None] = mapped_column(Integer)
+
+    # relationships
+    disc_title: Mapped["DiscTitle"] = relationship(back_populates="chapters")
+
+    __table_args__ = (
+        UniqueConstraint("disc_title_id", "chapter_index", name="uq_disc_chapters_index"),
+        Index("idx_disc_chapters_title", "disc_title_id"),
     )
 
 

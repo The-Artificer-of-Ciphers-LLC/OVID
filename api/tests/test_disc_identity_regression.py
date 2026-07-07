@@ -203,6 +203,7 @@ class TestDvd1GoldenRegression:
                             "is_default": False,
                         }
                     ],
+                    "chapters": [],
                 }
             ],
         }

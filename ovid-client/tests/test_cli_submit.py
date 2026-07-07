@@ -303,3 +303,96 @@ class TestPayloadMapping:
         assert len(t1["audio_tracks"]) == 1
         assert t1["audio_tracks"][0]["channels"] == 2
         assert len(t1["subtitle_tracks"]) == 0
+
+
+# ---------------------------------------------------------------------------
+# Chapter data in submit payloads
+# ---------------------------------------------------------------------------
+
+class TestChapterPayloads:
+    """Chapter data inclusion in BD and DVD submit payloads."""
+
+    def test_dvd_submit_payload_includes_chapters(self) -> None:
+        """DVD normalization populates title chapters from PGC chapter_start_times."""
+        from ovid.disc_structure import normalize_dvd_disc
+
+        pgc1 = PGCInfo(
+            duration_seconds=7200,
+            chapter_count=3,
+            chapter_start_times=[0.0, 300.7, 1200.0],
+        )
+        vts1 = VTSInfo(
+            pgc_list=[pgc1],
+            audio_streams=[AudioStream(codec="AC3", language="en", channels=6)],
+            subtitle_streams=[],
+        )
+        disc = MagicMock()
+        disc.fingerprint = "dvd1-test"
+        disc._vts_list = [vts1]
+
+        structure = normalize_dvd_disc(disc)
+
+        chapters = structure.titles[0].chapters
+        assert len(chapters) == 3
+        assert (chapters[0].chapter_index, chapters[0].name, chapters[0].start_time_secs) == (1, None, 0)
+        assert (chapters[1].chapter_index, chapters[1].name, chapters[1].start_time_secs) == (2, None, 301)
+        assert (chapters[2].chapter_index, chapters[2].name, chapters[2].start_time_secs) == (3, None, 1200)
+
+    def test_bd_submit_payload_includes_chapters(self) -> None:
+        """BD normalization populates title chapters from MPLS chapter marks."""
+        from ovid.disc_structure import normalize_bd_disc
+        from ovid.mpls_parser import ChapterMark, MplsHeader, MplsPlaylist, PlayItem
+
+        pl = MplsPlaylist(
+            header=MplsHeader(version="0200", playlist_start=40, mark_start=100),
+            play_items=[PlayItem(clip_id="00001", in_time=0, out_time=45000 * 7200, duration_seconds=7200.0)],
+            audio_streams=[],
+            subtitle_streams=[],
+            chapter_marks=[
+                ChapterMark(mark_type=1, play_item_ref=0, timestamp=0, duration_seconds=0.0),
+                ChapterMark(mark_type=1, play_item_ref=0, timestamp=4500000, duration_seconds=100.0),
+                ChapterMark(mark_type=2, play_item_ref=0, timestamp=5000000, duration_seconds=111.0),
+                ChapterMark(mark_type=1, play_item_ref=0, timestamp=9000000, duration_seconds=200.0),
+            ],
+        )
+
+        bd_disc = MagicMock()
+        bd_disc.fingerprint = "bd1-aacs-test"
+        bd_disc.format_type = "bluray"
+        bd_disc.playlists = [pl]
+
+        structure = normalize_bd_disc(bd_disc)
+
+        chapters = structure.titles[0].chapters
+        # 3 marks with mark_type==1 (the mark_type==2 is skipped)
+        assert len(chapters) == 3
+        assert (chapters[0].chapter_index, chapters[0].name, chapters[0].start_time_secs) == (1, None, 0)
+        assert (chapters[1].chapter_index, chapters[1].name, chapters[1].start_time_secs) == (2, None, 100)
+        assert (chapters[2].chapter_index, chapters[2].name, chapters[2].start_time_secs) == (3, None, 200)
+
+    def test_bd_submit_payload_missing_bdmt(self) -> None:
+        """BD normalization populates chapters without bdmt metadata (names stay None, D-08)."""
+        from ovid.disc_structure import normalize_bd_disc
+        from ovid.mpls_parser import ChapterMark, MplsHeader, MplsPlaylist, PlayItem
+
+        pl = MplsPlaylist(
+            header=MplsHeader(version="0200", playlist_start=40, mark_start=100),
+            play_items=[PlayItem(clip_id="00001", in_time=0, out_time=45000 * 120, duration_seconds=120.0)],
+            audio_streams=[],
+            subtitle_streams=[],
+            chapter_marks=[
+                ChapterMark(mark_type=1, play_item_ref=0, timestamp=0, duration_seconds=0.0),
+            ],
+        )
+
+        bd_disc = MagicMock()
+        bd_disc.fingerprint = "bd2-test"
+        bd_disc.format_type = "bluray"
+        bd_disc.playlists = [pl]
+
+        # Should not raise; chapters come from marks with name=None (no bdmt).
+        structure = normalize_bd_disc(bd_disc)
+        assert len(structure.titles) == 1
+        chapters = structure.titles[0].chapters
+        assert len(chapters) == 1
+        assert chapters[0].name is None

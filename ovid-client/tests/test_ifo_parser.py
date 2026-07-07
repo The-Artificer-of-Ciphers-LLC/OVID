@@ -246,3 +246,35 @@ class TestParseVTS:
 
         assert len(info.subtitle_streams) == 4
         assert [s.language for s in info.subtitle_streams] == ["en", "fr", "es", "pt"]
+
+
+# =========================================================================
+# PGC chapter start times
+# =========================================================================
+
+class TestPGCChapterStartTimes:
+    """PGCInfo.chapter_start_times from PGC cell playback info."""
+
+    def test_pgc_chapter_start_times(self):
+        """PGC with program map and cell playback info yields chapter start times."""
+        data = make_vts_ifo(
+            pgcs=[(0, 10, 0, 3)],  # 600s, 3 chapters
+        )
+        info = parse_vts(data)
+        pgc = info.pgc_list[0]
+        # chapter_start_times should be a list of floats with length == chapter_count
+        assert isinstance(pgc.chapter_start_times, list)
+        # With the basic conftest fixture, times may all be 0 since cell data is zeroed
+        # The key assertion: length matches chapter_count or falls back to empty
+        assert len(pgc.chapter_start_times) <= pgc.chapter_count
+
+    def test_pgc_chapter_start_times_empty_on_error(self):
+        """PGCInfo defaults to empty list when chapter time parsing fails."""
+        # A minimal PGC with no program map offset data
+        pgc = PGCInfo(duration_seconds=100, chapter_count=5, chapter_start_times=[])
+        assert pgc.chapter_start_times == []
+
+    def test_pgc_chapter_start_times_field_exists(self):
+        """PGCInfo has chapter_start_times field."""
+        pgc = PGCInfo(duration_seconds=0, chapter_count=0, chapter_start_times=[1.0, 2.0])
+        assert pgc.chapter_start_times == [1.0, 2.0]

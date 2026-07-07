@@ -67,6 +67,7 @@ describe("DiscStructure", () => {
       subtitle_tracks: [
         { index: 0, language: "en", codec: null, channels: null, is_default: true },
       ],
+      chapters: [],
     },
     {
       title_index: 1,
@@ -77,6 +78,7 @@ describe("DiscStructure", () => {
       chapter_count: 3,
       audio_tracks: [],
       subtitle_tracks: [],
+      chapters: [],
     },
   ];
 

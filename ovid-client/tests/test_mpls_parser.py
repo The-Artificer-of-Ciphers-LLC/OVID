@@ -469,3 +469,28 @@ class TestFullScenario:
         result = parse_mpls(data)
         assert len(result.audio_streams) == 32
         assert len(result.subtitle_streams) == 32
+
+
+# =========================================================================
+# BD chapter extraction (extract_bd_chapters)
+# =========================================================================
+
+class TestExtractBdChapters:
+    """extract_bd_chapters: filter MPLS marks to chapter dicts."""
+
+    def test_extract_bd_chapters(self):
+        """Only mark_type==1 included, 1-based index, int seconds from 45kHz."""
+        from ovid.bdmt_parser import extract_bd_chapters
+
+        marks = [
+            ChapterMark(mark_type=1, play_item_ref=0, timestamp=0, duration_seconds=0.0),
+            ChapterMark(mark_type=2, play_item_ref=0, timestamp=1000, duration_seconds=0.022),
+            ChapterMark(mark_type=1, play_item_ref=0, timestamp=4500000, duration_seconds=100.0),
+            ChapterMark(mark_type=1, play_item_ref=0, timestamp=13500000, duration_seconds=300.0),
+        ]
+        chapters = extract_bd_chapters(marks)
+
+        assert len(chapters) == 3
+        assert chapters[0] == {"chapter_index": 1, "name": None, "start_time_secs": 0}
+        assert chapters[1] == {"chapter_index": 2, "name": None, "start_time_secs": 100}
+        assert chapters[2] == {"chapter_index": 3, "name": None, "start_time_secs": 300}

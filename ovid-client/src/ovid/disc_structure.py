@@ -95,6 +95,14 @@ def normalize_dvd_disc(disc: Any) -> NormalizedDiscStructure:
                 "duration_seconds": pgc.duration_seconds,
                 "chapter_count": pgc.chapter_count,
             })
+            chapters = [
+                NormalizedChapter(
+                    chapter_index=i + 1,
+                    name=None,
+                    start_time_secs=int(round(t)),
+                )
+                for i, t in enumerate(pgc.chapter_start_times)
+            ]
             titles.append(
                 NormalizedTitle(
                     title_index=title_index,
@@ -103,6 +111,7 @@ def normalize_dvd_disc(disc: Any) -> NormalizedDiscStructure:
                     is_main_feature=first_title,
                     audio_tracks=audio_tracks,
                     subtitle_tracks=subtitle_tracks,
+                    chapters=chapters,
                 )
             )
             title_index += 1
@@ -139,6 +148,8 @@ def normalize_dvd_disc(disc: Any) -> NormalizedDiscStructure:
 
 def normalize_bd_disc(bd_disc: Any) -> NormalizedDiscStructure:
     """Project a Blu-ray or UHD disc to normalized structure."""
+    from ovid.bdmt_parser import extract_bd_chapters
+
     disc_format = "UHD" if bd_disc.format_type == "uhd" else "Blu-ray"
     longest_index = _longest_playlist_index(bd_disc.playlists)
     titles: list[NormalizedTitle] = []
@@ -150,6 +161,14 @@ def normalize_bd_disc(bd_disc: Any) -> NormalizedDiscStructure:
             mark for mark in playlist.chapter_marks
             if mark.mark_type == 1
         ])
+        chapters = [
+            NormalizedChapter(
+                chapter_index=c["chapter_index"],
+                name=c["name"],
+                start_time_secs=c["start_time_secs"],
+            )
+            for c in extract_bd_chapters(playlist.chapter_marks)
+        ]
         audio_tracks = [
             NormalizedTrack(
                 track_index=index,
@@ -176,6 +195,7 @@ def normalize_bd_disc(bd_disc: Any) -> NormalizedDiscStructure:
                 is_main_feature=title_index == longest_index,
                 audio_tracks=audio_tracks,
                 subtitle_tracks=subtitle_tracks,
+                chapters=chapters,
             )
         )
         playlists.append(_legacy_playlist_structure(playlist))

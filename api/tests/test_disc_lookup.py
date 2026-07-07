@@ -216,3 +216,61 @@ class TestDiscLookupSetIntegration:
         assert resp.status_code == 200
         data = resp.json()
         assert data["disc_set"] is None
+
+
+# ---------------------------------------------------------------------------
+# Chapter integration tests (Phase 3)
+# ---------------------------------------------------------------------------
+class TestDiscLookupChapters:
+    """Lookup returns chapter data eagerly loaded with titles."""
+
+    def test_lookup_includes_chapters(self, client, auth_header, second_auth_header):
+        """Create disc with chapters via submit; after a second contributor
+        verifies it, lookup returns the persisted chapter data (anti-echo
+        redaction lifts on verify, D-09)."""
+        payload = {
+            "fingerprint": "bd-LOOKUP-CHAP-001",
+            "format": "BD",
+            "release": {
+                "title": "Chapter Test Film",
+                "year": 2024,
+                "content_type": "movie",
+            },
+            "titles": [
+                {
+                    "title_index": 0,
+                    "title_type": "main_feature",
+                    "duration_secs": 5400,
+                    "chapter_count": 3,
+                    "is_main_feature": True,
+                    "display_name": "Main Feature",
+                    "audio_tracks": [],
+                    "subtitle_tracks": [],
+                    "chapters": [
+                        {"chapter_index": 1, "name": "Act One", "start_time_secs": 0},
+                        {"chapter_index": 2, "name": "Act Two", "start_time_secs": 1800},
+                        {"chapter_index": 3, "name": None, "start_time_secs": 3600},
+                    ],
+                }
+            ],
+        }
+        resp = client.post("/v1/disc", json=payload, headers=auth_header)
+        assert resp.status_code == 201
+
+        # Second contributor re-submits identical structure -> auto-verify.
+        verify_resp = client.post("/v1/disc", json=payload, headers=second_auth_header)
+        assert verify_resp.status_code == 200
+
+        get_resp = client.get("/v1/disc/bd-LOOKUP-CHAP-001")
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        chapters = data["titles"][0]["chapters"]
+        assert len(chapters) == 3
+        assert chapters[0]["chapter_index"] == 1
+        assert chapters[0]["name"] == "Act One"
+        assert chapters[0]["start_time_secs"] == 0
+        assert chapters[1]["chapter_index"] == 2
+        assert chapters[1]["name"] == "Act Two"
+        assert chapters[2]["chapter_index"] == 3
+        assert chapters[2]["name"] is None
+        assert chapters[2]["start_time_secs"] == 3600
