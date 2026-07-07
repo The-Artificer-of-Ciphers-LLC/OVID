@@ -69,6 +69,62 @@ class OVIDClient:
         self._raise_for_status(resp, "submit")
 
     # ------------------------------------------------------------------
+    # Sets
+    # ------------------------------------------------------------------
+
+    def search_sets(self, query: str, page: int = 1) -> dict | None:
+        """Search disc sets by release title or edition name.
+
+        GET /v1/set?q={query}&page={page}
+
+        Returns:
+            Parsed JSON response with results, page, total_pages, total_results.
+            None if the request failed.
+        """
+        url = f"{self.base_url}/v1/set"
+        resp = self._session.get(url, params={"q": query, "page": page})
+        if resp.status_code == 200:
+            return resp.json()
+        return None
+
+    def create_set(
+        self,
+        release_id: str,
+        edition_name: str | None = None,
+        total_discs: int = 1,
+    ) -> dict:
+        """Create a new disc set.
+
+        POST /v1/set with Bearer token.
+
+        Args:
+            release_id: UUID of the release this set belongs to.
+            edition_name: Optional edition name (e.g., "Extended Edition").
+            total_discs: Number of discs in the set.
+
+        Returns:
+            Parsed JSON response with id, release_id, edition_name,
+            total_discs, created_at.
+
+        Raises:
+            click.ClickException: On HTTP error.
+        """
+        headers: dict[str, str] = {}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        url = f"{self.base_url}/v1/set"
+        payload: dict[str, str | int] = {
+            "release_id": release_id,
+            "total_discs": total_discs,
+        }
+        if edition_name:
+            payload["edition_name"] = edition_name
+        resp = self._session.post(url, json=payload, headers=headers)
+        if resp.status_code == 201:
+            return resp.json()
+        self._raise_for_status(resp, "create_set")
+
+    # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 

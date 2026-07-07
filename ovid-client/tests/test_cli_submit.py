@@ -86,11 +86,11 @@ class TestSubmitHappyPath:
         mock_client_cls.return_value = mock_client
 
         runner = CliRunner()
-        # Input sequence: TMDB query, pick #1, edition (blank), disc# 1, total 1
+        # Input sequence: TMDB query, pick #1, edition (blank), disc# 1, total 1, set N
         result = runner.invoke(
             main,
             ["submit", "/dev/dvd", "--token", "tok123"],
-            input="The Matrix\n1\n\n1\n1\n",
+            input="The Matrix\n1\n\n1\n1\nN\n",
         )
 
         assert result.exit_code == 0, result.output
@@ -127,7 +127,7 @@ class TestSubmitHappyPath:
         result = runner.invoke(
             main,
             ["submit", "/dev/dvd", "--token", "my-secret-token"],
-            input="The Matrix\n1\n\n1\n1\n",
+            input="The Matrix\n1\n\n1\n1\nN\n",
         )
 
         assert result.exit_code == 0, result.output
@@ -158,11 +158,11 @@ class TestSubmitManualFallback:
         mock_client_cls.return_value = mock_client
 
         runner = CliRunner()
-        # Input: movie title, year, edition, disc#, total
+        # Input: movie title, year, edition, disc#, total, set N
         result = runner.invoke(
             main,
             ["submit", "/dev/dvd", "--token", "tok"],
-            input="The Matrix\n1999\n\n1\n1\n",
+            input="The Matrix\n1999\n\n1\n1\nN\n",
         )
 
         assert result.exit_code == 0, result.output
@@ -209,7 +209,7 @@ class TestSubmitErrors:
         result = runner.invoke(
             main,
             ["submit", "/dev/dvd", "--token", "bad"],
-            input="The Matrix\n1\n\n1\n1\n",
+            input="The Matrix\n1\n\n1\n1\nN\n",
         )
         assert result.exit_code != 0
         assert "401" in result.output
@@ -238,7 +238,7 @@ class TestSubmitErrors:
         result = runner.invoke(
             main,
             ["submit", "/dev/dvd", "--token", "tok"],
-            input="The Matrix\n1\n\n1\n1\n",
+            input="The Matrix\n1\n\n1\n1\nN\n",
         )
         assert result.exit_code != 0
         assert "409" in result.output or "already exists" in result.output.lower()
@@ -271,7 +271,7 @@ class TestPayloadMapping:
         result = runner.invoke(
             main,
             ["submit", "/dev/dvd", "--token", "tok"],
-            input="The Matrix\n1\n\n1\n1\n",
+            input="The Matrix\n1\n\n1\n1\nN\n",
         )
         assert result.exit_code == 0, result.output
 

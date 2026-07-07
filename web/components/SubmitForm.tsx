@@ -2,8 +2,9 @@
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { submitDisc, ApiError, type DiscSubmitRequest, type TitleCreate } from "@/lib/api";
+import { submitDisc, ApiError, type DiscSubmitRequest, type TitleCreate, type DiscSetSearchResult } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import SetSearchInput from "@/components/SetSearchInput";
 
 // ---------------------------------------------------------------------------
 // Types for the fingerprint JSON emitted by `ovid fingerprint --json`
@@ -43,6 +44,12 @@ export default function SubmitForm() {
   const [releaseTitle, setReleaseTitle] = useState("");
   const [releaseYear, setReleaseYear] = useState<number | "">("");
   const [contentType, setContentType] = useState("movie");
+
+  // Set state
+  const [isPartOfSet, setIsPartOfSet] = useState(false);
+  const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
+  const [selectedSetInfo, setSelectedSetInfo] = useState<DiscSetSearchResult | null>(null);
+  const [isCreatingNewSet, setIsCreatingNewSet] = useState(false);
 
   // Submission state
   const [submitting, setSubmitting] = useState(false);
@@ -104,6 +111,7 @@ export default function SubmitForm() {
       edition_name: editionName.trim() || undefined,
       disc_number: discNumber,
       total_discs: totalDiscs,
+      disc_set_id: selectedSetId ?? undefined,
       release: {
         title: trimmedTitle,
         year: releaseYear === "" ? null : releaseYear,
@@ -133,6 +141,11 @@ export default function SubmitForm() {
   // -----------------------------------------------------------------------
   // Shared input class
   // -----------------------------------------------------------------------
+
+  const EDITION_SUGGESTIONS = [
+    "Extended Edition", "Director's Cut", "Theatrical",
+    "Criterion Collection", "Special Edition", "Ultimate Edition",
+  ];
 
   const inputClass =
     "w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900";
@@ -260,36 +273,84 @@ export default function SubmitForm() {
                 className={inputClass}
               />
             </div>
-
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label htmlFor="disc-number" className="block text-sm font-medium mb-1">
-                  Disc Number
-                </label>
-                <input
-                  id="disc-number"
-                  type="number"
-                  min={1}
-                  value={discNumber}
-                  onChange={(e) => setDiscNumber(Number(e.target.value))}
-                  className={inputClass}
-                />
-              </div>
-              <div className="flex-1">
-                <label htmlFor="total-discs" className="block text-sm font-medium mb-1">
-                  Total Discs
-                </label>
-                <input
-                  id="total-discs"
-                  type="number"
-                  min={1}
-                  value={totalDiscs}
-                  onChange={(e) => setTotalDiscs(Number(e.target.value))}
-                  className={inputClass}
-                />
-              </div>
-            </div>
           </fieldset>
+
+          {/* Set toggle */}
+          <div className="mb-6">
+            <label className="relative inline-flex items-center cursor-pointer gap-2">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={isPartOfSet}
+                onChange={(e) => {
+                  setIsPartOfSet(e.target.checked);
+                  if (!e.target.checked) {
+                    setSelectedSetId(null);
+                    setSelectedSetInfo(null);
+                    setIsCreatingNewSet(false);
+                    setDiscNumber(1);
+                    setTotalDiscs(1);
+                  }
+                }}
+                data-testid="set-toggle"
+              />
+              <div className="w-9 h-5 bg-neutral-200 peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full dark:bg-neutral-700" />
+              <span className="text-sm font-normal">Part of a multi-disc set?</span>
+            </label>
+          </div>
+
+          {isPartOfSet && (
+            <fieldset className="mb-6 space-y-4 transition-all duration-200" data-testid="set-fields">
+              <legend className="text-sm font-semibold mb-2">Set Details</legend>
+
+              {!isCreatingNewSet && !selectedSetInfo && (
+                <SetSearchInput
+                  onSelect={(setId, setInfo) => {
+                    setSelectedSetId(setId);
+                    setSelectedSetInfo(setInfo);
+                  }}
+                  onCreateNew={() => setIsCreatingNewSet(true)}
+                />
+              )}
+
+              {selectedSetInfo && (
+                <div className="rounded border border-neutral-200 bg-neutral-50 p-3 text-sm dark:border-neutral-800 dark:bg-neutral-900">
+                  Selected: {selectedSetInfo.edition_name ?? "Unnamed set"} ({selectedSetInfo.discs.length}/{selectedSetInfo.total_discs} discs)
+                  <button type="button" className="ml-2 text-blue-600 text-xs" onClick={() => { setSelectedSetId(null); setSelectedSetInfo(null); }}>Change</button>
+                </div>
+              )}
+
+              {isCreatingNewSet && (
+                <div>
+                  <label htmlFor="set-edition-name" className="block text-sm font-medium mb-1">Edition Name</label>
+                  <input
+                    id="set-edition-name"
+                    type="text"
+                    list="edition-suggestions"
+                    value={editionName}
+                    onChange={(e) => setEditionName(e.target.value)}
+                    placeholder="e.g. Extended Edition"
+                    className={inputClass}
+                    data-testid="set-edition-name"
+                  />
+                  <datalist id="edition-suggestions">
+                    {EDITION_SUGGESTIONS.map(s => <option key={s} value={s} />)}
+                  </datalist>
+                </div>
+              )}
+
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label htmlFor="disc-number" className="block text-sm font-medium mb-1">Disc Number</label>
+                  <input id="disc-number" type="number" min={1} value={discNumber} onChange={(e) => setDiscNumber(Number(e.target.value))} className={inputClass} />
+                </div>
+                <div className="flex-1">
+                  <label htmlFor="total-discs" className="block text-sm font-medium mb-1">Total Discs</label>
+                  <input id="total-discs" type="number" min={1} value={totalDiscs} onChange={(e) => setTotalDiscs(Number(e.target.value))} className={inputClass} />
+                </div>
+              </div>
+            </fieldset>
+          )}
 
           {/* Error / success messages */}
           {submitError && (
