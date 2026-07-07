@@ -136,23 +136,45 @@ def promote_one_disc(connection: Connection, dvd1_fingerprint: str) -> bool:
     return True
 
 
-def promote_all_dvdread1_discs(connection: Connection) -> int:
+def promote_all_dvdread1_discs(connection: Connection, *, commit: bool = True) -> int:
     """Bulk-promote every disc that has a recorded ``dvdread1-*`` alias.
 
     Enumerates every disc currently on a ``dvd1-*`` primary fingerprint,
-    then calls :func:`promote_one_disc` for each — committing after EVERY
-    candidate (promoted or not) so the enumeration's own transaction
-    segment never grows unbounded across a large table. This is
-    SQLAlchemy 2.0's "commit as you go" pattern
-    [docs.sqlalchemy.org/en/20/core/connections.html]: the connection
-    auto-begins a new transaction segment on the next ``execute()`` call
-    after ``commit()``.
+    then calls :func:`promote_one_disc` for each.
 
-    Per-disc commits make an interrupted run safely resumable: re-running
-    this function from scratch after a partial pass only re-processes
-    already-promoted discs, which :func:`promote_one_disc` treats as a
-    no-op (idempotency guard), and discs not yet reached are simply
-    promoted on the next pass.
+    ``commit`` (keyword-only, default ``True``) controls whether this
+    function commits ``connection`` after EVERY candidate (promoted or
+    not), so the enumeration's own transaction segment never grows
+    unbounded across a large table. This is SQLAlchemy 2.0's "commit as
+    you go" pattern [docs.sqlalchemy.org/en/20/core/connections.html]:
+    the connection auto-begins a new transaction segment on the next
+    ``execute()`` call after ``commit()``. Per-disc commits make an
+    interrupted run safely resumable: re-running this function from
+    scratch after a partial pass only re-processes already-promoted
+    discs, which :func:`promote_one_disc` treats as a no-op (idempotency
+    guard), and discs not yet reached are simply promoted on the next
+    pass. This is the correct behavior for standalone/direct callers
+    (e.g. an ad-hoc script or a pytest test driving its own connection)
+    and is why it remains the default.
+
+    WARNING — callers running INSIDE an Alembic migration MUST pass
+    ``commit=False``. Alembic migrations run inside Alembic's own
+    single migration transaction on ``op.get_bind()``'s connection; that
+    same connection is what Alembic commits, immediately followed by its
+    own write of the ``alembic_version`` stamp for the revision, once
+    ``upgrade()`` returns. If this function commits that connection
+    mid-migration (the ``commit=True`` default), Alembic's migration
+    transaction ends early; when Alembic subsequently tries to write the
+    ``alembic_version`` stamp, that write lands in a transaction Alembic
+    itself no longer commits, so the stamp is silently discarded. This
+    was observed on a real Postgres deployment: revision
+    ``900000000006``'s promotion data applied correctly, but
+    ``alembic_version`` stayed pinned at ``900000000005`` forever, so
+    every subsequent ``alembic upgrade head`` re-ran 006 (an idempotent
+    no-op) without ever advancing the recorded schema version. Passing
+    ``commit=False`` leaves ALL transaction control to Alembic, so the
+    promotion and the ``alembic_version`` stamp commit atomically as one
+    Alembic transaction.
 
     Returns the total number of discs promoted in this run.
     """
@@ -167,7 +189,8 @@ def promote_all_dvdread1_discs(connection: Connection) -> int:
     for i, dvd1_fingerprint in enumerate(candidates, start=1):
         if promote_one_disc(connection, dvd1_fingerprint):
             promoted_count += 1
-        connection.commit()
+        if commit:
+            connection.commit()
         if i % 100 == 0:
             print(f"  ...promoted {promoted_count}/{i} discs processed")
 

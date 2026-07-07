@@ -7,9 +7,12 @@ Create Date: 2026-07-06 23:15:00.000000
 One-time data migration (D-01): for every disc that has a recorded
 ``dvdread1-*`` Lookup Alias, promotes that alias to the disc's primary
 ``discs.fingerprint`` and demotes the old ``dvd1-*`` value to a new alias
-row — each disc promoted in its own committed transaction (SQLAlchemy 2.0
-commit-as-you-go). Any disc with no recorded ``dvdread1-*`` alias is left
-untouched, permanently on ``dvd1-*``.
+row — the entire promotion runs within Alembic's single migration
+transaction on ``op.get_bind()``'s connection, atomic with Alembic's own
+post-``upgrade()`` ``alembic_version`` stamp write (see the ``commit=False``
+call below). Per-disc commit-as-you-go (SQLAlchemy 2.0's pattern) is only
+used on the standalone/direct-call path, not here. Any disc with no
+recorded ``dvdread1-*`` alias is left untouched, permanently on ``dvd1-*``.
 
 Chained strictly AFTER revision 900000000005 (the fingerprint_registry
 create+backfill migration), per the phase's locked sequencing — the
@@ -38,7 +41,20 @@ def upgrade() -> None:
     connection = op.get_bind()
     # promote_all_dvdread1_discs() already prints its own completion summary
     # ("Promotion complete: N discs promoted...") — no need to print again.
-    promote_all_dvdread1_discs(connection)
+    #
+    # commit=False: Alembic owns this migration's transaction on
+    # `connection` and, once upgrade() returns, writes the alembic_version
+    # stamp for this revision using that same transaction. If this call
+    # were allowed to commit `connection` mid-migration (the default),
+    # Alembic's migration transaction would end early and its later
+    # alembic_version write would land in a transaction Alembic no longer
+    # commits — silently discarding the stamp (observed live: promotion
+    # data applied, but alembic_version stayed pinned at 900000000005
+    # forever, so this migration re-ran as a no-op on every subsequent
+    # `alembic upgrade head`). commit=False leaves all transaction control
+    # to Alembic, so the promotion and the version stamp commit atomically
+    # as one Alembic transaction.
+    promote_all_dvdread1_discs(connection, commit=False)
 
 
 def downgrade() -> None:

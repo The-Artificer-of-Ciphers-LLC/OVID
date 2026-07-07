@@ -210,3 +210,85 @@ class TestPromoteAllDvdread1Discs:
             assert fresh_row.fingerprint == "dvdread1-bulk-f"
         finally:
             fresh_db.close()
+
+
+class TestPromoteAllDvdread1DiscsCommitParam:
+    """Regression test (post-cutover live bug): ``commit=False`` must leave
+    ALL transaction control to the caller — pinning the fix for migration
+    900000000006, which discarded Alembic's ``alembic_version`` stamp
+    because ``promote_all_dvdread1_discs`` unconditionally committed
+    Alembic's own bind mid-migration."""
+
+    def test_commit_false_leaves_transaction_control_to_caller(
+        self, db_session: Session
+    ) -> None:
+        disc = _seed_disc_with_alias(
+            db_session,
+            dvd1_fingerprint="dvd1-nocommit-a",
+            dvdread1_fingerprint="dvdread1-nocommit-a",
+        )
+
+        promoted_count = promote_all_dvdread1_discs(
+            db_session.connection(), commit=False
+        )
+        assert promoted_count == 1
+
+        # Roll back the CALLER's transaction — simulating Alembic never
+        # committing its own migration transaction (e.g. because it
+        # rolled back on error, or simply hasn't reached its own commit
+        # point yet). With commit=False, promote_all_dvdread1_discs must
+        # not have committed anything of its own.
+        db_session.rollback()
+
+        # A FRESH Session/connection must NOT see the promotion — proving
+        # commit=False left transaction control entirely to the caller,
+        # unlike the commit=True (default) path exercised by
+        # test_each_promoted_disc_is_durably_committed_independently above.
+        fresh_db = _TestSession()
+        try:
+            fresh_row = fresh_db.execute(
+                text("SELECT fingerprint FROM discs WHERE id = :id"),
+                {"id": disc.id.hex},
+            ).first()
+            assert fresh_row is not None
+            assert fresh_row.fingerprint == "dvd1-nocommit-a", (
+                "commit=False must not commit the promotion; rolling back "
+                "the caller's own transaction must fully undo it (this is "
+                "the exact guarantee an Alembic migration relies on so its "
+                "post-upgrade() alembic_version stamp commits atomically "
+                "with the promotion, rather than being silently discarded)"
+            )
+        finally:
+            fresh_db.close()
+
+    def test_commit_true_default_persists_across_caller_rollback(
+        self, db_session: Session
+    ) -> None:
+        disc = _seed_disc_with_alias(
+            db_session,
+            dvd1_fingerprint="dvd1-commit-b",
+            dvdread1_fingerprint="dvdread1-commit-b",
+        )
+
+        promoted_count = promote_all_dvdread1_discs(db_session.connection())
+        assert promoted_count == 1
+
+        # commit=True (the default) commits as-you-go inside the function
+        # itself, so a later rollback on the caller's own session/connection
+        # must NOT undo the already-committed promotion.
+        db_session.rollback()
+
+        fresh_db = _TestSession()
+        try:
+            fresh_row = fresh_db.execute(
+                text("SELECT fingerprint FROM discs WHERE id = :id"),
+                {"id": disc.id.hex},
+            ).first()
+            assert fresh_row is not None
+            assert fresh_row.fingerprint == "dvdread1-commit-b", (
+                "commit=True (default) must commit as-you-go; a subsequent "
+                "rollback on the caller's own session must not undo rows "
+                "this function already committed"
+            )
+        finally:
+            fresh_db.close()
