@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth.deps import get_current_user
 from app.deps import get_db
 from app.models import Disc, DiscSet, DiscTitle, Release, User
-from app.rate_limit import _dynamic_limit, limiter
+from app.rate_limit import AUTH_WRITE_LIMIT, _dynamic_limit, limiter
 from app.schemas import (
     DiscSetCreate,
     DiscSetDetailResponse,
@@ -43,7 +43,25 @@ def _error_response(
 
 
 def _build_sibling_summary(disc: Disc) -> SiblingDiscSummary:
-    """Build a SiblingDiscSummary from a Disc ORM object (D-06)."""
+    """Build a SiblingDiscSummary from a Disc ORM object (D-06).
+
+    Anti-echo redaction (D-09, carried into the set view — R-1): withhold the
+    derived structural fields (``main_title``/``duration_secs``/``track_count``)
+    for an ``unverified`` disc, mirroring the same branch ``_disc_to_response``
+    (disc.py) uses to redact a direct lookup. A sibling in any other status
+    (verified/disputed/pending_identification) still shows its structural
+    summary — this is a per-sibling status gate, never a blanket redaction.
+    """
+    if disc.status == "unverified":
+        return SiblingDiscSummary(
+            fingerprint=disc.fingerprint,
+            disc_number=disc.disc_number,
+            format=disc.format,
+            main_title=None,
+            duration_secs=None,
+            track_count=None,
+        )
+
     main_title_name = None
     main_duration = None
     track_count = 0
@@ -66,6 +84,11 @@ def _build_sibling_summary(disc: Disc) -> SiblingDiscSummary:
 # POST /v1/set
 # ---------------------------------------------------------------------------
 @router.post("/set", status_code=201)
+# Stacked write ceiling (INFRA-04 / R-2): mirrors submit_disc/register_disc
+# (disc.py l.909-910/l.806-807) — the per-account AUTH_WRITE_LIMIT ceiling
+# stacks above the existing volumetric _dynamic_limit so set creation from
+# the submit flow is throttled consistently with the other write routes.
+@limiter.limit(AUTH_WRITE_LIMIT, methods=["POST"])
 @limiter.limit(_dynamic_limit)
 def create_set(
     body: DiscSetCreate,

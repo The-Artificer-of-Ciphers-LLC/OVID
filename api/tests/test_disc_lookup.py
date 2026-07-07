@@ -161,11 +161,15 @@ class TestDiscLookupSetIntegration:
         disc.disc_set_id = set_id
         disc.disc_number = 1
 
-        # Create a sibling disc in the same set
+        # Create a sibling disc in the same set. Status is "verified" (not
+        # "unverified") so this test exercises full sibling-summary rendering
+        # without tripping the R-1 anti-echo redaction gate (Phase 7 Plan 03)
+        # — a redacted-unverified-sibling case is covered separately in
+        # tests/test_set_redaction_and_limit.py.
         sibling = Disc(
             fingerprint="dvd-SIBLING-001",
             format="DVD",
-            status="unverified",
+            status="verified",
             disc_set_id=set_id,
             disc_number=2,
         )

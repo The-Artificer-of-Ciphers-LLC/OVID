@@ -501,13 +501,31 @@ def _build_title_response(title: DiscTitle) -> TitleResponse:
 
 
 def _build_disc_set_nested(disc: Disc) -> DiscSetNested | None:
-    """Build a DiscSetNested response if the disc belongs to a set."""
+    """Build a DiscSetNested response if the disc belongs to a set.
+
+    Anti-echo redaction (D-09, carried into the nested set view — R-1): withhold
+    a sibling's derived structural fields (``main_title``/``duration_secs``/
+    ``track_count``) when that sibling is ``unverified``, reusing the same
+    predicate ``_disc_to_response`` uses below to redact a direct lookup. A
+    sibling in any other status keeps its full structural summary — the gate is
+    per-sibling, never blanket.
+    """
     if disc.disc_set is None:
         return None
     ds = disc.disc_set
     siblings = []
     for sibling in ds.discs:
         if sibling.id == disc.id:
+            continue
+        if sibling.status == "unverified":
+            siblings.append(SiblingDiscSummary(
+                fingerprint=sibling.fingerprint,
+                disc_number=sibling.disc_number,
+                format=sibling.format,
+                main_title=None,
+                duration_secs=None,
+                track_count=None,
+            ))
             continue
         main_title_name = None
         main_duration = None
