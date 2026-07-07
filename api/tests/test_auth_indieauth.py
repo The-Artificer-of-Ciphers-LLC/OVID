@@ -274,6 +274,9 @@ class TestIndieAuthLogin:
         assert "code_challenge=" in location
         assert "code_challenge_method=S256" in location
         assert "state=" in location
+        # ME-01: authorize params are urlencode()'d, not raw f-string joined — the
+        # `me` URL's "://" must come through percent-encoded in the query string.
+        assert "me=https%3A%2F%2Fuser.example.com" in location
 
     def test_login_missing_url_returns_400(self, indieauth_client: TestClient):
         """No url param → 400."""

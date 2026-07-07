@@ -4,7 +4,7 @@ import logging
 import os
 import secrets
 import time
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 import httpx
 import jwt as pyjwt
@@ -404,7 +404,7 @@ async def apple_login(request: Request, web_redirect_uri: str = "", pending_link
         "response_mode": "query",
         "state": state,
     }
-    qs = "&".join(f"{k}={v}" for k, v in params.items())
+    qs = urlencode(params)
     from starlette.responses import RedirectResponse
     return RedirectResponse(url=f"{_APPLE_AUTH_URL}?{qs}")
 
@@ -562,7 +562,7 @@ async def indieauth_login(request: Request, url: str = "", web_redirect_uri: str
         "code_challenge_method": "S256",
         "me": validated_url,
     }
-    qs = "&".join(f"{k}={v}" for k, v in params.items())
+    qs = urlencode(params)
 
     from starlette.responses import RedirectResponse
     return RedirectResponse(url=f"{endpoints['authorization_endpoint']}?{qs}")
@@ -745,7 +745,7 @@ async def mastodon_login(request: Request, domain: str = "", web_redirect_uri: s
         "scope": "read",
         "state": state,
     }
-    qs = "&".join(f"{k}={v}" for k, v in params.items())
+    qs = urlencode(params)
 
     from starlette.responses import RedirectResponse
     return RedirectResponse(url=f"https://{domain}/oauth/authorize?{qs}")
