@@ -221,7 +221,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Re-review (carried in from retired branches):** The **multi-disc-set** (`/v1/set` API, `SiblingDiscs`/`SetSearchInput`, submit-form set linking, migration `900000000008`) and **chapter-name** (`DiscChapter` API + `ChapterResponse`, `ChapterEditor`/`ChapterList`, client-side chapter extraction, migration `900000000009`) features were **re-integrated onto `main` from the now-retired `gsd/phase-02`/`gsd/phase-03` lineage** (commits `f2c7a20`, `63d9417`) — ported onto a different baseline and **not yet reviewed in this milestone's plan context**. When planning this phase, re-review BOTH features end-to-end (UI + API + client) against the current architecture; do not assume they were designed against it. Test suites pass, but design/scope review is outstanding.
 
-**Plans**: 5/8 plans executed
+**Plans**: 6/8 plans executed
 **UI hint**: yes
 
 **Wave 1** *(parallel — disjoint files)*
@@ -234,7 +234,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] 07-04-PLAN.md — disc detail: render fingerprint aliases + unverified-withheld message + Sibling/Chapter parity (WEBUI-02) [Wave 2, depends 07-01/07-03]
 - [x] 07-05-PLAN.md — search surface: anchored input + primitive migration + AA-contrast empty state (WEBUI-01) [Wave 2, depends 07-01]
-- [ ] 07-06-PLAN.md — submit + set/chapter authoring a11y parity (WEBUI-03, D-01 R-4) [Wave 2, depends 07-01]
+- [x] 07-06-PLAN.md — submit + set/chapter authoring a11y parity (WEBUI-03, D-01 R-4) [Wave 2, depends 07-01]
 - [ ] 07-07-PLAN.md — settings add-provider + enumeration-safe merge banner + ProviderList parity (WEBUI-04, D-05) [Wave 2, depends 07-01/07-02, checkpoint:decision]
 
 **Wave 3** *(blocked on Wave 2)*
@@ -273,7 +273,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | 4. Blu-ray/UHD Fingerprinting | 6/6 | Complete    | 2026-07-06 |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 7/7 | Complete    | 2026-07-06 |
 | 6. OAuth & Account Linking | 7/7 | Complete   | 2026-07-07 |
-| 7. Web UI Production Readiness | 5/8 | In Progress|  |
+| 7. Web UI Production Readiness | 6/8 | In Progress|  |
 | 8. Launch Readiness — ARM, Seeding & Announcement | 0/TBD | Not started | - |
 
 ---
