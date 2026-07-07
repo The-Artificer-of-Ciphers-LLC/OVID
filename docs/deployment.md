@@ -505,7 +505,10 @@ docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .e
 
 ### Verified state (phase gate)
 
-_Recorded by the 07-08 Task 2 phase gate — full `web` Vitest + `api` pytest suite results — see below._
+As of 2026-07-07 (07-08 Task 2), the full `web` Vitest suite (93/93) and full `api` pytest suite
+(450/450) are green — the required D-06 phase gate before staging sign-off (`cd web && npm test`;
+`cd api && .venv/bin/python -m pytest tests/ -q`). `npx eslint .` in `web/` is also clean (0 issues). No
+warnings (new or pre-existing) were emitted by the `api` run.
 
 ### Human sign-off
 
