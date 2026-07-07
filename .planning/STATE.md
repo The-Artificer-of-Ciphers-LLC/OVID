@@ -2,18 +2,19 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
+current_phase: 07
 current_phase_name: web-ui-production-readiness
 status: executing
-stopped_at: Completed 07-06-PLAN.md
-last_updated: "2026-07-07T18:56:08.721Z"
+stopped_at: Completed 07-07-PLAN.md
+last_updated: "2026-07-07T23:22:51.152Z"
 last_activity: 2026-07-07
+last_activity_desc: Phase 07 execution started
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 43
-  completed_plans: 41
+  completed_plans: 42
   percent: 75
-current_phase: 06
 ---
 
 # Project State
@@ -29,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 07 (web-ui-production-readiness) — EXECUTING
 Current Phase Name: web-ui-production-readiness
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-07-07
 Last Activity Description: Phase 07 execution started
@@ -95,6 +96,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 07 P04 | 3min | 3 tasks | 4 files |
 | Phase 07 P05 | 12min | 2 tasks | 4 files |
 | Phase 07 P06 | 10min | 3 tasks | 4 files |
+| Phase 07 P07-07 | 18min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -178,6 +180,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-05: Left WEBUI-01 unchecked in REQUIREMENTS.md -- the requirement text includes (live at oviddb.org), a deployment condition owned by 07-08, not this plan.
 - [Phase ?]: 07-06: Marked WEBUI-03 complete — submit form + set/chapter authoring UI reached D-02/D-03 primitive/a11y parity (D-01 R-4); no later Phase 7 plan touches WEBUI-03.
 - [Phase ?]: 07-06: Fixed SetSearchInput.tsx's react-hooks/set-state-in-effect and jsx-a11y/role-has-required-aria-props findings in-scope (not deferred); web/ is now fully eslint-clean project-wide.
+- [Phase ?]: 07-07: Add-provider flow uses option-b (frontend-only) — credentialed fetch(POST /link/{provider}) primes the session cookie, then window.location.assign()s the deterministic /login URL as a top-level navigation. No backend change.
+- [Phase ?]: 07-07: Add-provider CTA candidates limited to github/google/apple; mastodon/indieauth excluded per R-3 (link_requires_domain 400) and D-05 (IndieAuth hidden in production).
+- [Phase ?]: 07-07: Fixed apiFetch's error-body parsing to also read FastAPI's nested {detail:{error,reason}} shape, not just the flat disc/set {error,message} envelope — required for cannot_unlink_last to reach the UI correctly.
 
 ### Pending Todos
 
@@ -202,6 +207,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-07T18:56:08.715Z
-Stopped at: Completed 07-06-PLAN.md
+Last session: 2026-07-07T23:22:51.144Z
+Stopped at: Completed 07-07-PLAN.md
 Resume file: None
