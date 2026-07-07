@@ -64,7 +64,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </p>
 
           {searchResult.results.length === 0 ? (
-            <p className="text-neutral-500">No releases found.</p>
+            <div className="text-center text-neutral-500">
+              <p>No releases found.</p>
+              <p className="mt-1 text-sm">
+                Check the spelling or try a broader title.
+              </p>
+            </div>
           ) : (
             <div className="grid gap-3">
               {searchResult.results.map((release) => (
@@ -102,7 +107,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       {/* Empty state — no search yet */}
       {!q && (
-        <p className="text-center text-neutral-400 text-sm">
+        <p className="text-center text-neutral-500 text-sm">
           Enter a title to search the database.
         </p>
       )}

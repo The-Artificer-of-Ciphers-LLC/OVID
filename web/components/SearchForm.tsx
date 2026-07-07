@@ -2,6 +2,9 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
+import Button from "@/components/Button";
+import Field from "@/components/Field";
+import Input from "@/components/Input";
 
 function SearchFormInner() {
   const router = useRouter();
@@ -21,44 +24,42 @@ function SearchFormInner() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-      <div className="flex-1 min-w-[200px]">
-        <label htmlFor="search-query" className="block text-sm font-medium mb-1">
-          Title
-        </label>
-        <input
+    <form
+      onSubmit={handleSubmit}
+      className="mx-auto flex w-full max-w-2xl flex-col gap-4"
+    >
+      <Field id="search-query" label="Title">
+        <Input
           id="search-query"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search for a movie or show…"
-          className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900"
+          data-testid="search-query-input"
         />
-      </div>
+      </Field>
 
-      <div className="w-28">
-        <label htmlFor="search-year" className="block text-sm font-medium mb-1">
-          Year
-        </label>
-        <input
-          id="search-year"
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          maxLength={4}
-          value={year}
-          onChange={(e) => setYear(e.target.value)}
-          placeholder="e.g. 2024"
-          className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900"
-        />
-      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-28">
+          <Field id="search-year" label="Year">
+            <Input
+              id="search-year"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={4}
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              placeholder="e.g. 2024"
+              data-testid="search-year-input"
+            />
+          </Field>
+        </div>
 
-      <button
-        type="submit"
-        className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-      >
-        Search
-      </button>
+        <Button type="submit" data-testid="search-submit">
+          Search discs
+        </Button>
+      </div>
     </form>
   );
 }
