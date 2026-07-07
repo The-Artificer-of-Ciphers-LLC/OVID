@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import SubmitForm from "@/components/SubmitForm";
 import ProviderList from "@/components/ProviderList";
 import ChapterEditor from "@/components/ChapterEditor";
+import { submitDisc, ApiError } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -264,6 +266,95 @@ describe("SubmitForm", () => {
     // The datalist test requires internal state change.
     // For now, verify the search input renders.
     expect(screen.getByTestId("set-search-input")).toBeTruthy();
+  });
+
+  // -------------------------------------------------------------------------
+  // D-03 a11y parity: primitive focus-visible CTA, aria-live errors, keyboard
+  // set-toggle (07-06)
+  // -------------------------------------------------------------------------
+
+  it("submit CTA reads 'Submit disc' and carries a focus-visible ring", async () => {
+    render(<SubmitForm />);
+
+    const input = screen.getByTestId("fp-file-input");
+    fireEvent.change(input, {
+      target: { files: [createMockFile(validFingerprint)] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("fp-preview")).toBeTruthy();
+    });
+
+    const submitBtn = screen.getByRole("button", { name: "Submit disc" });
+    expect(submitBtn.className).toContain("focus-visible:ring");
+  });
+
+  it("parse-error region has aria-live=polite", async () => {
+    render(<SubmitForm />);
+
+    const input = screen.getByTestId("fp-file-input");
+    fireEvent.change(input, { target: { files: [createMockFile("not json at all")] } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("parse-error")).toBeTruthy();
+    });
+
+    expect(screen.getByTestId("parse-error").getAttribute("aria-live")).toBe("polite");
+  });
+
+  it("submit-error region has aria-live=polite when submission fails", async () => {
+    vi.mocked(submitDisc).mockRejectedValueOnce(
+      new ApiError(400, "bad_request", "Something went wrong"),
+    );
+
+    render(<SubmitForm />);
+
+    const input = screen.getByTestId("fp-file-input");
+    fireEvent.change(input, {
+      target: { files: [createMockFile(validFingerprint)] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("fp-preview")).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText(/Release Title/), {
+      target: { value: "Test Movie" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit disc" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("submit-error")).toBeTruthy();
+    });
+
+    expect(screen.getByTestId("submit-error").getAttribute("aria-live")).toBe("polite");
+  });
+
+  it("set-toggle is keyboard-operable (Tab + Space) and carries a focus-visible peer ring (not mouse-noisy peer-focus)", async () => {
+    const user = userEvent.setup();
+    render(<SubmitForm />);
+
+    const input = screen.getByTestId("fp-file-input");
+    fireEvent.change(input, {
+      target: { files: [createMockFile(validFingerprint)] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("fp-preview")).toBeTruthy();
+    });
+
+    const toggle = screen.getByTestId("set-toggle") as HTMLInputElement;
+    const track = toggle.nextElementSibling as HTMLElement;
+    expect(track.className).toContain("peer-focus-visible:ring");
+    expect(track.className).not.toMatch(/(^|\s)peer-focus:/);
+
+    toggle.focus();
+    expect(toggle).toHaveFocus();
+    expect(toggle.checked).toBe(false);
+
+    await user.keyboard(" ");
+    expect(toggle.checked).toBe(true);
+    expect(screen.getByTestId("set-fields")).toBeTruthy();
   });
 });
 
