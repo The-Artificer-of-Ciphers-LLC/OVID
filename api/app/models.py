@@ -392,6 +392,40 @@ class UserOAuthLink(Base):
 
 
 # ---------------------------------------------------------------------------
+# pending_account_links — server-side confirm-gated merge state (D-01)
+# Replaces the nOAuth-vulnerable session-carried pending-link mechanism: the
+# merge decision is a durable, single-use, TTL-bearing row keyed by
+# existing_user_id, not "whatever account logs in next in this session".
+# ---------------------------------------------------------------------------
+class PendingAccountLink(Base):
+    __tablename__ = "pending_account_links"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    existing_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    new_provider: Mapped[str] = mapped_column(String(30), nullable=False)
+    new_provider_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow
+    )
+    # TTL — callers set it explicitly (no default); single-use enforced by consumed_at
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    # NULL until the offer is consumed (single-use marker)
+    consumed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        Index("idx_pending_account_links_existing_user", "existing_user_id"),
+    )
+
+
+# ---------------------------------------------------------------------------
 # disc_edits — full edit history log
 # ---------------------------------------------------------------------------
 class DiscEdit(Base):
