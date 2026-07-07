@@ -9,7 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from slowapi.errors import RateLimitExceeded
 
 from app.auth.config import SECRET_KEY
-from app.auth.routes import auth_router
+from app.auth.routes import auth_router, indieauth_router
 from app.middleware import MirrorModeMiddleware, RequestIdMiddleware
 from app.rate_limit import UNAUTH_LIMIT, limiter, rate_limit_exceeded_handler
 from app.routes.disc import router as disc_router
@@ -52,6 +52,15 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.include_router(disc_router)
 app.include_router(sync_router)
 app.include_router(auth_router)
+
+# IndieAuth is opt-in (D-08): it is not one of the four headline providers, so its
+# routes register only when an operator explicitly enables OVID_ENABLE_INDIEAUTH.
+# Disabled by default → the IndieAuth endpoints 404. This gate is INDEPENDENT of
+# the OVID_ENV production-safety guard (config import above): disabling IndieAuth
+# never disables that guard, and enabling IndieAuth never re-enables the localhost
+# bypass in production (Pitfall 6).
+if os.environ.get("OVID_ENABLE_INDIEAUTH", "").lower() in ("1", "true", "yes"):
+    app.include_router(indieauth_router)
 
 
 @app.get("/health")

@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from app.auth import config
 from app.auth.deps import get_current_user
 from app.auth.indieauth import DiscoveryError, discover_endpoints, generate_pkce_pair, validate_url
 from app.auth.jwt import create_access_token
@@ -28,6 +29,12 @@ from app.models import User
 logger = logging.getLogger(__name__)
 
 auth_router = APIRouter(prefix="/v1/auth", tags=["auth"])
+
+# IndieAuth lives on a SEPARATE router (D-08). It is not one of the four headline
+# providers, so main.py registers it only when the operator opts in via
+# OVID_ENABLE_INDIEAUTH — disabled by default, its routes 404. This shrinks the
+# default auth surface to exactly GitHub / Apple / Google / Mastodon.
+indieauth_router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 # ---------------------------------------------------------------------------
 # OAuth client setup (authlib Starlette integration)
@@ -462,7 +469,7 @@ async def apple_callback(request: Request, db: Session = Depends(get_db)):
 # IndieAuth
 # ---------------------------------------------------------------------------
 
-@auth_router.get("/indieauth/login")
+@indieauth_router.get("/indieauth/login")
 async def indieauth_login(request: Request, url: str = "", web_redirect_uri: str = "", pending_link_id: str = ""):
     """Begin IndieAuth flow: discover endpoints, redirect to authorization_endpoint."""
     if not url:
@@ -477,7 +484,11 @@ async def indieauth_login(request: Request, url: str = "", web_redirect_uri: str
         request.session["pending_link_id"] = pending_link_id
 
     try:
-        validated_url = validate_url(url, allow_localhost=True)
+        # AUTH-10 / D-09: the localhost bypass is derived from the single source of
+        # truth (config.ALLOW_LOCALHOST_BYPASS, False under OVID_ENV=production),
+        # read as a MODULE attribute at call time — never a hardcoded truthy literal.
+        # This makes the dev-only bypass provably unreachable in production.
+        validated_url = validate_url(url, allow_localhost=config.ALLOW_LOCALHOST_BYPASS)
     except ValueError as e:
         raise HTTPException(status_code=400, detail={"error": "invalid_url", "reason": str(e)})
 
@@ -516,7 +527,7 @@ async def indieauth_login(request: Request, url: str = "", web_redirect_uri: str
     return RedirectResponse(url=f"{endpoints['authorization_endpoint']}?{qs}")
 
 
-@auth_router.get("/indieauth/callback")
+@indieauth_router.get("/indieauth/callback")
 async def indieauth_callback(request: Request, db: Session = Depends(get_db)):
     """Exchange IndieAuth code for token, upsert user."""
     code = request.query_params.get("code")
