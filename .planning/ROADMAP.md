@@ -184,11 +184,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. The `finalize_auth` helper has isolated unit tests covering verified-email merge success, unverified-email merge rejection, and merge-without-reauth rejection (AUTH-09 [guardrail]).
   6. The IndieAuth localhost bypass is provably unreachable in production configuration — a startup assertion refuses to boot if the bypass flag is set alongside a production indicator (AUTH-10 [guardrail]); the OAuth setup guide is published (DOCS-03).
 
-**Plans**: 0/7 plans executed
+**Plans**: 2/7 plans executed
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — PendingAccountLink model + migration 900000000007 (nOAuth merge-state carrier)
-- [ ] 06-02-PLAN.md — Mastodon SSRF dual-stack hardening + no-redirect/no-reflection locks (AUTH-04/05)
+- [x] 06-01-PLAN.md — PendingAccountLink model + migration 900000000007 (nOAuth merge-state carrier)
+- [x] 06-02-PLAN.md — Mastodon SSRF dual-stack hardening + no-redirect/no-reflection locks (AUTH-04/05)
 - [ ] 06-03-PLAN.md — OVID_ENV boot assertion + ALLOW_LOCALHOST_BYPASS + compose/.env plumbing (AUTH-10)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -253,7 +253,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | 3. Redis-Backed Rate Limiting & Performance | 4/4 | Complete    | 2026-07-06 |
 | 4. Blu-ray/UHD Fingerprinting | 6/6 | Complete    | 2026-07-06 |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 7/7 | Complete    | 2026-07-06 |
-| 6. OAuth & Account Linking | 0/7 | Planned    |  |
+| 6. OAuth & Account Linking | 2/7 | In Progress|  |
 | 7. Web UI Production Readiness | 0/TBD | Not started | - |
 | 8. Launch Readiness — ARM, Seeding & Announcement | 0/TBD | Not started | - |
 
