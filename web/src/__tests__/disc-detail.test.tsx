@@ -1,8 +1,24 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import SiblingDiscs from "@/components/SiblingDiscs";
 import ChapterList from "@/components/ChapterList";
-import type { SiblingDiscSummary, ChapterResponse } from "@/lib/api";
+import type { SiblingDiscSummary, ChapterResponse, DiscLookupResponse } from "@/lib/api";
+
+// ---------------------------------------------------------------------------
+// Mock @/lib/api for DiscDetailPage (server component) tests
+// ---------------------------------------------------------------------------
+
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return {
+    ...actual,
+    getDisc: vi.fn(),
+    getDiscEdits: vi.fn(),
+  };
+});
+
+import DiscDetailPage from "@/app/disc/[fingerprint]/page";
+import { getDisc, getDiscEdits } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -264,5 +280,147 @@ describe("ChapterList", () => {
     const toggle = screen.getByTestId("chapter-toggle-2");
     expect(toggle.textContent).toContain("1 chapter");
     expect(toggle.textContent).not.toContain("chapters");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DiscDetailPage — fingerprint aliases + unverified-withheld message (WEBUI-02)
+// ---------------------------------------------------------------------------
+
+function makeDisc(overrides: Partial<DiscLookupResponse> = {}): DiscLookupResponse {
+  return {
+    request_id: "req-1",
+    fingerprint: "dvd1-primary123",
+    format: "DVD",
+    status: "verified",
+    confidence: "high",
+    region_code: null,
+    upc: null,
+    edition_name: null,
+    disc_number: 1,
+    total_discs: 1,
+    submitted_by: null,
+    verified_by: null,
+    release: {
+      title: "Test Movie",
+      year: 2020,
+      content_type: "movie",
+      tmdb_id: null,
+      imdb_id: null,
+    },
+    titles: [],
+    fingerprint_aliases: [],
+    disc_set: null,
+    ...overrides,
+  };
+}
+
+async function renderDiscDetail(disc: DiscLookupResponse) {
+  vi.mocked(getDisc).mockResolvedValue(disc);
+  vi.mocked(getDiscEdits).mockResolvedValue({
+    request_id: "req-1",
+    fingerprint: disc.fingerprint,
+    edits: [],
+  });
+  const element = await DiscDetailPage({
+    params: Promise.resolve({ fingerprint: disc.fingerprint }),
+  });
+  return render(element);
+}
+
+describe("DiscDetailPage — fingerprint aliases (WEBUI-02)", () => {
+  it("renders the fingerprint-aliases section with all identity strings and the primary badge", async () => {
+    const disc = makeDisc({
+      fingerprint_aliases: [
+        { fingerprint: "dvd1-primary123", method: "dvd1", is_primary: true },
+        { fingerprint: "dvdread1-secondary456", method: "dvdread1", is_primary: false },
+      ],
+    });
+    await renderDiscDetail(disc);
+
+    const section = screen.getByTestId("fingerprint-aliases");
+    expect(section).toBeTruthy();
+    expect(screen.getByText("dvd1-primary123")).toBeTruthy();
+    expect(screen.getByText("dvdread1-secondary456")).toBeTruthy();
+    expect(screen.getByText("primary")).toBeTruthy();
+  });
+
+  it("shows the no-aliases empty copy when there are no additional aliases", async () => {
+    const disc = makeDisc({ fingerprint_aliases: [] });
+    await renderDiscDetail(disc);
+
+    expect(screen.getByText("No additional fingerprint aliases recorded.")).toBeTruthy();
+  });
+
+  it("shows the unverified-withheld message instead of a titles table when status is unverified", async () => {
+    const disc = makeDisc({ status: "unverified", titles: [] });
+    await renderDiscDetail(disc);
+
+    expect(
+      screen.getByText("Structure withheld until a second contributor verifies this disc."),
+    ).toBeTruthy();
+    expect(screen.queryByTestId("title-row")).toBeNull();
+  });
+});
+
+describe("DiscDetailPage — alias completeness + withheld edge cases (WEBUI-02 gap closure)", () => {
+  it("renders every provided alias without hiding or renumbering, including dvd1- and dvdread1- identity strings", async () => {
+    const disc = makeDisc({
+      fingerprint_aliases: [
+        { fingerprint: "dvd1-abc111", method: "dvd1", is_primary: true },
+        { fingerprint: "dvdread1-def222", method: "dvdread1", is_primary: false },
+        { fingerprint: "bd1-ghi333", method: "bd1", is_primary: false },
+      ],
+    });
+    await renderDiscDetail(disc);
+
+    const section = screen.getByTestId("fingerprint-aliases");
+    const codes = Array.from(section.querySelectorAll("code")).map((el) => el.textContent);
+    expect(codes).toEqual(["dvd1-abc111", "dvdread1-def222", "bd1-ghi333"]);
+  });
+
+  it("renders the primary badge on exactly the aliased entry marked is_primary", async () => {
+    const disc = makeDisc({
+      fingerprint_aliases: [
+        { fingerprint: "dvd1-abc111", method: "dvd1", is_primary: false },
+        { fingerprint: "dvdread1-def222", method: "dvdread1", is_primary: true },
+      ],
+    });
+    await renderDiscDetail(disc);
+
+    expect(screen.getAllByText("primary")).toHaveLength(1);
+  });
+
+  it("shows the no-aliases empty copy for a single-alias disc (boundary: length === 1)", async () => {
+    const disc = makeDisc({
+      fingerprint_aliases: [{ fingerprint: "dvd1-onlyone", method: "dvd1", is_primary: true }],
+    });
+    await renderDiscDetail(disc);
+
+    expect(screen.getByText("No additional fingerprint aliases recorded.")).toBeTruthy();
+  });
+
+  it("does not crash and shows the empty copy when fingerprint_aliases is undefined", async () => {
+    const disc = makeDisc();
+    delete (disc as { fingerprint_aliases?: DiscLookupResponse["fingerprint_aliases"] }).fingerprint_aliases;
+    await renderDiscDetail(disc);
+
+    expect(screen.getByText("No additional fingerprint aliases recorded.")).toBeTruthy();
+  });
+
+  it("renders aliases and release info even when the disc is unverified", async () => {
+    const disc = makeDisc({
+      status: "unverified",
+      titles: [],
+      fingerprint_aliases: [
+        { fingerprint: "dvd1-abc111", method: "dvd1", is_primary: true },
+        { fingerprint: "dvdread1-def222", method: "dvdread1", is_primary: false },
+      ],
+    });
+    await renderDiscDetail(disc);
+
+    expect(screen.getByText("Test Movie")).toBeTruthy();
+    expect(screen.getByText("dvd1-abc111")).toBeTruthy();
+    expect(screen.getByText("dvdread1-def222")).toBeTruthy();
   });
 });
