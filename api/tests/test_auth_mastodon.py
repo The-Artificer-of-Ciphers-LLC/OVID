@@ -218,6 +218,27 @@ class TestMastodonRegistrationHardening:
         assert leaky_body not in resp.text
         assert "10.0.0.5" not in resp.text
 
+    @patch("app.auth.mastodon.socket.getaddrinfo")
+    @patch("httpx.AsyncClient.post")
+    def test_registration_connection_error_does_not_reflect_exception_text(self, mock_post, mock_dns, client, db_session):
+        """LO-02: a raw connection-error exception (which can carry internal
+        DNS/host details) must never be reflected into the client-facing
+        response body — only a generic reason, logged server-side instead."""
+        mock_dns.return_value = _gai("8.8.8.8")
+        leaky_detail = "Connection refused to internal-host-10.0.0.5:9999"
+        mock_post.side_effect = RuntimeError(leaky_detail)
+
+        resp = client.get(
+            "/v1/auth/mastodon/login?domain=unreachable.example.com", follow_redirects=False
+        )
+
+        assert resp.status_code == 502
+        detail = resp.json()["detail"]
+        assert detail["error"] == "bad_gateway"
+        assert detail["reason"] == "Connection error communicating with the Mastodon instance"
+        assert leaky_detail not in resp.text
+        assert "10.0.0.5" not in resp.text
+
 
 class TestMastodonCallback:
     @patch("httpx.AsyncClient.post")
@@ -294,3 +315,37 @@ class TestMastodonCallback:
 
         assert resp.status_code == 504
         assert resp.json()["detail"]["error"] == "gateway_timeout"
+
+    @patch("httpx.AsyncClient.post")
+    @patch("httpx.AsyncClient.get")
+    def test_callback_connection_error_does_not_reflect_exception_text(self, mock_get, mock_post, client, db_session):
+        """LO-02: a raw request-error exception during token exchange must not
+        be reflected into the client-facing response body."""
+        db_client = MastodonOAuthClient(
+            domain="mastodon.example.com",
+            client_id="test_id",
+            client_secret="test_secret"
+        )
+        db_session.add(db_client)
+        db_session.commit()
+
+        leaky_detail = "Connection refused to internal-host-10.0.0.5:9999"
+        mock_post.side_effect = RuntimeError(leaky_detail)
+
+        with patch("app.auth.mastodon.socket.getaddrinfo") as mock_dns:
+            mock_dns.return_value = _gai("8.8.8.8")
+            login_resp = client.get("/v1/auth/mastodon/login?domain=mastodon.example.com", follow_redirects=False)
+
+        from urllib.parse import parse_qs, urlparse
+        parsed = urlparse(login_resp.headers["location"])
+        qs = parse_qs(parsed.query)
+        state = qs["state"][0]
+
+        resp = client.get(f"/v1/auth/mastodon/callback?code=test_code&state={state}")
+
+        assert resp.status_code == 502
+        detail = resp.json()["detail"]
+        assert detail["error"] == "bad_gateway"
+        assert detail["reason"] == "Request to the Mastodon instance failed"
+        assert leaky_detail not in resp.text
+        assert "10.0.0.5" not in resp.text

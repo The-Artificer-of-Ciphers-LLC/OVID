@@ -827,8 +827,11 @@ async def mastodon_callback(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
+        # LO-02: log the real exception server-side only — reflecting str(e)
+        # to the client can leak internal DNS/host/connection details for a
+        # user-supplied Mastodon domain.
         logger.warning("auth_failed provider=mastodon reason=request_error detail=%s", str(e))
-        raise HTTPException(status_code=502, detail={"error": "bad_gateway", "reason": str(e)})
+        raise HTTPException(status_code=502, detail={"error": "bad_gateway", "reason": "Request to the Mastodon instance failed"})
 
     # Clean up session
     request.session.pop("mastodon_state", None)

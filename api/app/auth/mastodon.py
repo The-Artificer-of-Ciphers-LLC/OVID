@@ -80,8 +80,11 @@ async def get_or_register_client(db: Session, domain: str) -> MastodonOAuthClien
         logger.warning("mastodon_registration timeout domain=%s", domain)
         raise HTTPException(status_code=504, detail={"error": "gateway_timeout", "reason": "Timeout communicating with Mastodon instance"})
     except Exception as e:
+        # LO-02: log the real exception server-side only — reflecting str(e) to
+        # the client can leak internal DNS/host/connection details for a
+        # user-supplied Mastodon domain (a mild SSRF-adjacent info leak).
         logger.warning("mastodon_registration error domain=%s detail=%s", domain, str(e))
-        raise HTTPException(status_code=502, detail={"error": "bad_gateway", "reason": f"Connection error: {str(e)}"})
+        raise HTTPException(status_code=502, detail={"error": "bad_gateway", "reason": "Connection error communicating with the Mastodon instance"})
         
     if resp.status_code != 200:
         logger.warning("mastodon_registration failed domain=%s status=%d", domain, resp.status_code)
