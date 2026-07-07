@@ -77,39 +77,33 @@ def test_current_ovid_mode_returns_captured_value(monkeypatch):
     )
 
 
-def test_current_ovid_mode_defaults_to_standalone_on_nonzero_exit(monkeypatch):
+def test_current_ovid_mode_raises_on_nonzero_exit(monkeypatch):
     monkeypatch.setattr(
         promote_dvdread1.subprocess,
         "run",
         lambda cmd, **kwargs: _FakeCompletedProcess(stdout="", returncode=1),
     )
-    assert (
+    with pytest.raises(RuntimeError):
         promote_dvdread1._current_ovid_mode(["-f", "docker-compose.yml"])
-        == "standalone"
-    )
 
 
-def test_current_ovid_mode_defaults_to_standalone_on_empty_output(monkeypatch):
+def test_current_ovid_mode_raises_on_empty_output(monkeypatch):
     monkeypatch.setattr(
         promote_dvdread1.subprocess,
         "run",
         lambda cmd, **kwargs: _FakeCompletedProcess(stdout="   \n", returncode=0),
     )
-    assert (
+    with pytest.raises(RuntimeError):
         promote_dvdread1._current_ovid_mode(["-f", "docker-compose.yml"])
-        == "standalone"
-    )
 
 
-def test_current_ovid_mode_defaults_to_standalone_on_oserror(monkeypatch):
+def test_current_ovid_mode_raises_on_oserror(monkeypatch):
     def fake_run(cmd, **kwargs):
         raise OSError("docker not found")
 
     monkeypatch.setattr(promote_dvdread1.subprocess, "run", fake_run)
-    assert (
+    with pytest.raises(RuntimeError):
         promote_dvdread1._current_ovid_mode(["-f", "docker-compose.yml"])
-        == "standalone"
-    )
 
 
 # --------------------------------------------------------------------- main()
@@ -160,3 +154,41 @@ def test_main_restores_original_mode_even_when_migration_fails(monkeypatch):
     # migration failure — the deployment is never left stranded read-only.
     assert len(up_calls) == 2
     assert up_calls[-1]["env"]["OVID_MODE"] == "canonical"
+
+
+def test_restore_step_failure_emits_critical_recovery_message_and_reraises(
+    monkeypatch, capsys
+):
+    """If the FINALLY block's own restore call fails, the deployment may be
+    stranded in read-only mode — this must never fail silently with a bare
+    traceback. It must print a loud, explicit operator recovery message
+    (with the exact manual command to restore) and propagate the failure
+    so the caller's exit code is unmissably non-zero."""
+    up_call_count = {"n": 0}
+
+    def fake_run(cmd, **kwargs):
+        if "printenv" in cmd:
+            return _FakeCompletedProcess(stdout="canonical\n", returncode=0)
+        if "alembic" in cmd:
+            return _FakeCompletedProcess(stdout="", returncode=0)
+        if "up" in cmd:
+            up_call_count["n"] += 1
+            if up_call_count["n"] == 2:
+                # The restore call (second "up") fails.
+                raise subprocess.CalledProcessError(1, cmd)
+            return _FakeCompletedProcess(stdout="", returncode=0)
+        return _FakeCompletedProcess(stdout="", returncode=0)
+
+    monkeypatch.setattr(promote_dvdread1.subprocess, "run", fake_run)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "y")
+
+    with pytest.raises(subprocess.CalledProcessError):
+        promote_dvdread1.main(["-f", "docker-compose.yml"])
+
+    captured = capsys.readouterr()
+    assert "CRITICAL" in captured.err
+    assert "OVID_MODE='canonical'" in captured.err
+    assert (
+        "OVID_MODE=canonical docker compose -f docker-compose.yml "
+        "up -d --no-deps api" in captured.err
+    )

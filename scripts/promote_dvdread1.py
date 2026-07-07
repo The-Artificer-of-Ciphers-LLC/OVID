@@ -37,7 +37,11 @@ It captures the CURRENT ``OVID_MODE`` value before flipping to
 in a ``finally`` block — regardless of whether the migration succeeds or
 fails — so a canonical-mode operator's restore step can never silently
 leave the server on the wrong mode, and a failed migration never strands
-the deployment in read-only mode.
+the deployment in read-only mode. If the capture itself fails, the
+script aborts loudly BEFORE anything has changed (see
+``_current_ovid_mode``); if the restore step itself fails, the script
+prints an explicit operator recovery message and exits non-zero rather
+than leaving the failure to a bare traceback.
 
 Run from the repo root, on the host that runs `docker compose` for the
 target deployment (this script is never invoked by the API itself):
@@ -50,15 +54,17 @@ import os
 import subprocess
 import sys
 
-_DEFAULT_MODE = "standalone"
-
-
 def _current_ovid_mode(compose_args: list[str]) -> str:
     """Capture the OVID_MODE the running api service currently reports.
 
-    Falls back to "standalone" if the container isn't reachable, the
-    `printenv` call fails, or it returns empty output — never raises, so
-    a capture failure can't abort the script before anything has changed.
+    Raises ``RuntimeError`` if the container isn't reachable, the
+    `printenv` call fails, or it returns empty output — this capture runs
+    BEFORE any change is made, so aborting here (rather than silently
+    falling back to a hardcoded default) leaves the deployment completely
+    untouched. A silent fallback would be actively dangerous: on a MIRROR
+    deployment, a transient capture failure defaulting to "standalone"
+    would cause the `finally` restore step to flip a read-only mirror
+    into read-write standalone, producing divergent, un-syncable writes.
     """
     try:
         result = subprocess.run(
@@ -66,11 +72,29 @@ def _current_ovid_mode(compose_args: list[str]) -> str:
             capture_output=True,
             text=True,
         )
-    except OSError:
-        return _DEFAULT_MODE
+    except OSError as exc:
+        raise RuntimeError(
+            "Failed to capture the current OVID_MODE (docker compose exec "
+            "could not run). Verify the deployment is reachable via the "
+            "given --compose-file(s) and retry — no changes have been "
+            f"made. Underlying error: {exc}"
+        ) from exc
     if result.returncode != 0:
-        return _DEFAULT_MODE
-    return result.stdout.strip() or _DEFAULT_MODE
+        raise RuntimeError(
+            "Failed to capture the current OVID_MODE (docker compose exec "
+            f"exited with code {result.returncode}). Verify the deployment "
+            "is reachable via the given --compose-file(s) and retry — no "
+            "changes have been made."
+        )
+    mode = result.stdout.strip()
+    if not mode:
+        raise RuntimeError(
+            "Failed to capture the current OVID_MODE (empty output from "
+            "printenv OVID_MODE). Verify the deployment is reachable via "
+            "the given --compose-file(s) and retry — no changes have been "
+            "made."
+        )
+    return mode
 
 
 def _set_ovid_mode_and_restart(compose_args: list[str], mode: str) -> None:
@@ -151,8 +175,26 @@ def main(argv: list[str] | None = None) -> int:
         migration_failed = True
         print(f"ERROR: cutover step failed: {exc}", file=sys.stderr)
     finally:
-        _set_ovid_mode_and_restart(compose_args, original_mode)
-        print(f"Restored OVID_MODE={original_mode!r}.")
+        try:
+            _set_ovid_mode_and_restart(compose_args, original_mode)
+            print(f"Restored OVID_MODE={original_mode!r}.")
+        except subprocess.CalledProcessError as exc:
+            manual_cmd = (
+                "OVID_MODE="
+                + original_mode
+                + " docker compose "
+                + " ".join(compose_args)
+                + " up -d --no-deps api"
+            )
+            print(
+                "CRITICAL: failed to restore "
+                f"OVID_MODE={original_mode!r}; the deployment may be "
+                f"stranded read-only. Underlying error: {exc}\n"
+                "Manually run the following command to restore it:\n"
+                f"    {manual_cmd}",
+                file=sys.stderr,
+            )
+            raise
 
     if migration_failed:
         print(
