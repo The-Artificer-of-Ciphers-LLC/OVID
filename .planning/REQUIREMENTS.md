@@ -75,7 +75,7 @@
 
 - [x] **DOCS-01**: Fingerprint spec updated with OVID-BD-2 (Tier 1 & Tier 2) in `docs/fingerprint-spec.md`
 - [ ] **DOCS-02**: Web UI user guide, disc submission guide, and ARM integration guide published
-- [ ] **DOCS-03**: OAuth setup guide (`docs/auth-setup.md`) published, incl. the Mastodon `requests`-vs-`httpx` client note
+- [x] **DOCS-03**: OAuth setup guide (`docs/auth-setup.md`) published, incl. the Mastodon `requests`-vs-`httpx` client note
 - [ ] **DOCS-04**: CC0 data-license explainer published; CHANGELOG updated for v0.2.0
 
 ### Repo Hygiene (CLEAN)
@@ -164,7 +164,7 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 | OPS-04 | Phase 8 | Pending |
 | DOCS-01 | Phase 4 | Complete |
 | DOCS-02 | Phase 8 | Pending |
-| DOCS-03 | Phase 6 | Pending |
+| DOCS-03 | Phase 6 | Complete |
 | DOCS-04 | Phase 8 | Pending |
 | CLEAN-01 | Phase 1 | Complete |
 | CLEAN-02 | Phase 1 | Complete |

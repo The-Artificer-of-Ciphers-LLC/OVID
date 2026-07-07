@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Redis-Backed Rate Limiting & Performance** - Fix multi-worker rate-limit scaling and validate the p95 latency budget against the real deployment config (completed 2026-07-06)
 - [x] **Phase 4: Blu-ray/UHD Fingerprinting** - Bring BD/UHD discs to fingerprinting parity with the DVD path (Tier 1 AACS + Tier 2 BDMV, coexisting as an alias pair) (completed 2026-07-06)
 - [x] **Phase 5: ADR 0001 Completion — dvdread1-* Promotion** - Complete alias submission and promote `dvdread1-*` to the primary DVD fingerprint, keeping `dvd1-*` a permanent alias (completed 2026-07-06)
-- [ ] **Phase 6: OAuth & Account Linking** - All four OAuth providers working end-to-end with secure, confirm-gated account linking
+- [x] **Phase 6: OAuth & Account Linking** - All four OAuth providers working end-to-end with secure, confirm-gated account linking (completed 2026-07-07)
 - [ ] **Phase 7: Web UI Production Readiness** - Search, disc detail, submission, and account settings live at oviddb.org
 - [ ] **Phase 8: Launch Readiness — ARM, Seeding & Announcement** - ARM upstream review, ≥500-entry seeding, DNS redirects, remaining docs, and the public announcement
 
@@ -184,7 +184,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. The `finalize_auth` helper has isolated unit tests covering verified-email merge success, unverified-email merge rejection, and merge-without-reauth rejection (AUTH-09 [guardrail]).
   6. The IndieAuth localhost bypass is provably unreachable in production configuration — a startup assertion refuses to boot if the bypass flag is set alongside a production indicator (AUTH-10 [guardrail]); the OAuth setup guide is published (DOCS-03).
 
-**Plans**: 6/7 plans executed
+**Plans**: 7/7 plans complete
 **Wave 1**
 
 - [x] 06-01-PLAN.md — PendingAccountLink model + migration 900000000007 (nOAuth merge-state carrier)
@@ -205,7 +205,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 06-07-PLAN.md — docs/auth-setup.md OAuth setup guide + mkdocs nav (DOCS-03)
+- [x] 06-07-PLAN.md — docs/auth-setup.md OAuth setup guide + mkdocs nav (DOCS-03)
 
 ### Phase 7: Web UI Production Readiness
 
@@ -253,7 +253,7 @@ Phases execute in dependency order. Waves that can run in parallel (per `paralle
 | 3. Redis-Backed Rate Limiting & Performance | 4/4 | Complete    | 2026-07-06 |
 | 4. Blu-ray/UHD Fingerprinting | 6/6 | Complete    | 2026-07-06 |
 | 5. ADR 0001 Completion — dvdread1-* Promotion | 7/7 | Complete    | 2026-07-06 |
-| 6. OAuth & Account Linking | 6/7 | In Progress|  |
+| 6. OAuth & Account Linking | 7/7 | Complete   | 2026-07-07 |
 | 7. Web UI Production Readiness | 0/TBD | Not started | - |
 | 8. Launch Readiness — ARM, Seeding & Announcement | 0/TBD | Not started | - |
 

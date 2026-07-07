@@ -2,19 +2,18 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: milestone
-current_phase: 06
 current_phase_name: OAuth & Account Linking
-status: executing
-stopped_at: Completed 06-06-PLAN.md
-last_updated: "2026-07-07T03:47:45.391Z"
-last_activity: 2026-07-07
-last_activity_desc: Phase 06 execution started
+status: verifying
+stopped_at: Completed 06-07-PLAN.md
+last_updated: "2026-07-07T03:55:34.014Z"
+last_activity: 2026-07-07 -- Phase 06 execution started
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 35
-  completed_plans: 34
-  percent: 63
+  completed_plans: 35
+  percent: 75
+current_phase: 06
 ---
 
 # Project State
@@ -31,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 Phase: 06 (OAuth & Account Linking) — EXECUTING
 Current Phase Name: OAuth & Account Linking
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-07 -- Phase 06 execution started
 Last Activity Description: Phase 06 execution started
 
@@ -89,6 +88,7 @@ Progress: [███░░░░░░░] 38%
 | Phase 06 P04 | 18min | 2 tasks | 2 files |
 | Phase 06 P05 | 18min | 3 tasks | 4 files |
 | Phase 06 P06 | 16min | 2 tasks | 5 files |
+| Phase 06 P07 | 165s | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -155,6 +155,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 06-05: per-provider email_verified computed at source — GitHub via GET /user/emails primary+verified; Mastodon/IndieAuth always False
 - [Phase ?]: 06-06: Apple client-secret exp shrunk to now+300 (~5min); per-exchange regeneration IS the automated rotation (AUTH-03, D-10/D-11) — theft/replay window collapses months->minutes
 - [Phase ?]: 06-06: IndieAuth split onto indieauth_router, registered only when OVID_ENABLE_INDIEAUTH truthy (default 404, D-08); localhost bypass derived from config.ALLOW_LOCALHOST_BYPASS as a call-time module attr (never hardcoded True) — provably unreachable in production (AUTH-10, D-09); router flag independent of the OVID_ENV guard (Pitfall 6)
+- [Phase ?]: DOCS-03: docs/auth-setup.md documents the DNS-rebinding TOCTOU (T-06-05d) as an explicit accepted residual, carried forward from Plan 06-02 rather than dropped
 
 ### Pending Todos
 
@@ -176,6 +177,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-07-07T03:47:33.781Z
-Stopped at: Completed 06-06-PLAN.md
+Last session: 2026-07-07T03:55:26.126Z
+Stopped at: Completed 06-07-PLAN.md
 Resume file: None
