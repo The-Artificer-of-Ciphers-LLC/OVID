@@ -3,22 +3,22 @@ status: testing
 phase: 07-web-ui-production-readiness
 source: [07-VERIFICATION.md]
 started: 2026-07-07T23:54:11Z
-updated: 2026-07-07T23:54:11Z
+updated: 2026-07-08T01:57:29Z
 ---
 
 ## Current Test
 
-number: 1
-name: Prerequisite staging infra: DNS (staging.oviddb.org + api.staging.oviddb.org), redshirt TLS routing, staging API with CORS_ORIGINS=https://staging.oviddb.org, staging web image built with --build-arg NEXT_PUBLIC_API_URL=https://api.staging.oviddb.org (see docs/deployment.md 'Staging' section).
-expected: |
-  The staging web app is reachable over HTTPS at https://staging.oviddb.org and calls the staging API successfully (no CORS/redirect failures).
+number: 2
+name: Search: enter a title on the live staging URL; confirm the input is the centered focal anchor, results/count/pagination render, and the empty-state hint is legible (AA contrast) in BOTH light and dark themes.
+expected: Search behaves as coded (verified in code/tests) and reads correctly in a real browser/OS theme, including actual rendered contrast.
 awaiting: user response
 
 ## Tests
 
 ### 1. Prerequisite staging infra: DNS (staging.oviddb.org + api.staging.oviddb.org), redshirt TLS routing, staging API with CORS_ORIGINS=https://staging.oviddb.org, staging web image built with --build-arg NEXT_PUBLIC_API_URL=https://api.staging.oviddb.org (see docs/deployment.md 'Staging' section).
 expected: The staging web app is reachable over HTTPS at https://staging.oviddb.org and calls the staging API successfully (no CORS/redirect failures).
-result: [pending]
+result: pass
+verified_by: Prerequisite staging infra verified live end-to-end 2026-07-08 — https://staging.oviddb.org/ HTTP 200 (renders OVID app), https://staging-api.oviddb.org/health HTTP 200, /v1/search HTTP 200, CORS preflight from https://staging.oviddb.org returns access-control-allow-origin + allow-credentials (no CORS/redirect failures). Full D-06 path: Cloudflare Full -> redshirt nginx -> holodeck:3200/8200.
 
 ### 2. Search: enter a title on the live staging URL; confirm the input is the centered focal anchor, results/count/pagination render, and the empty-state hint is legible (AA contrast) in BOTH light and dark themes.
 expected: Search behaves as coded (verified in code/tests) and reads correctly in a real browser/OS theme, including actual rendered contrast.
@@ -43,9 +43,9 @@ result: [pending]
 ## Summary
 
 total: 6
-passed: 0
+passed: 1
 issues: 0
-pending: 6
+pending: 5
 skipped: 0
 blocked: 0
 
