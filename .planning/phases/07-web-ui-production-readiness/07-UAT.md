@@ -63,3 +63,11 @@ fix: changed the callback success path to a full navigation (window.location.ass
 regression_test: web/src/__tests__/auth-callback.test.tsx (commit 4834c93) — asserts setToken + window.location.assign("/") on success, router.replace on error.
 verified: 2026-07-08 in live browser on staging (clean sign-in populates without refresh).
 resolved_by: 1da1647
+
+### G-07-2 — DVD fingerprints dropped by the web /submit form (title/track/chapter structure lost)
+status: open
+severity: major
+found_in: Test 4 prep (real-disc submit path); web-upload only
+reason: `ovid fingerprint --json` emits `structure.{vts_count,title_count,vts}` for DVD (a deliberate, back-compat-frozen client shape), but web/components/SubmitForm.tsx only reads `structure.titles`/`structure.playlists` — never `structure.vts`. So a real DVD fingerprint uploaded at /submit parses to zero titles, renders no chapter editors, and POSTs `titles: []`. Blu-ray/UHD web-upload is unaffected (CLI emits `structure.playlists`, which the form reads). `ovid submit` (CLI) is unaffected (it builds the payload from NormalizedDiscStructure.titles directly, not the JSON). Shipped because the web suite's "DVD" fixture (fingerprintWithTitles in web/src/__tests__/submit.test.tsx) is mislabeled — it uses a `titles` shape the DVD CLI never produces, so no test fed a real vts-shaped DVD JSON through SubmitForm.
+chosen_fix: Additively emit the normalized `titles` (already computed by normalize_dvd_disc) in `to_fingerprint_json` (ovid-client/src/ovid/disc_structure.py) alongside the existing `vts`/`playlists` legacy_structure — keeps the frozen shape back-compatible while giving the web form's existing `structure.titles` path real data for DVD. Single source of truth (Python normalization); no TS duplication. Update the client "preserves current shape" tests additively (assert titles now also present, do NOT remove vts/playlists assertions), and add a real DVD-shaped web submit test. Deferred to a follow-up at user direction (not blocking the UAT; Blu-ray + CLI paths work).
+verified_bug: confirmed by investigation 2026-07-08 (CLI submit + BD web work; only DVD web-upload affected).
