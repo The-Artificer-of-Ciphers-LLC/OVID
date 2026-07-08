@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getMe, type UserResponse } from "@/lib/api";
+import { getMe, type UserResponse, ApiError } from "@/lib/api";
+
+// A transient /me failure (network blip, 5xx) must not wipe a valid token —
+// wait a beat and retry once before giving up (UAT gap G-07-4).
+const TRANSIENT_RETRY_DELAY_MS = 600;
 
 // ---------------------------------------------------------------------------
 // Token helpers (localStorage, guarded for SSR)
@@ -57,11 +61,33 @@ export function useAuth(): AuthState {
       try {
         const u = await getMe(stored);
         if (!cancelled) setUser(u);
-      } catch {
-        // Token is invalid or expired — clear it
-        if (!cancelled) {
-          clearToken();
-          setTokenState(null);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          // Token is genuinely invalid or expired — clear it.
+          if (!cancelled) {
+            clearToken();
+            setTokenState(null);
+          }
+        } else {
+          // Transient failure (network error, non-401 status like a 5xx) —
+          // clearing the token here would permanently wipe a VALID token
+          // over a blip a refresh could have recovered from. Retry once
+          // after a short delay so it can self-heal; if the retry also
+          // fails transiently, keep the token and leave `user` null for
+          // this load only (UAT gap G-07-4).
+          await new Promise((resolve) => setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS));
+          if (cancelled) return;
+
+          try {
+            const u = await getMe(stored);
+            if (!cancelled) setUser(u);
+          } catch (retryErr) {
+            if (!cancelled && retryErr instanceof ApiError && retryErr.status === 401) {
+              clearToken();
+              setTokenState(null);
+            }
+            // Otherwise still transient — keep the token, `user` stays null.
+          }
         }
       }
     })().finally(() => {
