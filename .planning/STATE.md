@@ -31,8 +31,8 @@ Phase: 07 (web-ui-production-readiness) — EXECUTING
 Current Phase Name: web-ui-production-readiness
 Plan: 8 of 8
 Status: Phase complete — ready for verification
-Last activity: 2026-07-07
-Last Activity Description: Phase 07 execution started
+Last activity: 2026-07-08
+Last Activity Description: Phase 07 execution started; quick task 260707-u7v (sync docs/deployment.md Staging section with live D-06 deploy) completed 2026-07-08
 
 Progress: [███░░░░░░░] 38%
 
@@ -183,7 +183,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-07: Add-provider flow uses option-b (frontend-only) — credentialed fetch(POST /link/{provider}) primes the session cookie, then window.location.assign()s the deterministic /login URL as a top-level navigation. No backend change.
 - [Phase ?]: 07-07: Add-provider CTA candidates limited to github/google/apple; mastodon/indieauth excluded per R-3 (link_requires_domain 400) and D-05 (IndieAuth hidden in production).
 - [Phase ?]: 07-07: Fixed apiFetch's error-body parsing to also read FastAPI's nested {detail:{error,reason}} shape, not just the flat disc/set {error,message} envelope — required for cannot_unlink_last to reach the UI correctly.
-- [Phase ?]: Staging deploy (D-06): staging.oviddb.org/api.staging.oviddb.org hosts, x300 port bracket, no committed docker-compose.staging.yml (local/uncommitted overlay recipe embedded in docs/deployment.md instead)
+- [Phase ?]: Staging deploy (D-06): staging.oviddb.org/staging-api.oviddb.org hosts (single-label API host required for `*.oviddb.org` wildcard-cert coverage), reuses the retired test (x200) port slot (not a new x300 bracket), no committed docker-compose.staging.yml (local/uncommitted overlay recipe embedded in docs/deployment.md instead); doc corrected 2026-07-08 (quick task 260707-u7v) to match the live deploy
 
 ### Pending Todos
 
@@ -194,6 +194,12 @@ None yet.
 - [Phase 1 → Phase 5] Alias write-path TOCTOU race (IDENT-02) and verification state-machine consolidation (VERIFY-02) MUST land before ADR 0001 Phase 3 dvdread1-* promotion (IDENT-04)
 - [Phase 6] Open question: whether Mastodon/IndieAuth assert a verified email safe for account-merge (AUTH-08) — resolve at phase planning
 - [Phase 4] AACS Disc ID stability across regional reprints unverified — validate empirically with real BD fixtures
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|--------------|------|--------|-----------|
+| 260707-u7v | Sync deployment.md staging section with live D-06 deploy | 2026-07-08 | bdd705d | [260707-u7v-staging-deploy-doc-sync](./quick/260707-u7v-staging-deploy-doc-sync/) |
 
 ## Deferred Items
 
