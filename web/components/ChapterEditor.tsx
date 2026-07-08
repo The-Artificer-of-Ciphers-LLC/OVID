@@ -65,6 +65,8 @@ export default function ChapterEditor({
   onChange,
 }: ChapterEditorProps) {
   const [expanded, setExpanded] = useState(false);
+  // WR-06: per-chapter malformed-time validation error, keyed by chapter_index.
+  const [timeErrors, setTimeErrors] = useState<Record<number, string>>({});
 
   function handleNameChange(index: number, value: string) {
     const updated = chapters.map((ch) =>
@@ -75,8 +77,34 @@ export default function ChapterEditor({
     onChange(updated);
   }
 
+  function clearTimeError(index: number) {
+    setTimeErrors((prev) => {
+      if (!(index in prev)) return prev;
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  }
+
   function handleTimeBlur(index: number, value: string) {
-    const secs = value.trim() === "" ? null : parseTime(value.trim());
+    const trimmed = value.trim();
+    if (trimmed === "") {
+      // Intentional clear — not a validation error.
+      clearTimeError(index);
+      const updated = chapters.map((ch) =>
+        ch.chapter_index === index ? { ...ch, start_time_secs: null } : ch,
+      );
+      onChange(updated);
+      return;
+    }
+    const secs = parseTime(trimmed);
+    if (secs === null) {
+      // Unparseable input (WR-06): surface an inline error and leave the
+      // previously-stored value untouched rather than silently discarding it.
+      setTimeErrors((prev) => ({ ...prev, [index]: "Use H:MM:SS or MM:SS" }));
+      return;
+    }
+    clearTimeError(index);
     const updated = chapters.map((ch) =>
       ch.chapter_index === index ? { ...ch, start_time_secs: secs } : ch,
     );
@@ -121,46 +149,55 @@ export default function ChapterEditor({
           className="mt-2"
         >
           {chapters.map((ch) => (
-            <div
-              key={ch.chapter_index}
-              className="flex items-center gap-3 mb-2 sm:flex-row flex-col"
-            >
-              <span className="text-sm tabular-nums text-neutral-500 w-8 text-right">
-                {ch.chapter_index}
-              </span>
-              <Input
-                type="text"
-                className="flex-1"
-                placeholder="Chapter name (optional)"
-                maxLength={200}
-                aria-label={`Name for chapter ${ch.chapter_index}`}
-                data-testid={`chapter-name-${titleIndex}-${ch.chapter_index}`}
-                value={ch.name ?? ""}
-                onChange={(e) =>
-                  handleNameChange(ch.chapter_index, e.target.value)
-                }
-              />
-              <Input
-                type="text"
-                inputMode="numeric"
-                className="w-28"
-                placeholder="0:00:00"
-                aria-label={`Start time for chapter ${ch.chapter_index}`}
-                data-testid={`chapter-time-${titleIndex}-${ch.chapter_index}`}
-                defaultValue={formatTimeValue(ch.start_time_secs)}
-                onBlur={(e) =>
-                  handleTimeBlur(ch.chapter_index, e.target.value)
-                }
-              />
-              <button
-                type="button"
-                className={`${linkButtonBaseClass} text-neutral-500 hover:text-red-600`}
-                aria-label={`Remove chapter ${ch.chapter_index}`}
-                data-testid={`chapter-remove-${titleIndex}-${ch.chapter_index}`}
-                onClick={() => handleRemove(ch.chapter_index)}
-              >
-                {"×"}
-              </button>
+            <div key={ch.chapter_index} className="mb-2">
+              <div className="flex items-center gap-3 sm:flex-row flex-col">
+                <span className="text-sm tabular-nums text-neutral-500 w-8 text-right">
+                  {ch.chapter_index}
+                </span>
+                <Input
+                  type="text"
+                  className="flex-1"
+                  placeholder="Chapter name (optional)"
+                  maxLength={200}
+                  aria-label={`Name for chapter ${ch.chapter_index}`}
+                  data-testid={`chapter-name-${titleIndex}-${ch.chapter_index}`}
+                  value={ch.name ?? ""}
+                  onChange={(e) =>
+                    handleNameChange(ch.chapter_index, e.target.value)
+                  }
+                />
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  className="w-28"
+                  placeholder="0:00:00"
+                  aria-label={`Start time for chapter ${ch.chapter_index}`}
+                  aria-invalid={ch.chapter_index in timeErrors}
+                  data-testid={`chapter-time-${titleIndex}-${ch.chapter_index}`}
+                  defaultValue={formatTimeValue(ch.start_time_secs)}
+                  onBlur={(e) =>
+                    handleTimeBlur(ch.chapter_index, e.target.value)
+                  }
+                />
+                <button
+                  type="button"
+                  className={`${linkButtonBaseClass} text-neutral-500 hover:text-red-600`}
+                  aria-label={`Remove chapter ${ch.chapter_index}`}
+                  data-testid={`chapter-remove-${titleIndex}-${ch.chapter_index}`}
+                  onClick={() => handleRemove(ch.chapter_index)}
+                >
+                  {"×"}
+                </button>
+              </div>
+              {timeErrors[ch.chapter_index] ? (
+                <p
+                  data-testid={`chapter-time-error-${titleIndex}-${ch.chapter_index}`}
+                  aria-live="polite"
+                  className="mt-1 text-sm text-red-600 dark:text-red-400 sm:ml-11"
+                >
+                  {timeErrors[ch.chapter_index]}
+                </p>
+              ) : null}
             </div>
           ))}
           <button

@@ -132,24 +132,37 @@ limiter = Limiter(
 
 
 def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
-    """Return a JSON 429 response with structured error body.
+    """Return a JSON 429 response with the project's standard error envelope.
 
-    The Retry-After header is set by slowapi automatically; we also
-    include it in the response body for programmatic consumers.
+    IN-02: matches the ``{request_id, error, message}`` shape every other
+    error response in the codebase uses (see ``_error_response`` in
+    ``app/routes/disc.py``/``app/routes/set.py``), plus ``retry_after`` in the
+    body for programmatic consumers — the Retry-After header is also set by
+    slowapi automatically. This is the same shape the anti-Sybil cooldown 429
+    (``app/routes/disc.py::_handle_existing_disc``) returns, so every 429 in
+    the API now has one consistent body structure regardless of which
+    throttling layer produced it.
     """
     # exc.detail contains the limit string, e.g. "100 per 1 minute"
     retry_after = exc.headers.get("Retry-After", "60") if exc.headers else "60"
+    # request.state.request_id is populated by RequestIdMiddleware, which
+    # wraps every route (including this exception handler's originating
+    # request) before the limiter decorator can raise. Fall back defensively
+    # in case that invariant is ever broken.
+    request_id = getattr(request.state, "request_id", None) or "unknown"
 
     logger.warning(
-        "rate_limit_exceeded key=%s limit=%s path=%s",
+        "rate_limit_exceeded key=%s limit=%s path=%s request_id=%s",
         _auth_aware_key(request),
         exc.detail,
         request.url.path,
+        request_id,
     )
 
     return JSONResponse(
         status_code=429,
         content={
+            "request_id": request_id,
             "error": "rate_limited",
             "message": f"Rate limit exceeded: {exc.detail}",
             "retry_after": int(retry_after),

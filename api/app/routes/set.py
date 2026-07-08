@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth.deps import get_current_user
 from app.deps import get_db
+from app.disc_identity import redact_sibling_summary
 from app.models import Disc, DiscSet, DiscTitle, Release, User
 from app.rate_limit import AUTH_WRITE_LIMIT, _dynamic_limit, limiter
 from app.schemas import (
@@ -18,7 +19,6 @@ from app.schemas import (
     DiscSetDetailResponse,
     DiscSetResponse,
     DiscSetSearchResponse,
-    SiblingDiscSummary,
 )
 from app.sync import next_seq
 
@@ -39,44 +39,6 @@ def _error_response(
     return JSONResponse(
         status_code=status_code,
         content={"request_id": request_id, "error": error, "message": message},
-    )
-
-
-def _build_sibling_summary(disc: Disc) -> SiblingDiscSummary:
-    """Build a SiblingDiscSummary from a Disc ORM object (D-06).
-
-    Anti-echo redaction (D-09, carried into the set view — R-1): withhold the
-    derived structural fields (``main_title``/``duration_secs``/``track_count``)
-    for an ``unverified`` disc, mirroring the same branch ``_disc_to_response``
-    (disc.py) uses to redact a direct lookup. A sibling in any other status
-    (verified/disputed/pending_identification) still shows its structural
-    summary — this is a per-sibling status gate, never a blanket redaction.
-    """
-    if disc.status == "unverified":
-        return SiblingDiscSummary(
-            fingerprint=disc.fingerprint,
-            disc_number=disc.disc_number,
-            format=disc.format,
-            main_title=None,
-            duration_secs=None,
-            track_count=None,
-        )
-
-    main_title_name = None
-    main_duration = None
-    track_count = 0
-    for t in disc.titles:
-        track_count += len(t.tracks) if hasattr(t, "tracks") else 0
-        if t.is_main_feature:
-            main_title_name = t.display_name
-            main_duration = t.duration_secs
-    return SiblingDiscSummary(
-        fingerprint=disc.fingerprint,
-        disc_number=disc.disc_number,
-        format=disc.format,
-        main_title=main_title_name,
-        duration_secs=main_duration,
-        track_count=track_count,
     )
 
 
@@ -166,7 +128,7 @@ def get_set(
     if disc_set is None:
         return _error_response(request_id, "not_found", "Disc set not found", 404)
 
-    discs = [_build_sibling_summary(d) for d in disc_set.discs]
+    discs = [redact_sibling_summary(d) for d in disc_set.discs]
 
     return DiscSetDetailResponse(
         request_id=request_id,
@@ -218,7 +180,7 @@ def search_sets(
 
     results = []
     for ds in sets:
-        discs = [_build_sibling_summary(d) for d in ds.discs]
+        discs = [redact_sibling_summary(d) for d in ds.discs]
         results.append(
             DiscSetDetailResponse(
                 request_id=request_id,

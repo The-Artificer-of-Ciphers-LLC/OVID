@@ -460,6 +460,33 @@ describe("ChapterEditor", () => {
     // 1*3600 + 23*60 + 45 = 5025
     expect(updated[0].start_time_secs).toBe(5025);
   });
+
+  it("malformed chapter time surfaces an inline error instead of silently dropping it (WR-06)", () => {
+    const chapters: { chapter_index: number; name: string | null; start_time_secs: number | null }[] =
+      [{ chapter_index: 1, name: null, start_time_secs: 90 }];
+    let updated: typeof chapters | null = null;
+    const onChange = (chs: typeof chapters) => { updated = chs; };
+
+    render(
+      <ChapterEditor titleIndex={1} chapters={chapters} onChange={onChange} />,
+    );
+
+    // Expand the editor
+    fireEvent.click(screen.getByText("Add chapters"));
+
+    const timeInput = screen.getByTestId("chapter-time-1-1");
+    // Bare seconds with no ":" is not H:MM:SS or MM:SS -- malformed.
+    fireEvent.change(timeInput, { target: { value: "90" } });
+    fireEvent.blur(timeInput);
+
+    expect(screen.getByTestId("chapter-time-error-1-1")).toBeTruthy();
+    expect(screen.getByTestId("chapter-time-error-1-1").textContent).toMatch(
+      /H:MM:SS|MM:SS/,
+    );
+    // onChange must NOT be called with a clobbered/null value -- the
+    // previously-valid start_time_secs is preserved, not silently dropped.
+    expect(updated).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

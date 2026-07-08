@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Disc, DiscIdentityAlias, FingerprintRegistry
+from app.schemas import SiblingDiscSummary
 
 
 @dataclass(frozen=True)
@@ -159,6 +160,51 @@ def attach_lookup_aliases(
             if winner.disc.id != disc.id:
                 raise DiscIdentityConflict(alias, winner.disc)
             # else: our own disc already owns this alias — idempotent no-op.
+
+
+def redact_sibling_summary(disc: Disc) -> SiblingDiscSummary:
+    """Build a SiblingDiscSummary from a Disc ORM object, applying R-1 anti-echo
+    redaction (WR-03).
+
+    Withholds the derived structural fields (``main_title``/``duration_secs``/
+    ``track_count``) when ``disc`` is ``unverified``, mirroring the same
+    predicate ``_disc_to_response`` (``app/routes/disc.py``) uses to redact a
+    direct disc lookup (D-09). A disc in any other status (verified/disputed/
+    pending_identification) keeps its full structural summary — the gate is
+    per-disc status, never a blanket redaction.
+
+    This is the SINGLE shared implementation of the security-relevant R-1 rule.
+    It is called from both the nested disc-detail set view
+    (``app/routes/disc.py::_build_disc_set_nested``) and the set-search/detail
+    view (``app/routes/set.py``) so the redaction rule cannot silently drift
+    between the two call sites.
+    """
+    if disc.status == "unverified":
+        return SiblingDiscSummary(
+            fingerprint=disc.fingerprint,
+            disc_number=disc.disc_number,
+            format=disc.format,
+            main_title=None,
+            duration_secs=None,
+            track_count=None,
+        )
+
+    main_title_name = None
+    main_duration = None
+    track_count = 0
+    for t in disc.titles:
+        track_count += len(t.tracks) if hasattr(t, "tracks") else 0
+        if t.is_main_feature:
+            main_title_name = t.display_name
+            main_duration = t.duration_secs
+    return SiblingDiscSummary(
+        fingerprint=disc.fingerprint,
+        disc_number=disc.disc_number,
+        format=disc.format,
+        main_title=main_title_name,
+        duration_secs=main_duration,
+        track_count=track_count,
+    )
 
 
 def register_fingerprint(db: Session, fingerprint: str, disc_id: uuid.UUID) -> None:

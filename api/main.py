@@ -24,8 +24,24 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS — must be added before SessionMiddleware so preflight OPTIONS
-# requests get proper headers without hitting the session layer.
+# CORS. NOTE on middleware ordering (WR-02): Starlette's add_middleware()
+# prepends to the internal user_middleware list, and build_middleware_stack()
+# wraps the app by walking that list in REVERSE — so the LAST middleware
+# added below becomes the OUTERMOST layer (first to see every request, last
+# to see every response), not the first-added one. Given the actual
+# add_middleware() call order in this file (CORSMiddleware -> SessionMiddleware
+# -> RequestIdMiddleware -> conditionally MirrorModeMiddleware), the real
+# runtime stack, outermost to innermost, is:
+#   MirrorModeMiddleware -> RequestIdMiddleware -> SessionMiddleware ->
+#   CORSMiddleware -> routes
+# i.e. CORSMiddleware is actually the INNERMOST layer here: every request,
+# including a CORS preflight OPTIONS, passes through RequestIdMiddleware and
+# SessionMiddleware BEFORE reaching CORSMiddleware, not after. This does not
+# currently break preflight handling — MirrorModeMiddleware explicitly passes
+# OPTIONS through untouched (app/middleware.py) and neither RequestIdMiddleware
+# nor SessionMiddleware raises on OPTIONS — but a future maintainer adding
+# middleware that short-circuits (e.g. raises before calling call_next) should
+# know CORS headers will NOT yet have been applied at that point.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(","),

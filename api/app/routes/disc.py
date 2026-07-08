@@ -22,6 +22,7 @@ from app.deps import get_db
 from app.disc_identity import (
     DiscIdentityConflict,
     attach_lookup_aliases,
+    redact_sibling_summary,
     register_fingerprint,
     resolve_disc_identity,
     resolve_existing_disc_for_identities,
@@ -54,7 +55,6 @@ from app.schemas import (
     ReleaseResponse,
     SearchResponse,
     SearchResultRelease,
-    SiblingDiscSummary,
     TitleResponse,
     TrackResponse,
     UpcLookupResponse,
@@ -368,6 +368,10 @@ def _handle_existing_disc(
                 "request_id": request_id,
                 "error": "rate_limited",
                 "message": "Confirmation cooldown active",
+                # IN-02: include retry_after in the body too, matching the
+                # slowapi write-ceiling 429 shape (app/rate_limit.py) so every
+                # 429 in the API has one consistent body structure.
+                "retry_after": int(retry_after),
             },
             headers={"Retry-After": retry_after},
         )
@@ -503,46 +507,22 @@ def _build_title_response(title: DiscTitle) -> TitleResponse:
 def _build_disc_set_nested(disc: Disc) -> DiscSetNested | None:
     """Build a DiscSetNested response if the disc belongs to a set.
 
-    Anti-echo redaction (D-09, carried into the nested set view — R-1): withhold
-    a sibling's derived structural fields (``main_title``/``duration_secs``/
-    ``track_count``) when that sibling is ``unverified``, reusing the same
-    predicate ``_disc_to_response`` uses below to redact a direct lookup. A
-    sibling in any other status keeps its full structural summary — the gate is
-    per-sibling, never blanket.
+    Anti-echo redaction (D-09, carried into the nested set view — R-1): each
+    sibling's summary is built via the shared ``redact_sibling_summary`` helper
+    (``app/disc_identity.py``, WR-03), which withholds derived structural
+    fields (``main_title``/``duration_secs``/``track_count``) when that
+    sibling is ``unverified``, reusing the same predicate ``_disc_to_response``
+    uses below to redact a direct lookup. A sibling in any other status keeps
+    its full structural summary — the gate is per-sibling, never blanket.
     """
     if disc.disc_set is None:
         return None
     ds = disc.disc_set
-    siblings = []
-    for sibling in ds.discs:
-        if sibling.id == disc.id:
-            continue
-        if sibling.status == "unverified":
-            siblings.append(SiblingDiscSummary(
-                fingerprint=sibling.fingerprint,
-                disc_number=sibling.disc_number,
-                format=sibling.format,
-                main_title=None,
-                duration_secs=None,
-                track_count=None,
-            ))
-            continue
-        main_title_name = None
-        main_duration = None
-        track_count = 0
-        for t in sibling.titles:
-            track_count += len(t.tracks) if hasattr(t, "tracks") else 0
-            if t.is_main_feature:
-                main_title_name = t.display_name
-                main_duration = t.duration_secs
-        siblings.append(SiblingDiscSummary(
-            fingerprint=sibling.fingerprint,
-            disc_number=sibling.disc_number,
-            format=sibling.format,
-            main_title=main_title_name,
-            duration_secs=main_duration,
-            track_count=track_count,
-        ))
+    siblings = [
+        redact_sibling_summary(sibling)
+        for sibling in ds.discs
+        if sibling.id != disc.id
+    ]
     return DiscSetNested(
         id=str(ds.id),
         edition_name=ds.edition_name,
