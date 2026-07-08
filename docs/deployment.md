@@ -352,7 +352,7 @@ Cloudflare SSL/TLS mode must be set to **Full (strict)** — Cloudflare will val
 
 ---
 
-## Staging (staging.oviddb.org / api.staging.oviddb.org — D-06 preview deploy)
+## Staging (staging.oviddb.org / staging-api.oviddb.org — D-06 preview deploy)
 
 Phase 7 (WEBUI-01) scopes "verifiably deployable + live" to a **staging preview URL**, not the public
 `oviddb.org` apex. The public apex cutover, domain redirects (`.com`/`.net`), and DB seeding (500+ discs)
@@ -362,25 +362,47 @@ cutover, without exposing a near-empty catalog at the public domain (T-07-08-02)
 
 ### Chosen staging hosts
 
+The API host is a single label, `staging-api.oviddb.org`, rather than the nested
+`api.staging.oviddb.org` — Cloudflare's free Universal SSL edge cert for this zone covers
+`oviddb.org` and `*.oviddb.org`, and a wildcard matches only **one** label, so a second-level host
+like `api.staging.oviddb.org` would **not** be covered, whereas the single-level
+`staging-api.oviddb.org` is.
+
 | Service | Host | Redshirt target | Notes |
 |---|---|---|---|
-| Web | `https://staging.oviddb.org` | `holodeck:3300` → container `:3000` | Its own `NEXT_PUBLIC_API_URL` build (Pitfall 3) |
-| API | `https://api.staging.oviddb.org` | `holodeck:8300` → container `:8000` | Own DB — a near-empty catalog is expected pre-Phase-8 seeding |
+| Web | `https://staging.oviddb.org` | `holodeck:3200` → container `:3000` | Its own `NEXT_PUBLIC_API_URL` build (Pitfall 3) |
+| API | `https://staging-api.oviddb.org` | `holodeck:8200` → container `:8000` | Own DB — a near-empty catalog is expected pre-Phase-8 seeding |
 | DB | not exposed | — | mirrors prod (`db.ports: !reset []`) |
 
-The `x300` port bracket extends the existing dev (`x000`) / prod (`x100`) / test (`x200`) convention
-without colliding with any stack that may be running simultaneously.
+Staging reuses the retired **test** (`x200`) port slot on holodeck rather than introducing a new
+`x300` bracket — the `test` environment described later in this document (see
+[Test Stack](#test-stack-holodeck-isolated-oauthui-testing)) was retired in favor of staging taking
+over that role.
 
 ### Prerequisites (external host infra — not automatable)
 
-1. **DNS:** add `staging.oviddb.org` and `api.staging.oviddb.org` A records in Cloudflare (proxied),
-   pointing at redshirt (`64.98.89.233`) — same pattern as [Configure Cloudflare DNS](#7-configure-cloudflare-dns) above.
+1. **DNS:** add `staging.oviddb.org` and `staging-api.oviddb.org` as **proxied CNAME** records in
+   Cloudflare, both pointing at `oviddb.org` (Cloudflare-proxied) — this is equivalent to an A
+   record at redshirt's IP, since a proxied CNAME flattens to the same proxied edge as the apex.
+   This differs from the apex/`api.oviddb.org` **A** records under
+   [Configure Cloudflare DNS](#7-configure-cloudflare-dns) above, which point directly at
+   redshirt's IP (`64.98.89.233`).
 2. **TLS + routing:** extend the redshirt nginx vhost config (`docs/nginx-oviddb-vhosts.conf`) with
-   `server_name staging.oviddb.org` / `server_name api.staging.oviddb.org` blocks proxying to
-   `holodeck:3300` / `holodeck:8300` — same shape as the prod vhost blocks under
-   [Configure Reverse Proxy](#5-configure-reverse-proxy-redshirt) above. The existing Let's Encrypt cert
-   only covers `oviddb.org`/`api.oviddb.org`; extend it to a SAN cert covering the staging hostnames (or
-   issue a separate cert).
+   `server_name staging.oviddb.org` / `server_name staging-api.oviddb.org` blocks proxying to
+   `holodeck:3200` / `holodeck:8200` — same shape as the prod vhost blocks under
+   [Configure Reverse Proxy](#5-configure-reverse-proxy-redshirt) above. **No SAN cert extension and
+   no separate cert are needed**: both staging hostnames are single-label and already covered by
+   Cloudflare's free `*.oviddb.org` edge cert, so the origin (redshirt nginx) simply reuses the
+   existing `oviddb.org` Let's Encrypt cert as-is.
+   - **Requirement:** the zone's Cloudflare SSL/TLS mode must be set to **Full** (not
+     **Full (strict)**) for this to work. Strict mode validates that the origin cert's presented
+     name matches the requested hostname and would reject the shared `oviddb.org` origin cert for
+     the staging hostnames; Full mode accepts any certificate the origin presents without
+     validating the name.
+   - **`ssl_stapling` note:** the `ssl_stapling`/`ssl_stapling_verify` directives were removed from
+     redshirt's nginx config entirely. Let's Encrypt stopped publishing an OCSP responder URL in
+     issued certs in 2025 (OCSP deprecated), so stapling had silently become a no-op that emitted a
+     warning on every nginx reload.
 
 ### Required env wiring
 
@@ -391,7 +413,7 @@ without colliding with any stack that may be running simultaneously.
    origin — see the commented example in `.env.example`).
 2. **`NEXT_PUBLIC_API_URL` is a distinct BUILD-time arg** (Pitfall 3, `web/Dockerfile:12-15`) — it is
    baked into the client JS bundle at image-build time and is **not** runtime-overridable. The staging web
-   image must be built with its own `--build-arg NEXT_PUBLIC_API_URL=https://api.staging.oviddb.org`,
+   image must be built with its own `--build-arg NEXT_PUBLIC_API_URL=https://staging-api.oviddb.org`,
    separate from the prod image's `https://api.oviddb.org`. The server-side `API_URL` env var (used for
    server-component/route-handler fetches) still points at the internal Docker service URL
    (`http://api:8000`), matching the prod/test pattern.
@@ -426,7 +448,8 @@ This repo does not ship a `docker-compose.staging.yml`: `docker-compose.prod.yml
 per environment, so staging needs the same per-environment treatment to avoid colliding with a
 simultaneously-running prod stack (and to bake the *staging* API URL, not prod's, per Pitfall 3). Create a
 local, gitignored `docker-compose.staging.yml` on the deploy host (mirrors `docker-compose.prod.yml`'s
-shape, analogous to how `.env.test` is gitignored — do not commit it):
+shape, analogous to how `.env.test` is gitignored — do not commit it). This overlay reuses the retired
+test (`x200`) port slot rather than introducing a new bracket, per [Chosen staging hosts](#chosen-staging-hosts) above:
 
 ```yaml
 # docker-compose.staging.yml — LOCAL ONLY, not committed. Merge with base:
@@ -457,7 +480,7 @@ services:
       redis:
         condition: service_healthy
     ports: !override
-      - "8300:8000"
+      - "8200:8000"
     command: >-
       gunicorn -w "${OVID_WORKERS:-4}" -k uvicorn.workers.UvicornWorker
       main:app --bind 0.0.0.0:8000
@@ -471,7 +494,7 @@ services:
       OVID_ENV:              production
       LOG_LEVEL:             ${LOG_LEVEL:-info}
       CORS_ORIGINS:          ${CORS_ORIGINS:-https://staging.oviddb.org}
-      OVID_API_URL:          https://api.staging.oviddb.org
+      OVID_API_URL:          https://staging-api.oviddb.org
       GITHUB_CLIENT_ID:      ${GITHUB_CLIENT_ID}
       GITHUB_CLIENT_SECRET:  ${GITHUB_CLIENT_SECRET}
       GOOGLE_CLIENT_ID:      ${GOOGLE_CLIENT_ID}
@@ -486,11 +509,11 @@ services:
     build:
       context: ./web
       args:
-        NEXT_PUBLIC_API_URL: 'https://api.staging.oviddb.org'
+        NEXT_PUBLIC_API_URL: 'https://staging-api.oviddb.org'
     ports: !override
-      - "3300:3000"
+      - "3200:3000"
     environment:
-      NEXT_PUBLIC_API_URL: https://api.staging.oviddb.org
+      NEXT_PUBLIC_API_URL: https://staging-api.oviddb.org
       API_URL: http://api:8000
 ```
 
