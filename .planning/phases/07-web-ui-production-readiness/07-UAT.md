@@ -3,14 +3,14 @@ status: testing
 phase: 07-web-ui-production-readiness
 source: [07-VERIFICATION.md]
 started: 2026-07-07T23:54:11Z
-updated: 2026-07-08T02:26:33Z
+updated: 2026-07-08T15:26:10Z
 ---
 
 ## Current Test
 
-number: 4
-name: Submit: sign in, upload an `ovid fingerprint --json` output, confirm preview + submit success; confirm the set-toggle and fields are keyboard-operable (Tab/Space/Enter) with visible focus rings.
-expected: End-to-end submit flow works against the live staging API; keyboard operability is visually confirmed.
+number: 5
+name: Settings: confirm 'Link a provider' initiates the add flow; unlink a provider (min-one stays disabled with correct copy); trigger an email-conflict and confirm the merge banner is styled (not raw JSON), names only current-account providers, offers a re-auth link, and leaks no email/account id.
+expected: The full OAuth round-trip (cross-origin session cookie + top-level navigation) succeeds on staging, and the D-04/D-05 merge banner renders and is enumeration-safe in a live browser.
 awaiting: user response
 
 ## Tests
@@ -32,7 +32,8 @@ verified_by: Human-verified in live browser 2026-07-08 against seeded sample dis
 
 ### 4. Submit: sign in, upload an `ovid fingerprint --json` output, confirm preview + submit success; confirm the set-toggle and fields are keyboard-operable (Tab/Space/Enter) with visible focus rings.
 expected: End-to-end submit flow works against the live staging API; keyboard operability is visually confirmed.
-result: [pending]
+result: pass
+verified_by: Human-verified in live browser 2026-07-08 — GitHub OAuth sign-in now populates logged-in state with NO manual refresh (auth-state gap G-07-1, fixed); uploaded fingerprint JSON at /submit, preview rendered, submit succeeded (disc dvd1-uatsubmit0001 "Bolt", 2 titles stored, status unverified); set-toggle + fields keyboard-operable (Tab/Space/Enter) with visible focus rings.
 
 ### 5. Settings: confirm 'Link a provider' initiates the add flow; unlink a provider (min-one stays disabled with correct copy); trigger an email-conflict and confirm the merge banner is styled (not raw JSON), names only current-account providers, offers a re-auth link, and leaks no email/account id.
 expected: The full OAuth round-trip (cross-origin session cookie + top-level navigation) succeeds on staging, and the D-04/D-05 merge banner renders and is enumeration-safe in a live browser.
@@ -45,10 +46,20 @@ result: [pending]
 ## Summary
 
 total: 6
-passed: 3
+passed: 4
 issues: 0
-pending: 3
+pending: 2
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+### G-07-1 — OAuth callback left auth/nav state stale until manual refresh
+status: resolved
+severity: major
+found_in: Test 4 (sign-in)
+reason: web/app/auth/callback/page.tsx stored the token then did a client-side router.replace("/"); useAuth in web/lib/auth.ts reads the token in a mount-only useEffect([]), so the already-mounted NavBar never re-read it — logged-in state only appeared after a hard refresh.
+fix: changed the callback success path to a full navigation (window.location.assign("/")) so the app remounts and useAuth re-reads the stored token. Commit 1da1647.
+regression_test: web/src/__tests__/auth-callback.test.tsx (commit 4834c93) — asserts setToken + window.location.assign("/") on success, router.replace on error.
+verified: 2026-07-08 in live browser on staging (clean sign-in populates without refresh).
+resolved_by: 1da1647
