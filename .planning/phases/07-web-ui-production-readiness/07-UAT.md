@@ -3,14 +3,14 @@ status: testing
 phase: 07-web-ui-production-readiness
 source: [07-VERIFICATION.md]
 started: 2026-07-07T23:54:11Z
-updated: 2026-07-08T02:00:41Z
+updated: 2026-07-08T02:26:33Z
 ---
 
 ## Current Test
 
-number: 3
-name: Disc detail: open a disc; confirm the Fingerprint aliases section lists ALL identity strings with the primary badged (data-testid="fingerprint-aliases"); open an unverified disc and confirm the withheld-structure message renders.
-expected: Matches the code/test-verified behavior in a live environment against real disc data.
+number: 4
+name: Submit: sign in, upload an `ovid fingerprint --json` output, confirm preview + submit success; confirm the set-toggle and fields are keyboard-operable (Tab/Space/Enter) with visible focus rings.
+expected: End-to-end submit flow works against the live staging API; keyboard operability is visually confirmed.
 awaiting: user response
 
 ## Tests
@@ -27,7 +27,8 @@ verified_by: Human-verified in live browser at https://staging.oviddb.org 2026-0
 
 ### 3. Disc detail: open a disc; confirm the Fingerprint aliases section lists ALL identity strings with the primary badged (data-testid="fingerprint-aliases"); open an unverified disc and confirm the withheld-structure message renders.
 expected: Matches the code/test-verified behavior in a live environment against real disc data.
-result: [pending]
+result: pass
+verified_by: Human-verified in live browser 2026-07-08 against seeded sample disc https://staging.oviddb.org/disc/dvdread1-seedmatrix1999 — fingerprint-aliases section lists both identity strings (dvdread1-seedmatrix1999 badged primary, dvd1-seedmatrix1999 alias); unverified-withheld structure message renders.
 
 ### 4. Submit: sign in, upload an `ovid fingerprint --json` output, confirm preview + submit success; confirm the set-toggle and fields are keyboard-operable (Tab/Space/Enter) with visible focus rings.
 expected: End-to-end submit flow works against the live staging API; keyboard operability is visually confirmed.
@@ -44,9 +45,9 @@ result: [pending]
 ## Summary
 
 total: 6
-passed: 2
+passed: 3
 issues: 0
-pending: 4
+pending: 3
 skipped: 0
 blocked: 0
 
