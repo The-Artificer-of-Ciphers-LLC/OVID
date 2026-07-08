@@ -1,0 +1,2680 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Open Video Disc Database — community-driven disc fingerprints under CC0">
+      
+      
+      
+        <link rel="canonical" href="https://the-artificer-of-ciphers-llc.github.io/OVID/deployment/">
+      
+      
+        <link rel="prev" href="../privacy/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Deployment - OVID</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#deploying-ovid" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="OVID" class="md-header__button md-logo" aria-label="OVID" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            OVID
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Deployment
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/The-Artificer-of-Ciphers-LLC/OVID" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    The-Artificer-of-Ciphers-LLC/OVID
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="OVID" class="md-nav__button md-logo" aria-label="OVID" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    OVID
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/The-Artificer-of-Ciphers-LLC/OVID" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    The-Artificer-of-Ciphers-LLC/OVID
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docker-quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started-dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../self-hosting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Self-Hosting Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fingerprint-spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fingerprint Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Auth Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Community
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Community
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../arm-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ARM Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../privacy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Privacy Policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#environments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environments
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development-holodeck-direct-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development (holodeck, direct access)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Development (holodeck, direct access)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#production-apioviddborg-oviddborg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production (api.oviddb.org / oviddb.org)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Production (api.oviddb.org / oviddb.org)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-configure-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Configure Environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-pull-or-build-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Pull or Build Images
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-run-database-migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Run Database Migrations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Run Database Migrations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#one-time-dvdread1-promotion-cutover" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One-time dvdread1-* promotion cutover
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-start-the-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Start the Stack
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rate-limiting-backend-redis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rate Limiting Backend (Redis)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-configure-reverse-proxy-redshirt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Configure Reverse Proxy (redshirt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-tls-certificate-renewal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. TLS Certificate Renewal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-configure-cloudflare-dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Configure Cloudflare DNS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#staging-stagingoviddborg-staging-apioviddborg-d-06-preview-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Staging (staging.oviddb.org / staging-api.oviddb.org — D-06 preview deploy)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Staging (staging.oviddb.org / staging-api.oviddb.org — D-06 preview deploy)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#chosen-staging-hosts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chosen staging hosts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites-external-host-infra-not-automatable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites (external host infra — not automatable)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#required-env-wiring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required env wiring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-run-local-uncommitted-overlay-follows-the-prodtest-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build + run (local, uncommitted overlay — follows the prod/test pattern)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verified-state-phase-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified state (phase gate)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#human-sign-off" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Human sign-off
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-stack-holodeck-isolated-oauthui-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Stack (holodeck, isolated OAuth/UI testing)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test Stack (holodeck, isolated OAuth/UI testing)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#purpose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Purpose
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ports
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deploy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logs-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logs &amp; Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#teardown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Teardown
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-all-stacks-simultaneously" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running All Stacks Simultaneously
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#health-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Health Check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#updating" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Updating
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#check-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Check Logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#database-connection-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Database Connection Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migration-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#environments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environments
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development-holodeck-direct-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development (holodeck, direct access)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Development (holodeck, direct access)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#production-apioviddborg-oviddborg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production (api.oviddb.org / oviddb.org)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Production (api.oviddb.org / oviddb.org)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-configure-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Configure Environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-pull-or-build-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Pull or Build Images
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-run-database-migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Run Database Migrations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Run Database Migrations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#one-time-dvdread1-promotion-cutover" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One-time dvdread1-* promotion cutover
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-start-the-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Start the Stack
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rate-limiting-backend-redis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rate Limiting Backend (Redis)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-configure-reverse-proxy-redshirt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Configure Reverse Proxy (redshirt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-tls-certificate-renewal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. TLS Certificate Renewal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-configure-cloudflare-dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Configure Cloudflare DNS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#staging-stagingoviddborg-staging-apioviddborg-d-06-preview-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Staging (staging.oviddb.org / staging-api.oviddb.org — D-06 preview deploy)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Staging (staging.oviddb.org / staging-api.oviddb.org — D-06 preview deploy)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#chosen-staging-hosts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chosen staging hosts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites-external-host-infra-not-automatable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites (external host infra — not automatable)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#required-env-wiring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required env wiring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-run-local-uncommitted-overlay-follows-the-prodtest-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build + run (local, uncommitted overlay — follows the prod/test pattern)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verified-state-phase-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified state (phase gate)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#human-sign-off" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Human sign-off
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-stack-holodeck-isolated-oauthui-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Stack (holodeck, isolated OAuth/UI testing)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test Stack (holodeck, isolated OAuth/UI testing)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#purpose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Purpose
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ports
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deploy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logs-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logs &amp; Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#teardown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Teardown
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-all-stacks-simultaneously" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running All Stacks Simultaneously
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#health-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Health Check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#updating" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Updating
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#check-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Check Logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#database-connection-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Database Connection Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migration-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="deploying-ovid">Deploying OVID<a class="headerlink" href="#deploying-ovid" title="Permanent link">&para;</a></h1>
+<p>This runbook covers deploying the OVID stack (API, web UI, PostgreSQL) in both development and production environments.</p>
+<h2 id="environments">Environments<a class="headerlink" href="#environments" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Environment</th>
+<th>API URL</th>
+<th>Web URL</th>
+<th>Host</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Development</td>
+<td><code>http://localhost:8000</code></td>
+<td><code>http://localhost:3000</code></td>
+<td>holodeck (LAN)</td>
+<td>Direct port access, hot-reload</td>
+</tr>
+<tr>
+<td>Production</td>
+<td><code>https://api.oviddb.org</code></td>
+<td><code>https://oviddb.org</code></td>
+<td>holodeck → redshirt → Cloudflare</td>
+<td>Reverse-proxied, TLS via Cloudflare</td>
+</tr>
+<tr>
+<td>Test</td>
+<td><code>http://holodeck.nomorestars.com:8200</code></td>
+<td><code>http://holodeck.nomorestars.com:3200</code></td>
+<td>holodeck (<code>~/OVID-test/</code>)</td>
+<td>Isolated OAuth/UI testing</td>
+</tr>
+<tr>
+<td>Staging</td>
+<td><code>https://api.staging.oviddb.org</code></td>
+<td><code>https://staging.oviddb.org</code></td>
+<td>holodeck → redshirt → Cloudflare</td>
+<td>Reverse-proxied, TLS; non-apex D-06 preview deploy — Phase 8 owns the public <code>oviddb.org</code> apex cutover + DB seeding</td>
+</tr>
+</tbody>
+</table>
+<p>All environments run on <strong>holodeck.nomorestars.com</strong>, but on different port ranges to avoid conflicts:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Dev ports</th>
+<th>Prod ports</th>
+<th>Test ports</th>
+<th>Staging ports</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PostgreSQL</td>
+<td>5432 (exposed)</td>
+<td>not exposed</td>
+<td>5434 (exposed)</td>
+<td>not exposed</td>
+</tr>
+<tr>
+<td>API</td>
+<td>8000</td>
+<td>8100 → 8000 (internal)</td>
+<td>8200 → 8000 (internal)</td>
+<td>8300 → 8000 (internal)</td>
+</tr>
+<tr>
+<td>Web</td>
+<td>3000</td>
+<td>3100 → 3000 (internal)</td>
+<td>3200 → 3000 (internal)</td>
+<td>3300 → 3000 (internal)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="development-holodeck-direct-access">Development (holodeck, direct access)<a class="headerlink" href="#development-holodeck-direct-access" title="Permanent link">&para;</a></h2>
+<h3 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Docker Engine</td>
+<td>24.0+ recommended</td>
+</tr>
+<tr>
+<td><code>docker compose</code> plugin</td>
+<td>Use the <strong>plugin</strong> subcommand (<code>docker compose</code>), not the legacy hyphenated <code>docker-compose</code> binary. See [K006].</td>
+</tr>
+</tbody>
+</table>
+<h3 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/The-Artificer-of-Ciphers-LLC/OVID.git
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>ovid
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>cp<span class="w"> </span>.env.example<span class="w"> </span>.env
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Edit .env — set OVID_DB_PASSWORD and OVID_SECRET_KEY at minimum</span>
+</code></pre></div>
+<p><strong><code>OVID_ENV</code> is required</strong> — the API refuses to boot without it. Set
+<code>OVID_ENV=development</code> for this environment; <code>docker-compose.yml</code> already
+supplies this default, so a plain <code>docker compose up</code> works as-is. This only
+matters if you're setting up <code>.env</code> by hand or running the API outside the
+provided compose files. See <a href="../auth-setup/#the-ovid_env-requirement-required"><code>auth-setup.md</code></a>
+for the full <code>OVID_ENV</code>/OAuth reference, and for configuring OAuth providers.</p>
+<h3 id="run">Run<a class="headerlink" href="#run" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>up
+</code></pre></div>
+<p>Services are available directly on the LAN:</p>
+<ul>
+<li><strong>API:</strong> <code>http://holodeck.nomorestars.com:8000</code></li>
+<li><strong>Web:</strong> <code>http://holodeck.nomorestars.com:3000</code></li>
+<li><strong>DB:</strong> <code>holodeck.nomorestars.com:5432</code> (for direct psql access)</li>
+</ul>
+<p>The dev stack uses volume mounts and <code>--reload</code> for hot-reloading during development.</p>
+<h3 id="migrations">Migrations<a class="headerlink" href="#migrations" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>api<span class="w"> </span>alembic<span class="w"> </span>upgrade<span class="w"> </span>head
+</code></pre></div>
+<hr />
+<h2 id="production-apioviddborg-oviddborg">Production (api.oviddb.org / oviddb.org)<a class="headerlink" href="#production-apioviddborg-oviddborg" title="Permanent link">&para;</a></h2>
+<p>Production runs on holodeck using the prod Compose override, exposed to the internet via a reverse proxy chain:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Internet → Cloudflare → redshirt (reverse proxy) → holodeck:8100/3100
+</code></pre></div>
+<h3 id="prerequisites_1">Prerequisites<a class="headerlink" href="#prerequisites_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Docker Engine 24.0+</td>
+<td>On holodeck</td>
+</tr>
+<tr>
+<td><code>docker compose</code> plugin</td>
+<td>v2 plugin subcommand</td>
+</tr>
+<tr>
+<td>SSH access to redshirt</td>
+<td>For reverse proxy configuration</td>
+</tr>
+<tr>
+<td>Cloudflare account</td>
+<td>DNS management for oviddb.org</td>
+</tr>
+</tbody>
+</table>
+<h3 id="1-configure-environment">1. Configure Environment<a class="headerlink" href="#1-configure-environment" title="Permanent link">&para;</a></h3>
+<p>On holodeck:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">cd</span><span class="w"> </span>/path/to/ovid
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cp<span class="w"> </span>.env.production.example<span class="w"> </span>.env
+</code></pre></div>
+<p>Fill in all values in <code>.env</code>:</p>
+<ul>
+<li><code>OVID_ENV</code> — <strong>required</strong>, must be <code>production</code> here. The API refuses to
+  boot without it (or with any value other than <code>development</code>/<code>production</code>).
+  <code>docker-compose.prod.yml</code> already hardcodes <code>OVID_ENV=production</code>, so this
+  only matters if you're assembling <code>.env</code> by hand for a non-standard deploy.
+  Setting <code>production</code> also disables the localhost/loopback bypass in OAuth
+  redirect validation.</li>
+<li><code>OVID_DB_PASSWORD</code> — strong random password</li>
+<li><code>OVID_SECRET_KEY</code> — generate with <code>python3 -c "import secrets; print(secrets.token_urlsafe(48))"</code></li>
+<li>OAuth credentials for each provider (GitHub, Apple, Google) — see
+  <a href="../auth-setup/"><code>auth-setup.md</code></a> for the authoritative per-provider setup reference</li>
+</ul>
+<h3 id="2-pull-or-build-images">2. Pull or Build Images<a class="headerlink" href="#2-pull-or-build-images" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Pull pre-built images (if published to GHCR):</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>pull
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Or build locally:</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>build
+</code></pre></div>
+<h3 id="3-run-database-migrations">3. Run Database Migrations<a class="headerlink" href="#3-run-database-migrations" title="Permanent link">&para;</a></h3>
+<p><strong>Run this before every deploy</strong>, including the first one:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.prod.yml<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>api<span class="w"> </span>alembic<span class="w"> </span>upgrade<span class="w"> </span>head
+</code></pre></div>
+<h4 id="one-time-dvdread1-promotion-cutover">One-time dvdread1-* promotion cutover<a class="headerlink" href="#one-time-dvdread1-promotion-cutover" title="Permanent link">&para;</a></h4>
+<p>The <code>900000000006_promote_dvdread1_primary</code> migration (part of ADR 0001's
+staged libdvdread identity migration) promotes any disc that already
+carries a <code>dvdread1-*</code> alias to have that value as its primary
+fingerprint. Unlike a self-hosted mirror (which is already permanently
+read-only and just picks this up via its normal update routine — see
+<a href="../self-hosting/#promoting-to-dvdread1-primary-one-time-cutover">Promoting to dvdread1-* Primary</a>
+in the self-hosting runbook), <strong>the canonical server accepts live writes
+and genuinely needs write-quiesce for this migration</strong> — it is not
+already read-only the way a mirror is.</p>
+<p>Use the same one-command wrapper, with the prod-specific compose files:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>python<span class="w"> </span>scripts/promote_dvdread1.py<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.prod.yml
+</code></pre></div>
+<p>This captures the server's current <code>OVID_MODE</code> (<code>canonical</code>), toggles it
+to <code>mirror</code> (read-only) for the migration, and restores <code>canonical</code>
+afterward — even if the migration step fails. As documented in the
+self-hosting runbook, this <strong>also briefly interrupts reads</strong>, not just
+writes, during each of the two <code>api</code> service restarts it performs — plan
+for a short window of full API unavailability, not just a write-only
+quiesce.</p>
+<h3 id="4-start-the-stack">4. Start the Stack<a class="headerlink" href="#4-start-the-stack" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.prod.yml<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<p>The production services start with container name prefixes (<code>ovid-prod-*</code>) and on separate ports from dev:</p>
+<table>
+<thead>
+<tr>
+<th>Container</th>
+<th>Host port</th>
+<th>Internal port</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ovid-prod-db</code></td>
+<td>— (not exposed)</td>
+<td>5432</td>
+<td>PostgreSQL 16</td>
+</tr>
+<tr>
+<td><code>ovid-prod-redis</code></td>
+<td>— (not exposed)</td>
+<td>6379</td>
+<td>Redis 7 — shared rate-limit store</td>
+</tr>
+<tr>
+<td><code>ovid-prod-api</code></td>
+<td>8100</td>
+<td>8000</td>
+<td>FastAPI + Gunicorn (4 workers)</td>
+</tr>
+<tr>
+<td><code>ovid-prod-web</code></td>
+<td>3100</td>
+<td>3000</td>
+<td>Next.js production server</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>redis</code> service is defined in <code>docker-compose.prod.yml</code> (and
+<code>docker-compose.test.yml</code>) and is <strong>internal-only</strong> — it publishes no host port,
+mirroring the prod <code>db</code>. It is ephemeral by design (<code>--save "" --appendonly no</code>,
+no volume): rate-limit counters are short-window and disposable, so there is
+nothing to persist across restarts. See <strong>Rate Limiting Backend (Redis)</strong> below
+for why it exists and how it behaves.</p>
+<h3 id="rate-limiting-backend-redis">Rate Limiting Backend (Redis)<a class="headerlink" href="#rate-limiting-backend-redis" title="Permanent link">&para;</a></h3>
+<p>The prod and test stacks run the API under <code>gunicorn -w 4</code> (four workers). The
+API rate limiter (<code>slowapi</code>) needs a <strong>shared</strong> counter store so a limit like
+"100 requests/minute" is enforced across all four workers rather than per-worker.</p>
+<ul>
+<li><strong>Env-driven backend selection.</strong> The limiter reads <code>REDIS_URL</code>:</li>
+<li><strong>set</strong> (prod/test: <code>redis://redis:6379/0</code>) → shared <code>RedisStorage</code>;
+    counters are correct across every worker.</li>
+<li><strong>unset</strong> (single-worker dev/mirror/self-host) → per-worker <code>memory://</code>,
+    which is correct only at one worker. This is why the base
+    <code>docker-compose.yml</code> has no <code>redis</code> service and needs none.</li>
+<li><strong>When Redis is required.</strong> Whenever <code>OVID_WORKERS</code> (or <code>WEB_CONCURRENCY</code>) &gt; 1.
+  On <code>memory://</code> each worker keeps an independent counter, so N workers inflate
+  every rate limit up to Nx.</li>
+<li><strong>Fail-fast guard.</strong> The API <strong>refuses to boot</strong> if <code>OVID_WORKERS</code> &gt; 1 while
+  <code>REDIS_URL</code> is unset — a loud startup <code>RuntimeError</code> instead of silently
+  serving inflated limits. The prod/test compose files always pass
+  <code>OVID_WORKERS=4</code> and <code>REDIS_URL</code> together, so a correct deploy never trips it;
+  the guard exists to catch a misconfigured hand-rolled deploy.</li>
+<li><strong>Redis outage behavior (fail-open, self-healing — the documented decision).</strong>
+  On a Redis outage the limiter does <strong>not</strong> fail closed. It degrades to a
+  bounded per-worker in-memory fallback (a single conservative global cap per
+  worker while Redis is down) and automatically probes Redis and switches back
+  when it recovers. This is a deliberate choice: OVID's rate limiting is
+  <strong>abuse-prevention over public/CC0 data, not an authorization boundary</strong>, so a
+  transient Redis blip must never take down the read-heavy, ARM-facing lookup
+  path over a newly introduced dependency. Pure fail-open (dropping all
+  protection) was rejected because the library ships this self-healing middle
+  path for free. A per-route-type fail-open/fail-closed split is deferred
+  (D-04) — revisit only if write-path abuse becomes a materially distinct threat.</li>
+<li><strong>Write-ceiling outage loosening.</strong> The write ceiling (<code>AUTH_WRITE_LIMIT</code>,
+  20/minute per account) is not exempt from the fallback above — during a
+  Redis outage it also collapses to the shared <code>FALLBACK_LIMIT</code> (60/minute)
+  <strong>per worker</strong>, so across the 4-worker prod/test stacks the effective write
+  ceiling loosens to roughly 60/minute × running workers (≈240/minute) for the
+  outage's duration. This is the same intentional fail-open-on-writes choice
+  described above (per-route-type split deferred, D-04) — called out
+  separately here because it's easy to miss that the write path is affected too.</li>
+<li><strong>Reverse-proxy IP requirement.</strong> Per-IP unauthenticated rate limiting is
+  only correct if <code>OVID_FORWARDED_ALLOW_IPS</code> is set to the actual proxy/
+  Docker-gateway source the <code>api</code> container observes — see <strong>Trusted proxy
+  IP</strong> under "Configure Reverse Proxy" below. Left at its default, every
+  external visitor collapses into a single "client IP" bucket for both rate
+  limiting and anti-Sybil IP-diversity checks.</li>
+</ul>
+<p>If you ever expose Redis beyond the compose network, switch to <code>rediss://</code> with
+AUTH; the current internal-only, no-published-port setup needs neither. A p95
+≤ 500 ms load test against this exact Redis-backed multi-worker config is run by
+the load-test harness (INFRA-03) — see <code>docs/OVID-technical-spec.md</code>.</p>
+<h3 id="5-configure-reverse-proxy-redshirt">5. Configure Reverse Proxy (redshirt)<a class="headerlink" href="#5-configure-reverse-proxy-redshirt" title="Permanent link">&para;</a></h3>
+<p>The prod stack listens on holodeck ports 8100 (API) and 3100 (web). The <strong>redshirt</strong> server (<code>64.98.89.233</code>) acts as the public-facing reverse proxy with TLS termination via Let's Encrypt.</p>
+<p>Redshirt runs nginx inside Docker (<code>/root/compose/</code>). The vhost config is appended to <code>/root/compose/nginx/nginx.conf</code>. The reference copy lives in this repo at <a href="../nginx-oviddb-vhosts.conf"><code>docs/nginx-oviddb-vhosts.conf</code></a>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># --- oviddb.org — web UI ---</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">server</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="mi">80</span><span class="p">;</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="kn">server_name</span><span class="w"> </span><span class="s">oviddb.org</span><span class="p">;</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/.well-known/acme-challenge/</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">        </span><span class="kn">root</span><span class="w"> </span><span class="s">/var/www/certbot</span><span class="p">;</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">        </span><span class="kn">return</span><span class="w"> </span><span class="mi">301</span><span class="w"> </span><span class="s">https://</span><span class="nv">$host$request_uri</span><span class="p">;</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="p">}</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="k">server</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="mi">443</span><span class="w"> </span><span class="s">ssl</span><span class="p">;</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">    </span><span class="kn">http2</span><span class="w"> </span><span class="no">on</span><span class="p">;</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">    </span><span class="kn">server_name</span><span class="w"> </span><span class="s">oviddb.org</span><span class="p">;</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a><span class="w">    </span><span class="kn">ssl_certificate</span><span class="w">     </span><span class="s">/etc/letsencrypt/live/oviddb.org/fullchain.pem</span><span class="p">;</span>
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="w">    </span><span class="kn">ssl_certificate_key</span><span class="w"> </span><span class="s">/etc/letsencrypt/live/oviddb.org/privkey.pem</span><span class="p">;</span>
+<a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a>
+<a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Host</span><span class="w">              </span><span class="nv">$host</span><span class="p">;</span>
+<a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Real-IP</span><span class="w">         </span><span class="nv">$remote_addr</span><span class="p">;</span>
+<a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-For</span><span class="w">   </span><span class="nv">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+<a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-Proto</span><span class="w"> </span><span class="nv">$scheme</span><span class="p">;</span>
+<a id="__codelineno-9-28" name="__codelineno-9-28" href="#__codelineno-9-28"></a>
+<a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-30" name="__codelineno-9-30" href="#__codelineno-9-30"></a><span class="w">        </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://192.168.0.28:3100</span><span class="p">;</span>
+<a id="__codelineno-9-31" name="__codelineno-9-31" href="#__codelineno-9-31"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-9-32" name="__codelineno-9-32" href="#__codelineno-9-32"></a><span class="p">}</span>
+<a id="__codelineno-9-33" name="__codelineno-9-33" href="#__codelineno-9-33"></a>
+<a id="__codelineno-9-34" name="__codelineno-9-34" href="#__codelineno-9-34"></a><span class="c1"># --- api.oviddb.org — API ---</span>
+<a id="__codelineno-9-35" name="__codelineno-9-35" href="#__codelineno-9-35"></a>
+<a id="__codelineno-9-36" name="__codelineno-9-36" href="#__codelineno-9-36"></a><span class="k">server</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-37" name="__codelineno-9-37" href="#__codelineno-9-37"></a><span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="mi">80</span><span class="p">;</span>
+<a id="__codelineno-9-38" name="__codelineno-9-38" href="#__codelineno-9-38"></a><span class="w">    </span><span class="kn">server_name</span><span class="w"> </span><span class="s">api.oviddb.org</span><span class="p">;</span>
+<a id="__codelineno-9-39" name="__codelineno-9-39" href="#__codelineno-9-39"></a>
+<a id="__codelineno-9-40" name="__codelineno-9-40" href="#__codelineno-9-40"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/.well-known/acme-challenge/</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-41" name="__codelineno-9-41" href="#__codelineno-9-41"></a><span class="w">        </span><span class="kn">root</span><span class="w"> </span><span class="s">/var/www/certbot</span><span class="p">;</span>
+<a id="__codelineno-9-42" name="__codelineno-9-42" href="#__codelineno-9-42"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-9-43" name="__codelineno-9-43" href="#__codelineno-9-43"></a>
+<a id="__codelineno-9-44" name="__codelineno-9-44" href="#__codelineno-9-44"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-45" name="__codelineno-9-45" href="#__codelineno-9-45"></a><span class="w">        </span><span class="kn">return</span><span class="w"> </span><span class="mi">301</span><span class="w"> </span><span class="s">https://</span><span class="nv">$host$request_uri</span><span class="p">;</span>
+<a id="__codelineno-9-46" name="__codelineno-9-46" href="#__codelineno-9-46"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-9-47" name="__codelineno-9-47" href="#__codelineno-9-47"></a><span class="p">}</span>
+<a id="__codelineno-9-48" name="__codelineno-9-48" href="#__codelineno-9-48"></a>
+<a id="__codelineno-9-49" name="__codelineno-9-49" href="#__codelineno-9-49"></a><span class="k">server</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-50" name="__codelineno-9-50" href="#__codelineno-9-50"></a><span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="mi">443</span><span class="w"> </span><span class="s">ssl</span><span class="p">;</span>
+<a id="__codelineno-9-51" name="__codelineno-9-51" href="#__codelineno-9-51"></a><span class="w">    </span><span class="kn">http2</span><span class="w"> </span><span class="no">on</span><span class="p">;</span>
+<a id="__codelineno-9-52" name="__codelineno-9-52" href="#__codelineno-9-52"></a><span class="w">    </span><span class="kn">server_name</span><span class="w"> </span><span class="s">api.oviddb.org</span><span class="p">;</span>
+<a id="__codelineno-9-53" name="__codelineno-9-53" href="#__codelineno-9-53"></a>
+<a id="__codelineno-9-54" name="__codelineno-9-54" href="#__codelineno-9-54"></a><span class="w">    </span><span class="kn">ssl_certificate</span><span class="w">     </span><span class="s">/etc/letsencrypt/live/oviddb.org/fullchain.pem</span><span class="p">;</span>
+<a id="__codelineno-9-55" name="__codelineno-9-55" href="#__codelineno-9-55"></a><span class="w">    </span><span class="kn">ssl_certificate_key</span><span class="w"> </span><span class="s">/etc/letsencrypt/live/oviddb.org/privkey.pem</span><span class="p">;</span>
+<a id="__codelineno-9-56" name="__codelineno-9-56" href="#__codelineno-9-56"></a>
+<a id="__codelineno-9-57" name="__codelineno-9-57" href="#__codelineno-9-57"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Host</span><span class="w">              </span><span class="nv">$host</span><span class="p">;</span>
+<a id="__codelineno-9-58" name="__codelineno-9-58" href="#__codelineno-9-58"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Real-IP</span><span class="w">         </span><span class="nv">$remote_addr</span><span class="p">;</span>
+<a id="__codelineno-9-59" name="__codelineno-9-59" href="#__codelineno-9-59"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-For</span><span class="w">   </span><span class="nv">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+<a id="__codelineno-9-60" name="__codelineno-9-60" href="#__codelineno-9-60"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-Proto</span><span class="w"> </span><span class="nv">$scheme</span><span class="p">;</span>
+<a id="__codelineno-9-61" name="__codelineno-9-61" href="#__codelineno-9-61"></a>
+<a id="__codelineno-9-62" name="__codelineno-9-62" href="#__codelineno-9-62"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-63" name="__codelineno-9-63" href="#__codelineno-9-63"></a><span class="w">        </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://192.168.0.28:8100</span><span class="p">;</span>
+<a id="__codelineno-9-64" name="__codelineno-9-64" href="#__codelineno-9-64"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-9-65" name="__codelineno-9-65" href="#__codelineno-9-65"></a><span class="p">}</span>
+</code></pre></div>
+<p>Key details:
+- <strong>TLS certs:</strong> Let's Encrypt ECDSA SAN certificate at <code>/etc/letsencrypt/live/oviddb.org/</code> (covers both <code>oviddb.org</code> and <code>api.oviddb.org</code>)
+- <strong>ACME challenges:</strong> Port-80 blocks serve <code>/.well-known/acme-challenge/</code> from <code>/var/www/certbot</code> for certbot renewal
+- <strong>Proxy targets:</strong> holodeck at <code>192.168.0.28</code> (LAN IP) — web UI on port 3100, API on port 8100
+- <strong>HTTP/2:</strong> Enabled on port-443 blocks</p>
+<p><strong>Trusted proxy IP (required for accurate rate limiting / anti-Sybil signals):</strong> nginx above sets <code>X-Real-IP</code>/<code>X-Forwarded-For</code> to the real visitor's IP, but the API only honors those headers from a connection it trusts. Set <code>OVID_FORWARDED_ALLOW_IPS</code> in <code>.env</code> on holodeck to the IP address the <code>api</code> container actually observes as the connecting peer for the proxied request — this is passed to gunicorn as <code>--forwarded-allow-ips</code> (see <code>docker-compose.prod.yml</code>). With this reverse-proxy chain (redshirt → holodeck's published Docker port), that peer address is whatever Docker's bridge networking presents to the container, which is <strong>not necessarily</strong> <code>192.168.0.28</code> or redshirt's own IP — confirm the actual value from the API container's access log (or a temporary debug request) rather than assuming it. If <code>OVID_FORWARDED_ALLOW_IPS</code> is left at its default (<code>127.0.0.1</code>) and that never matches, the app silently falls back to treating every request as coming from the proxy hop — rate limiting and anti-Sybil IP-diversity (see <code>api/app/anti_sybil.py</code>) then see one constant "client IP" for all traffic instead of real visitor IPs.</p>
+<h3 id="6-tls-certificate-renewal">6. TLS Certificate Renewal<a class="headerlink" href="#6-tls-certificate-renewal" title="Permanent link">&para;</a></h3>
+<p>Certs are issued by Let's Encrypt via certbot running as a Docker service (<code>certbot_www</code>) on redshirt. A <strong>weekly cron job</strong> already handles automatic renewal:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a># root crontab on redshirt — runs every Sunday at midnight
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>0 0 * * 0 /root/compose/renewcert.sh &gt; /var/log/renewcert.log 2&gt;&amp;1
+</code></pre></div>
+<p>The renewal script (<code>/root/compose/renewcert.sh</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="ch">#!/bin/sh</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nb">cd</span><span class="w"> </span>~/compose
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>/usr/bin/docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>certbot_www<span class="w"> </span>renew<span class="w"> </span>--quiet
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>/usr/bin/docker<span class="w"> </span>system<span class="w"> </span>prune
+</code></pre></div>
+<p>To manually trigger a renewal or dry-run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Dry-run (test only, no cert changes)</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>ssh<span class="w"> </span>trekkie@redshirt.nomorestars.com<span class="w"> </span><span class="s1">&#39;sudo docker compose -f /root/compose/compose.yaml run --rm certbot_www renew --dry-run&#39;</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Real renewal</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>ssh<span class="w"> </span>trekkie@redshirt.nomorestars.com<span class="w"> </span><span class="s1">&#39;sudo docker compose -f /root/compose/compose.yaml run --rm certbot_www renew&#39;</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># Check renewal log</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>ssh<span class="w"> </span>trekkie@redshirt.nomorestars.com<span class="w"> </span><span class="s1">&#39;sudo cat /var/log/renewcert.log&#39;</span>
+</code></pre></div>
+<p>After renewal, nginx picks up the new certs automatically (certbot stores them as symlinks that point to the latest version).</p>
+<h3 id="7-configure-cloudflare-dns">7. Configure Cloudflare DNS<a class="headerlink" href="#7-configure-cloudflare-dns" title="Permanent link">&para;</a></h3>
+<p>In the Cloudflare dashboard for the <code>oviddb.org</code> zone:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Name</th>
+<th>Content</th>
+<th>Proxy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td><code>oviddb.org</code></td>
+<td><code>64.98.89.233</code> (redshirt)</td>
+<td>Proxied (orange cloud)</td>
+</tr>
+<tr>
+<td>A</td>
+<td><code>api.oviddb.org</code></td>
+<td><code>64.98.89.233</code> (redshirt)</td>
+<td>Proxied (orange cloud)</td>
+</tr>
+</tbody>
+</table>
+<p>Cloudflare SSL/TLS mode must be set to <strong>Full (strict)</strong> — Cloudflare will validate the Let's Encrypt origin cert on redshirt.</p>
+<hr />
+<h2 id="staging-stagingoviddborg-staging-apioviddborg-d-06-preview-deploy">Staging (staging.oviddb.org / staging-api.oviddb.org — D-06 preview deploy)<a class="headerlink" href="#staging-stagingoviddborg-staging-apioviddborg-d-06-preview-deploy" title="Permanent link">&para;</a></h2>
+<p>Phase 7 (WEBUI-01) scopes "verifiably deployable + live" to a <strong>staging preview URL</strong>, not the public
+<code>oviddb.org</code> apex. The public apex cutover, domain redirects (<code>.com</code>/<code>.net</code>), and DB seeding (500+ discs)
+are <strong>Phase 8</strong> — see <code>.planning/phases/07-web-ui-production-readiness/07-CONTEXT.md</code> (D-06). Staging
+exercises the real prod-shaped container + TLS + env-wiring path (not just a local build) before that
+cutover, without exposing a near-empty catalog at the public domain (T-07-08-02).</p>
+<h3 id="chosen-staging-hosts">Chosen staging hosts<a class="headerlink" href="#chosen-staging-hosts" title="Permanent link">&para;</a></h3>
+<p>The API host is a single label, <code>staging-api.oviddb.org</code>, rather than the nested
+<code>api.staging.oviddb.org</code> — Cloudflare's free Universal SSL edge cert for this zone covers
+<code>oviddb.org</code> and <code>*.oviddb.org</code>, and a wildcard matches only <strong>one</strong> label, so a second-level host
+like <code>api.staging.oviddb.org</code> would <strong>not</strong> be covered, whereas the single-level
+<code>staging-api.oviddb.org</code> is.</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Host</th>
+<th>Redshirt target</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Web</td>
+<td><code>https://staging.oviddb.org</code></td>
+<td><code>holodeck:3200</code> → container <code>:3000</code></td>
+<td>Its own <code>NEXT_PUBLIC_API_URL</code> build (Pitfall 3)</td>
+</tr>
+<tr>
+<td>API</td>
+<td><code>https://staging-api.oviddb.org</code></td>
+<td><code>holodeck:8200</code> → container <code>:8000</code></td>
+<td>Own DB — a near-empty catalog is expected pre-Phase-8 seeding</td>
+</tr>
+<tr>
+<td>DB</td>
+<td>not exposed</td>
+<td>—</td>
+<td>mirrors prod (<code>db.ports: !reset []</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Staging reuses the retired <strong>test</strong> (<code>x200</code>) port slot on holodeck rather than introducing a new
+<code>x300</code> bracket — the <code>test</code> environment described later in this document (see
+<a href="#test-stack-holodeck-isolated-oauthui-testing">Test Stack</a>) was retired in favor of staging taking
+over that role.</p>
+<h3 id="prerequisites-external-host-infra-not-automatable">Prerequisites (external host infra — not automatable)<a class="headerlink" href="#prerequisites-external-host-infra-not-automatable" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>DNS:</strong> add <code>staging.oviddb.org</code> and <code>staging-api.oviddb.org</code> as <strong>proxied CNAME</strong> records in
+   Cloudflare, both pointing at <code>oviddb.org</code> (Cloudflare-proxied) — this is equivalent to an A
+   record at redshirt's IP, since a proxied CNAME flattens to the same proxied edge as the apex.
+   This differs from the apex/<code>api.oviddb.org</code> <strong>A</strong> records under
+   <a href="#7-configure-cloudflare-dns">Configure Cloudflare DNS</a> above, which point directly at
+   redshirt's IP (<code>64.98.89.233</code>).</li>
+<li><strong>TLS + routing:</strong> extend the redshirt nginx vhost config (<code>docs/nginx-oviddb-vhosts.conf</code>) with
+   <code>server_name staging.oviddb.org</code> / <code>server_name staging-api.oviddb.org</code> blocks proxying to
+   <code>holodeck:3200</code> / <code>holodeck:8200</code> — same shape as the prod vhost blocks under
+   <a href="#5-configure-reverse-proxy-redshirt">Configure Reverse Proxy</a> above. <strong>No SAN cert extension and
+   no separate cert are needed</strong>: both staging hostnames are single-label and already covered by
+   Cloudflare's free <code>*.oviddb.org</code> edge cert, so the origin (redshirt nginx) simply reuses the
+   existing <code>oviddb.org</code> Let's Encrypt cert as-is.</li>
+<li><strong>Requirement:</strong> the zone's Cloudflare SSL/TLS mode must be set to <strong>Full</strong> (not
+     <strong>Full (strict)</strong>) for this to work. Strict mode validates that the origin cert's presented
+     name matches the requested hostname and would reject the shared <code>oviddb.org</code> origin cert for
+     the staging hostnames; Full mode accepts any certificate the origin presents without
+     validating the name.</li>
+<li><strong><code>ssl_stapling</code> note:</strong> the <code>ssl_stapling</code>/<code>ssl_stapling_verify</code> directives were removed from
+     redshirt's nginx config entirely. Let's Encrypt stopped publishing an OCSP responder URL in
+     issued certs in 2025 (OCSP deprecated), so stapling had silently become a no-op that emitted a
+     warning on every nginx reload.</li>
+</ol>
+<h3 id="required-env-wiring">Required env wiring<a class="headerlink" href="#required-env-wiring" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong><code>CORS_ORIGINS</code> must include the staging web origin</strong> (Pitfall 2 / threat T-07-08-01), or
+   <code>_validate_web_redirect_uri</code> (<code>api/app/auth/routes.py:83-112</code>) fails <strong>CLOSED</strong> and every login — plus
+   the D-04 account-merge redirect — 400s with <code>invalid_redirect_uri</code>. Set
+   <code>CORS_ORIGINS=https://staging.oviddb.org</code> on the staging API (no wildcard, no comma-appended prod
+   origin — see the commented example in <code>.env.example</code>).</li>
+<li><strong><code>NEXT_PUBLIC_API_URL</code> is a distinct BUILD-time arg</strong> (Pitfall 3, <code>web/Dockerfile:12-15</code>) — it is
+   baked into the client JS bundle at image-build time and is <strong>not</strong> runtime-overridable. The staging web
+   image must be built with its own <code>--build-arg NEXT_PUBLIC_API_URL=https://staging-api.oviddb.org</code>,
+   separate from the prod image's <code>https://api.oviddb.org</code>. The server-side <code>API_URL</code> env var (used for
+   server-component/route-handler fetches) still points at the internal Docker service URL
+   (<code>http://api:8000</code>), matching the prod/test pattern.</li>
+<li><strong><code>OVID_ENV</code> stays <code>production</code> on staging</strong>, not a third value — the API only accepts
+   <code>development</code>/<code>production</code> and refuses to boot otherwise (see <code>.env.example</code>). Staging is a public
+   HTTPS deployment, so it needs the same <code>production</code> security posture as real prod (disables the
+   localhost auth bypass); "staging" is a DNS/hostname distinction, not a third <code>OVID_ENV</code> value.</li>
+<li><strong>Cross-origin session cookie for the add-provider flow (07-07 Option B).</strong> Settings' "Link a
+   provider" CTA does a credentialed <code>fetch(POST /v1/auth/link/{provider}, {credentials:"include"})</code> from
+   the web origin to the API origin, then a top-level <code>window.location.assign()</code> navigation to the API's
+   own <code>/login</code> route (<code>linkProvider</code>, <code>web/lib/api.ts</code>). This needs no staging-specific code change, but
+   the mechanism only works because:</li>
+<li>CORS already sends <code>Access-Control-Allow-Credentials: true</code> with the <strong>exact</strong> requesting origin
+     (never <code>*</code>) — <code>CORSMiddleware</code> in <code>api/main.py</code> builds this from the same <code>CORS_ORIGINS</code> list, so
+     wiring #1 above also satisfies this requirement.</li>
+<li>The session cookie set by that fetch (<code>starlette.middleware.sessions.SessionMiddleware</code>, <code>api/main.py</code>)
+     uses its default <code>SameSite=Lax</code>, <code>HttpOnly=True</code>, and no explicit <code>Domain</code> — scoped to the API host
+     only, by design, since the OAuth round-trip returns the JWT via a <code>web_redirect_uri</code> query param, not
+     a cookie the web origin reads, so no shared-domain cookie is needed. <code>SameSite=Lax</code> cookies ARE sent
+     on the subsequent <strong>top-level</strong> cross-site navigation to the API's <code>/login</code> route (Lax only blocks
+     cross-site use on subresource/fetch requests, not top-level GET navigations), so the round-trip
+     succeeds without any <code>SameSite=None</code> or shared-<code>Domain</code> change.</li>
+<li><strong><code>SESSION_COOKIE_SECURE=true</code> is required for any HTTPS deployment</strong> (staging and production alike) —
+   set it on the staging API alongside wiring #1-4 above. The session cookie carries OAuth CSRF state and,
+   per the provider-link flow in #4, <code>link_to_user_id</code>, so it must never be sent over plain HTTP; leaving
+   it unset defaults to <code>false</code> (correct only for local <code>http://localhost</code> dev, see <code>.env.example</code>).</li>
+</ol>
+<h3 id="build-run-local-uncommitted-overlay-follows-the-prodtest-pattern">Build + run (local, uncommitted overlay — follows the prod/test pattern)<a class="headerlink" href="#build-run-local-uncommitted-overlay-follows-the-prodtest-pattern" title="Permanent link">&para;</a></h3>
+<p>This repo does not ship a <code>docker-compose.staging.yml</code>: <code>docker-compose.prod.yml</code> and
+<code>docker-compose.test.yml</code> both hardcode their own container names/ports/<code>NEXT_PUBLIC_API_URL</code> build arg
+per environment, so staging needs the same per-environment treatment to avoid colliding with a
+simultaneously-running prod stack (and to bake the <em>staging</em> API URL, not prod's, per Pitfall 3). Create a
+local, gitignored <code>docker-compose.staging.yml</code> on the deploy host (mirrors <code>docker-compose.prod.yml</code>'s
+shape, analogous to how <code>.env.test</code> is gitignored — do not commit it). This overlay reuses the retired
+test (<code>x200</code>) port slot rather than introducing a new bracket, per <a href="#chosen-staging-hosts">Chosen staging hosts</a> above:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># docker-compose.staging.yml — LOCAL ONLY, not committed. Merge with base:</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="c1">#   docker compose -f docker-compose.yml -f docker-compose.staging.yml \</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c1">#     --env-file .env.staging -p ovid-staging up -d</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ovid-staging</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="nt">services</span><span class="p">:</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">  </span><span class="nt">db</span><span class="p">:</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="w">    </span><span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ovid-staging-db</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w"> </span><span class="kt">!reset</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="w">  </span><span class="nt">redis</span><span class="p">:</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">redis:7-alpine</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="w">    </span><span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ovid-staging-redis</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">unless-stopped</span>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="w">    </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;redis-server&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;--save&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;--appendonly&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;no&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="w">    </span><span class="nt">healthcheck</span><span class="p">:</span>
+<a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="w">      </span><span class="nt">test</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;CMD&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;redis-cli&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;ping&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a><span class="w">      </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5s</span>
+<a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a><span class="w">      </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3s</span>
+<a id="__codelineno-13-20" name="__codelineno-13-20" href="#__codelineno-13-20"></a><span class="w">      </span><span class="nt">retries</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+<a id="__codelineno-13-21" name="__codelineno-13-21" href="#__codelineno-13-21"></a>
+<a id="__codelineno-13-22" name="__codelineno-13-22" href="#__codelineno-13-22"></a><span class="w">  </span><span class="nt">api</span><span class="p">:</span>
+<a id="__codelineno-13-23" name="__codelineno-13-23" href="#__codelineno-13-23"></a><span class="w">    </span><span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ovid-staging-api</span>
+<a id="__codelineno-13-24" name="__codelineno-13-24" href="#__codelineno-13-24"></a><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w"> </span><span class="kt">!reset</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<a id="__codelineno-13-25" name="__codelineno-13-25" href="#__codelineno-13-25"></a><span class="w">    </span><span class="nt">depends_on</span><span class="p">:</span>
+<a id="__codelineno-13-26" name="__codelineno-13-26" href="#__codelineno-13-26"></a><span class="w">      </span><span class="nt">redis</span><span class="p">:</span>
+<a id="__codelineno-13-27" name="__codelineno-13-27" href="#__codelineno-13-27"></a><span class="w">        </span><span class="nt">condition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service_healthy</span>
+<a id="__codelineno-13-28" name="__codelineno-13-28" href="#__codelineno-13-28"></a><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w"> </span><span class="kt">!override</span>
+<a id="__codelineno-13-29" name="__codelineno-13-29" href="#__codelineno-13-29"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;8200:8000&quot;</span>
+<a id="__codelineno-13-30" name="__codelineno-13-30" href="#__codelineno-13-30"></a><span class="w">    </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;-</span>
+<a id="__codelineno-13-31" name="__codelineno-13-31" href="#__codelineno-13-31"></a><span class="w">      </span><span class="no">gunicorn -w &quot;${OVID_WORKERS:-4}&quot; -k uvicorn.workers.UvicornWorker</span>
+<a id="__codelineno-13-32" name="__codelineno-13-32" href="#__codelineno-13-32"></a><span class="w">      </span><span class="no">main:app --bind 0.0.0.0:8000</span>
+<a id="__codelineno-13-33" name="__codelineno-13-33" href="#__codelineno-13-33"></a><span class="w">      </span><span class="no">--forwarded-allow-ips &quot;${OVID_FORWARDED_ALLOW_IPS:-127.0.0.1}&quot;</span>
+<a id="__codelineno-13-34" name="__codelineno-13-34" href="#__codelineno-13-34"></a><span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<a id="__codelineno-13-35" name="__codelineno-13-35" href="#__codelineno-13-35"></a><span class="w">      </span><span class="nt">DATABASE_URL</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">postgresql://${OVID_DB_USER:-ovid}:${OVID_DB_PASSWORD:-ovidlocal}@db:5432/${OVID_DB_NAME:-ovid}</span>
+<a id="__codelineno-13-36" name="__codelineno-13-36" href="#__codelineno-13-36"></a><span class="w">      </span><span class="nt">REDIS_URL</span><span class="p">:</span><span class="w">             </span><span class="l l-Scalar l-Scalar-Plain">redis://redis:6379/0</span>
+<a id="__codelineno-13-37" name="__codelineno-13-37" href="#__codelineno-13-37"></a><span class="w">      </span><span class="nt">OVID_WORKERS</span><span class="p">:</span><span class="w">          </span><span class="s">&quot;${OVID_WORKERS:-4}&quot;</span>
+<a id="__codelineno-13-38" name="__codelineno-13-38" href="#__codelineno-13-38"></a><span class="w">      </span><span class="nt">SECRET_KEY</span><span class="p">:</span><span class="w">            </span><span class="l l-Scalar l-Scalar-Plain">${OVID_SECRET_KEY}</span>
+<a id="__codelineno-13-39" name="__codelineno-13-39" href="#__codelineno-13-39"></a><span class="w">      </span><span class="nt">OVID_MODE</span><span class="p">:</span><span class="w">             </span><span class="l l-Scalar l-Scalar-Plain">standalone</span>
+<a id="__codelineno-13-40" name="__codelineno-13-40" href="#__codelineno-13-40"></a><span class="w">      </span><span class="nt">OVID_ENV</span><span class="p">:</span><span class="w">              </span><span class="l l-Scalar l-Scalar-Plain">production</span>
+<a id="__codelineno-13-41" name="__codelineno-13-41" href="#__codelineno-13-41"></a><span class="w">      </span><span class="nt">LOG_LEVEL</span><span class="p">:</span><span class="w">             </span><span class="l l-Scalar l-Scalar-Plain">${LOG_LEVEL:-info}</span>
+<a id="__codelineno-13-42" name="__codelineno-13-42" href="#__codelineno-13-42"></a><span class="w">      </span><span class="nt">CORS_ORIGINS</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">${CORS_ORIGINS:-https://staging.oviddb.org}</span>
+<a id="__codelineno-13-43" name="__codelineno-13-43" href="#__codelineno-13-43"></a><span class="w">      </span><span class="nt">OVID_API_URL</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">https://staging-api.oviddb.org</span>
+<a id="__codelineno-13-44" name="__codelineno-13-44" href="#__codelineno-13-44"></a><span class="w">      </span><span class="nt">GITHUB_CLIENT_ID</span><span class="p">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">${GITHUB_CLIENT_ID}</span>
+<a id="__codelineno-13-45" name="__codelineno-13-45" href="#__codelineno-13-45"></a><span class="w">      </span><span class="nt">GITHUB_CLIENT_SECRET</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">${GITHUB_CLIENT_SECRET}</span>
+<a id="__codelineno-13-46" name="__codelineno-13-46" href="#__codelineno-13-46"></a><span class="w">      </span><span class="nt">GOOGLE_CLIENT_ID</span><span class="p">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">${GOOGLE_CLIENT_ID}</span>
+<a id="__codelineno-13-47" name="__codelineno-13-47" href="#__codelineno-13-47"></a><span class="w">      </span><span class="nt">GOOGLE_CLIENT_SECRET</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">${GOOGLE_CLIENT_SECRET}</span>
+<a id="__codelineno-13-48" name="__codelineno-13-48" href="#__codelineno-13-48"></a><span class="w">      </span><span class="nt">APPLE_CLIENT_ID</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">${APPLE_CLIENT_ID}</span>
+<a id="__codelineno-13-49" name="__codelineno-13-49" href="#__codelineno-13-49"></a><span class="w">      </span><span class="nt">APPLE_TEAM_ID</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">${APPLE_TEAM_ID}</span>
+<a id="__codelineno-13-50" name="__codelineno-13-50" href="#__codelineno-13-50"></a><span class="w">      </span><span class="nt">APPLE_KEY_ID</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">${APPLE_KEY_ID}</span>
+<a id="__codelineno-13-51" name="__codelineno-13-51" href="#__codelineno-13-51"></a><span class="w">      </span><span class="nt">APPLE_PRIVATE_KEY</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">${APPLE_PRIVATE_KEY}</span>
+<a id="__codelineno-13-52" name="__codelineno-13-52" href="#__codelineno-13-52"></a>
+<a id="__codelineno-13-53" name="__codelineno-13-53" href="#__codelineno-13-53"></a><span class="w">  </span><span class="nt">web</span><span class="p">:</span>
+<a id="__codelineno-13-54" name="__codelineno-13-54" href="#__codelineno-13-54"></a><span class="w">    </span><span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ovid-staging-web</span>
+<a id="__codelineno-13-55" name="__codelineno-13-55" href="#__codelineno-13-55"></a><span class="w">    </span><span class="nt">build</span><span class="p">:</span>
+<a id="__codelineno-13-56" name="__codelineno-13-56" href="#__codelineno-13-56"></a><span class="w">      </span><span class="nt">context</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./web</span>
+<a id="__codelineno-13-57" name="__codelineno-13-57" href="#__codelineno-13-57"></a><span class="w">      </span><span class="nt">args</span><span class="p">:</span>
+<a id="__codelineno-13-58" name="__codelineno-13-58" href="#__codelineno-13-58"></a><span class="w">        </span><span class="nt">NEXT_PUBLIC_API_URL</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;https://staging-api.oviddb.org&#39;</span>
+<a id="__codelineno-13-59" name="__codelineno-13-59" href="#__codelineno-13-59"></a><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w"> </span><span class="kt">!override</span>
+<a id="__codelineno-13-60" name="__codelineno-13-60" href="#__codelineno-13-60"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;3200:3000&quot;</span>
+<a id="__codelineno-13-61" name="__codelineno-13-61" href="#__codelineno-13-61"></a><span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<a id="__codelineno-13-62" name="__codelineno-13-62" href="#__codelineno-13-62"></a><span class="w">      </span><span class="nt">NEXT_PUBLIC_API_URL</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://staging-api.oviddb.org</span>
+<a id="__codelineno-13-63" name="__codelineno-13-63" href="#__codelineno-13-63"></a><span class="w">      </span><span class="nt">API_URL</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://api:8000</span>
+</code></pre></div>
+<p>Then, from the repo root on holodeck:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>cp<span class="w"> </span>.env.example<span class="w"> </span>.env.staging
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="c1"># Edit .env.staging: OVID_DB_PASSWORD, OVID_SECRET_KEY, OAuth provider creds,</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="c1"># and CORS_ORIGINS=https://staging.oviddb.org (see .env.example&#39;s staging example)</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.staging.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.staging<span class="w"> </span>-p<span class="w"> </span>ovid-staging<span class="w"> </span>build
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.staging.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.staging<span class="w"> </span>-p<span class="w"> </span>ovid-staging<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>db
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.staging.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.staging<span class="w"> </span>-p<span class="w"> </span>ovid-staging<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>api<span class="w"> </span>alembic<span class="w"> </span>upgrade<span class="w"> </span>head
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.staging.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.staging<span class="w"> </span>-p<span class="w"> </span>ovid-staging<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<h3 id="verified-state-phase-gate">Verified state (phase gate)<a class="headerlink" href="#verified-state-phase-gate" title="Permanent link">&para;</a></h3>
+<p>As of 2026-07-07 (07-08 Task 2), the full <code>web</code> Vitest suite (93/93) and full <code>api</code> pytest suite
+(450/450) are green — the required D-06 phase gate before staging sign-off (<code>cd web &amp;&amp; npm test</code>;
+<code>cd api &amp;&amp; .venv/bin/python -m pytest tests/ -q</code>). <code>npx eslint .</code> in <code>web/</code> is also clean (0 issues). No
+warnings (new or pre-existing) were emitted by the <code>api</code> run.</p>
+<h3 id="human-sign-off">Human sign-off<a class="headerlink" href="#human-sign-off" title="Permanent link">&para;</a></h3>
+<p>The live TLS staging deploy + D-03 accessibility floor sign-off is a <code>checkpoint:human-verify</code> — see
+<code>.planning/phases/07-web-ui-production-readiness/07-08-PLAN.md</code> Task 3 (search, disc detail + aliases,
+submit, settings add/remove + merge redirect, keyboard operability/AA contrast in both themes).</p>
+<hr />
+<h2 id="test-stack-holodeck-isolated-oauthui-testing">Test Stack (holodeck, isolated OAuth/UI testing)<a class="headerlink" href="#test-stack-holodeck-isolated-oauthui-testing" title="Permanent link">&para;</a></h2>
+<p>The test stack runs in an isolated directory (<code>~/OVID-test/</code>) on holodeck with its own ports, database volume, and environment. It is used for testing OAuth flows, UI changes, and integration work without affecting dev or production data.</p>
+<h3 id="purpose">Purpose<a class="headerlink" href="#purpose" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Test OAuth provider configurations (GitHub, Apple, Google) against real callback URLs</li>
+<li>Validate UI changes with real API data in an isolated environment</li>
+<li>Run integration tests against a stable stack that won't be disrupted by dev hot-reloading</li>
+</ul>
+<h3 id="ports">Ports<a class="headerlink" href="#ports" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Host Port</th>
+<th>Internal Port</th>
+<th>Container</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PostgreSQL</td>
+<td>5434</td>
+<td>5432</td>
+<td><code>ovid-test-db</code></td>
+</tr>
+<tr>
+<td>API</td>
+<td>8200</td>
+<td>8000</td>
+<td><code>ovid-test-api</code></td>
+</tr>
+<tr>
+<td>Web</td>
+<td>3200</td>
+<td>3000</td>
+<td><code>ovid-test-web</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="deploy">Deploy<a class="headerlink" href="#deploy" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Clone (first time only)</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/The-Artificer-of-Ciphers-LLC/OVID.git<span class="w"> </span>~/OVID-test
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="nb">cd</span><span class="w"> </span>~/OVID-test
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="c1"># Or pull latest (subsequent deploys)</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="nb">cd</span><span class="w"> </span>~/OVID-test<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>pull
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="c1"># Copy .env.test from your local machine (it&#39;s gitignored)</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="c1"># From your dev machine:</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="c1">#   scp .env.test holodeck.nomorestars.com:~/OVID-test/.env.test</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="c1"># Generate OVID_SECRET_KEY if not set</span>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import secrets; print(secrets.token_urlsafe(48))&quot;</span>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a><span class="c1"># Paste the output into .env.test as OVID_SECRET_KEY=&lt;value&gt;</span>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a><span class="c1"># Build images (bakes NEXT_PUBLIC_API_URL into web client)</span>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.test.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.test<span class="w"> </span>-p<span class="w"> </span>ovid-test<span class="w"> </span>build
+<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a>
+<a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a><span class="c1"># Start DB and run migrations</span>
+<a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.test.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.test<span class="w"> </span>-p<span class="w"> </span>ovid-test<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>db
+<a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.test.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.test<span class="w"> </span>-p<span class="w"> </span>ovid-test<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>api<span class="w"> </span>alembic<span class="w"> </span>upgrade<span class="w"> </span>head
+<a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a>
+<a id="__codelineno-15-23" name="__codelineno-15-23" href="#__codelineno-15-23"></a><span class="c1"># Start all services</span>
+<a id="__codelineno-15-24" name="__codelineno-15-24" href="#__codelineno-15-24"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.test.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.test<span class="w"> </span>-p<span class="w"> </span>ovid-test<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<h3 id="verify">Verify<a class="headerlink" href="#verify" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># All containers running</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.test.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.test<span class="w"> </span>-p<span class="w"> </span>ovid-test<span class="w"> </span>ps
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># API health</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>curl<span class="w"> </span>http://holodeck.nomorestars.com:8200/health
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="c1"># Expected: {&quot;status&quot;:&quot;ok&quot;}</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="c1"># Sync head (empty DB returns seq 0)</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>curl<span class="w"> </span>http://holodeck.nomorestars.com:8200/v1/sync/head
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="c1"># Web returns 200</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>curl<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s2">&quot;%{http_code}&quot;</span><span class="w"> </span>http://holodeck.nomorestars.com:3200
+</code></pre></div>
+<h3 id="logs-troubleshooting">Logs &amp; Troubleshooting<a class="headerlink" href="#logs-troubleshooting" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># All services</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.test.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.test<span class="w"> </span>-p<span class="w"> </span>ovid-test<span class="w"> </span>logs<span class="w"> </span>-f
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># Single service</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.test.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.test<span class="w"> </span>-p<span class="w"> </span>ovid-test<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>api
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Check for port conflicts</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>ss<span class="w"> </span>-tlnp<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;(5434|8200|3200)&#39;</span>
+</code></pre></div>
+<h3 id="teardown">Teardown<a class="headerlink" href="#teardown" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Stop without removing data</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.test.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.test<span class="w"> </span>-p<span class="w"> </span>ovid-test<span class="w"> </span>down
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># Stop and remove data volume</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.test.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.test<span class="w"> </span>-p<span class="w"> </span>ovid-test<span class="w"> </span>down<span class="w"> </span>-v
+</code></pre></div>
+<hr />
+<h2 id="running-all-stacks-simultaneously">Running All Stacks Simultaneously<a class="headerlink" href="#running-all-stacks-simultaneously" title="Permanent link">&para;</a></h2>
+<p>The dev, prod, and test stacks can run side-by-side on holodeck because they use different ports, container names, and (for test) a separate project directory:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Dev stack (ports 8000/3000/5432) — from ~/ovid/</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="c1"># Prod stack (ports 8100/3100, DB not exposed) — from ~/ovid/</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.prod.yml<span class="w"> </span>up<span class="w"> </span>-d
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="c1"># Test stack (ports 8200/3200/5434) — from ~/OVID-test/</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="nb">cd</span><span class="w"> </span>~/OVID-test
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.test.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.test<span class="w"> </span>-p<span class="w"> </span>ovid-test<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<p>Note: dev and prod use the same <code>docker-compose.yml</code> base directory, but the prod override sets <code>name: ovid-prod</code> to ensure separate Docker volumes (<code>ovid-prod_ovid_pgdata</code> vs <code>ovid_ovid_pgdata</code>). The test stack uses a separate directory (<code>~/OVID-test/</code>) with its own volume, ensuring full data isolation across all three environments.</p>
+<hr />
+<h2 id="health-check">Health Check<a class="headerlink" href="#health-check" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Dev</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>curl<span class="w"> </span>http://localhost:8000/health
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="c1"># Prod (from holodeck)</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>curl<span class="w"> </span>http://localhost:8100/health
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="c1"># Prod (from internet)</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>curl<span class="w"> </span>https://api.oviddb.org/health
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>
+<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="c1"># Test</span>
+<a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a>curl<span class="w"> </span>http://holodeck.nomorestars.com:8200/health
+</code></pre></div>
+<p>Expected: <code>{"status": "ok"}</code></p>
+<hr />
+<h2 id="updating">Updating<a class="headerlink" href="#updating" title="Permanent link">&para;</a></h2>
+<p>To deploy a new version to production:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Pull latest images</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>pull
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="c1"># Run any new migrations</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.prod.yml<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>api<span class="w"> </span>alembic<span class="w"> </span>upgrade<span class="w"> </span>head
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="c1"># Restart with production overrides</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.prod.yml<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<hr />
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="check-logs">Check Logs<a class="headerlink" href="#check-logs" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># All services (prod)</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.prod.yml<span class="w"> </span>logs<span class="w"> </span>-f
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="c1"># Single service</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.prod.yml<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>api
+</code></pre></div>
+<h3 id="database-connection-issues">Database Connection Issues<a class="headerlink" href="#database-connection-issues" title="Permanent link">&para;</a></h3>
+<p>If the API can't reach PostgreSQL, check:</p>
+<ol>
+<li>The <code>db</code> healthcheck is passing: <code>docker compose ps</code></li>
+<li><code>OVID_DB_PASSWORD</code> in <code>.env</code> matches what PostgreSQL was initialised with</li>
+<li>If the password was changed after first run, delete the volume: <code>docker compose down -v</code> (⚠️ destroys data)</li>
+</ol>
+<h3 id="migration-failures">Migration Failures<a class="headerlink" href="#migration-failures" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.prod.yml<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>api<span class="w"> </span>alembic<span class="w"> </span>current
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.prod.yml<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>api<span class="w"> </span>alembic<span class="w"> </span><span class="nb">history</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
