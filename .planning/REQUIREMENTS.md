@@ -47,7 +47,7 @@
 
 ### Web UI (WEBUI)
 
-- [x] **WEBUI-01**: Search by movie title returns known disc releases (live at `oviddb.org`)
+- [ ] **WEBUI-01**: Search by movie title returns known disc releases (live at `oviddb.org`)
 - [x] **WEBUI-02**: Disc detail view renders full normalized structure (titles, main-feature marker, chapters, audio/subtitle tracks) and shows fingerprint aliases
 - [x] **WEBUI-03**: A submit form lets an authenticated user contribute a new disc entry
 - [x] **WEBUI-04**: Account settings surface (linked providers add/remove) is wired to AUTH-06/07
@@ -148,7 +148,7 @@ Each v1 requirement maps to exactly one phase in `.planning/ROADMAP.md`.
 | VERIFY-02 | Phase 1 | Complete |
 | VERIFY-03 | Phase 2 | Complete |
 | VERIFY-04 | Phase 2 | Complete |
-| WEBUI-01 | Phase 7 | Complete |
+| WEBUI-01 | Phase 7 | Pending |
 | WEBUI-02 | Phase 7 | Complete |
 | WEBUI-03 | Phase 7 | Complete |
 | WEBUI-04 | Phase 7 | Complete |
