@@ -3,14 +3,14 @@ status: testing
 phase: 07-web-ui-production-readiness
 source: [07-VERIFICATION.md]
 started: 2026-07-07T23:54:11Z
-updated: 2026-07-08T01:57:29Z
+updated: 2026-07-08T02:00:41Z
 ---
 
 ## Current Test
 
-number: 2
-name: Search: enter a title on the live staging URL; confirm the input is the centered focal anchor, results/count/pagination render, and the empty-state hint is legible (AA contrast) in BOTH light and dark themes.
-expected: Search behaves as coded (verified in code/tests) and reads correctly in a real browser/OS theme, including actual rendered contrast.
+number: 3
+name: Disc detail: open a disc; confirm the Fingerprint aliases section lists ALL identity strings with the primary badged (data-testid="fingerprint-aliases"); open an unverified disc and confirm the withheld-structure message renders.
+expected: Matches the code/test-verified behavior in a live environment against real disc data.
 awaiting: user response
 
 ## Tests
@@ -22,7 +22,8 @@ verified_by: Prerequisite staging infra verified live end-to-end 2026-07-08 — 
 
 ### 2. Search: enter a title on the live staging URL; confirm the input is the centered focal anchor, results/count/pagination render, and the empty-state hint is legible (AA contrast) in BOTH light and dark themes.
 expected: Search behaves as coded (verified in code/tests) and reads correctly in a real browser/OS theme, including actual rendered contrast.
-result: [pending]
+result: pass
+verified_by: Human-verified in live browser at https://staging.oviddb.org 2026-07-08 — search input anchored/centered, results+count+pagination render, empty-state legible at AA contrast, confirmed in BOTH light and dark themes.
 
 ### 3. Disc detail: open a disc; confirm the Fingerprint aliases section lists ALL identity strings with the primary badged (data-testid="fingerprint-aliases"); open an unverified disc and confirm the withheld-structure message renders.
 expected: Matches the code/test-verified behavior in a live environment against real disc data.
@@ -43,9 +44,9 @@ result: [pending]
 ## Summary
 
 total: 6
-passed: 1
+passed: 2
 issues: 0
-pending: 5
+pending: 4
 skipped: 0
 blocked: 0
 
