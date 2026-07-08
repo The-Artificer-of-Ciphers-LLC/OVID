@@ -13,7 +13,8 @@ function CallbackHandler() {
     const token = searchParams.get("token");
     if (token) {
       setToken(token);
-      router.replace("/");
+      // full nav so useAuth remounts and re-reads the stored token (client nav leaves nav state stale)
+      window.location.assign("/");
       return;
     }
 
